@@ -1,0 +1,71 @@
+@page "/admin/transporteurs"
+@model ColisExpress.Web.Pages.Admin.TransporteursModel
+@{
+    ViewData["Title"] = "Transporteurs";
+}
+
+<h1>Transporteurs</h1>
+<p class="subtitle">Validation KYC et gestion des transporteurs</p>
+
+@if (!string.IsNullOrEmpty(Model.Success)) { <div class="admin-alert success">@Model.Success</div> }
+@if (!string.IsNullOrEmpty(Model.Error)) { <div class="admin-alert error">@Model.Error</div> }
+
+<div class="admin-card">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Transporteur</th>
+                <th>Email / Téléphone</th>
+                <th>Véhicule</th>
+                <th>Note</th>
+                <th>KYC</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var t in Model.Transporteurs)
+            {
+                <tr>
+                    <td style="color:var(--admin-text);font-weight:600;">@t.Nom</td>
+                    <td>
+                        @t.Email<br>
+                        <span style="font-size:11px;color:var(--admin-text-muted);">@t.Telephone</span>
+                    </td>
+                    <td>@t.TypeVehicule</td>
+                    <td>⭐ @t.NoteMoyenne.ToString("0.0") (@t.NombreAvis)</td>
+                    <td>
+                        @switch (t.StatutKyc)
+                        {
+                            case ColisExpress.Domain.Enums.StatutKyc.Valide:
+                                <span class="admin-badge success">Validé</span>
+                                break;
+                            case ColisExpress.Domain.Enums.StatutKyc.EnAttente:
+                                <span class="admin-badge warning">En attente</span>
+                                break;
+                            case ColisExpress.Domain.Enums.StatutKyc.Rejete:
+                                <span class="admin-badge danger">Rejeté</span>
+                                break;
+                            default:
+                                <span class="admin-badge neutral">Non soumis</span>
+                                break;
+                        }
+                    </td>
+                    <td>
+                        @if (t.StatutKyc == ColisExpress.Domain.Enums.StatutKyc.EnAttente)
+                        {
+                            <form method="post" style="display:inline-flex;gap:6px;margin:0;">
+                                <input type="hidden" name="transporteurId" value="@t.Id" />
+                                <button type="submit" asp-page-handler="Approve" class="admin-btn sm success">✓ Approuver</button>
+                                <button type="submit" asp-page-handler="Reject" class="admin-btn sm danger">✗ Rejeter</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span style="color:var(--admin-text-muted);font-size:12px;">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

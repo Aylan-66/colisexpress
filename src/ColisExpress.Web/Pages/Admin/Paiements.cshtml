@@ -1,0 +1,62 @@
+@page "/admin/paiements"
+@model ColisExpress.Web.Pages.Admin.PaiementsModel
+@{
+    ViewData["Title"] = "Paiements";
+}
+
+<h1>Paiements</h1>
+<p class="subtitle">@Model.Paiements.Count paiements enregistrés</p>
+
+<div class="admin-card">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Code colis</th>
+                <th>Client</th>
+                <th>Mode</th>
+                <th>Montant</th>
+                <th>Statut</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model.Paiements)
+            {
+                <tr>
+                    <td><span class="admin-code">@p.CodeColis</span></td>
+                    <td>@p.Client</td>
+                    <td>
+                        @switch (p.Mode)
+                        {
+                            case ColisExpress.Domain.Enums.ModeReglement.Carte:
+                                <span>💳 Carte</span>
+                                break;
+                            case ColisExpress.Domain.Enums.ModeReglement.Especes:
+                                <span>💵 Espèces</span>
+                                break;
+                            default:
+                                <span>📝 Chèque</span>
+                                break;
+                        }
+                    </td>
+                    <td style="font-weight:700;color:var(--admin-text);">@p.Montant.ToString("0.00") €</td>
+                    <td>
+                        @switch (p.Statut)
+                        {
+                            case ColisExpress.Domain.Enums.StatutReglement.Paye:
+                                <span class="admin-badge success">Payé</span>
+                                break;
+                            case ColisExpress.Domain.Enums.StatutReglement.Rembourse:
+                                <span class="admin-badge warning">Remboursé</span>
+                                break;
+                            default:
+                                <span class="admin-badge neutral">En attente</span>
+                                break;
+                        }
+                    </td>
+                    <td>@p.DateCreation.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,53 @@
+@page "/admin/commandes"
+@model ColisExpress.Web.Pages.Admin.CommandesModel
+@{
+    ViewData["Title"] = "Commandes";
+}
+
+<h1>Commandes</h1>
+<p class="subtitle">@Model.Commandes.Count commandes au total</p>
+
+<div class="admin-card">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Code colis</th>
+                <th>Client</th>
+                <th>Transporteur</th>
+                <th>Trajet</th>
+                <th>Statut colis</th>
+                <th>Règlement</th>
+                <th>Total</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model.Commandes)
+            {
+                <tr>
+                    <td><span class="admin-code">@c.CodeColis</span></td>
+                    <td style="color:var(--admin-text);">@c.Client</td>
+                    <td>@c.Transporteur</td>
+                    <td>@c.Trajet</td>
+                    <td><span class="admin-badge primary">@c.StatutColis</span></td>
+                    <td>
+                        @switch (c.StatutReglement)
+                        {
+                            case ColisExpress.Domain.Enums.StatutReglement.Paye:
+                                <span class="admin-badge success">Payé</span>
+                                break;
+                            case ColisExpress.Domain.Enums.StatutReglement.Rembourse:
+                                <span class="admin-badge warning">Remboursé</span>
+                                break;
+                            default:
+                                <span class="admin-badge neutral">En attente</span>
+                                break;
+                        }
+                    </td>
+                    <td style="font-weight:700;color:var(--admin-text);">@c.Total.ToString("0.00") €</td>
+                    <td>@c.DateCreation.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

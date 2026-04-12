@@ -1,0 +1,45 @@
+@page "/confirmation/{codeColis}"
+@model ColisExpress.Web.Pages.Client.ConfirmationModel
+@{
+    ViewData["Title"] = "Confirmation";
+}
+
+@if (Model.Colis is not null)
+{
+    <section class="web-page narrow">
+        <div class="text-center mb-4">
+            <div style="width:80px;height:80px;border-radius:50%;background:var(--success-light);color:var(--success);display:inline-flex;align-items:center;justify-content:center;font-size:40px;margin-bottom:16px;">
+                ✓
+            </div>
+            <h1>Réservation confirmée !</h1>
+            <p class="text-muted">Votre colis est prêt à être pris en charge</p>
+        </div>
+
+        <div class="web-card text-center">
+            <div class="text-muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Code colis</div>
+            <div class="web-code" style="font-size:18px;padding:8px 16px;margin:8px 0;display:inline-block;">@Model.Colis.CodeColis</div>
+
+            <div style="margin:20px auto;">
+                <img src="@Model.QrCodeBase64" alt="QR Code @Model.Colis.CodeColis"
+                     style="width:180px;height:180px;border-radius:8px;" />
+            </div>
+
+            <div class="text-muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Code de retrait</div>
+            <div style="font-size:32px;font-weight:800;color:var(--accent);letter-spacing:8px;margin-top:4px;">@Model.Colis.CodeRetrait</div>
+            <div class="text-muted" style="font-size:12px;margin-top:4px;">À communiquer au destinataire</div>
+        </div>
+
+        <div class="web-card">
+            <h3>Récapitulatif</h3>
+            <div class="flex justify-between mb-2"><span class="text-muted">Trajet</span><span style="font-weight:700;">@Model.Colis.VilleDepart → @Model.Colis.VilleArrivee</span></div>
+            <div class="flex justify-between mb-2"><span class="text-muted">Transporteur</span><span style="font-weight:700;">@Model.Colis.NomTransporteur</span></div>
+            <div class="flex justify-between mb-2"><span class="text-muted">Destinataire</span><span style="font-weight:700;">@Model.Colis.NomDestinataire</span></div>
+            <div class="flex justify-between mb-2"><span class="text-muted">Statut</span><span class="web-badge primary">@Model.Colis.Statut</span></div>
+        </div>
+
+        <div class="flex gap-2 items-center" style="justify-content:center;">
+            <a class="web-btn outline" asp-page="/Client/MesCommandes">Mes commandes</a>
+            <a class="web-btn accent" asp-page="/Client/Suivi" asp-route-codeColis="@Model.Colis.CodeColis">Suivre le colis →</a>
+        </div>
+    </section>
+}

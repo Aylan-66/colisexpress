@@ -1,0 +1,62 @@
+@page "/admin/colis"
+@model ColisExpress.Web.Pages.Admin.ColisModel
+@{
+    ViewData["Title"] = "Colis";
+}
+
+<h1>Recherche colis</h1>
+<p class="subtitle">Retrouvez un colis par son code et consultez sa timeline</p>
+
+<form method="get" class="admin-card" style="padding:18px 22px;margin-bottom:24px;">
+    <input type="text" name="codeColis" value="@Model.CodeColis" class="admin-field-input" placeholder="COL-2026-0001" />
+</form>
+
+@if (Model.NotFoundColis)
+{
+    <div class="admin-alert error">Aucun colis trouvé pour le code <strong>@Model.CodeColis</strong>.</div>
+}
+
+@if (Model.Colis is not null)
+{
+    <div class="admin-grid-2">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3 class="admin-card-title">Timeline du colis @Model.Colis.CodeColis</h3>
+                <span class="admin-badge primary">@Model.Colis.Statut</span>
+            </div>
+            <div class="admin-card-body">
+                @foreach (var e in Model.Colis.Evenements)
+                {
+                    <div style="display:flex;gap:14px;padding-bottom:16px;align-items:flex-start;">
+                        <div style="width:10px;height:10px;border-radius:50%;background:var(--admin-primary);margin-top:6px;flex-shrink:0;"></div>
+                        <div style="flex:1;">
+                            <div style="font-weight:700;color:var(--admin-text);font-size:13px;">@e.NouveauStatut</div>
+                            @if (!string.IsNullOrEmpty(e.Commentaire))
+                            {
+                                <div style="font-size:12px;color:var(--admin-text-dim);">@e.Commentaire</div>
+                            }
+                            <div style="font-size:11px;color:var(--admin-text-muted);margin-top:2px;">@e.DateHeure.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3 class="admin-card-title">Détails</h3>
+            </div>
+            <div class="admin-card-body" style="font-size:13px;">
+                <div style="margin-bottom:10px;"><span style="color:var(--admin-text-muted);">Code retrait :</span> <strong style="color:var(--admin-text);letter-spacing:4px;">@Model.Colis.CodeRetrait</strong></div>
+                <div style="margin-bottom:10px;"><span style="color:var(--admin-text-muted);">Trajet :</span> <strong style="color:var(--admin-text);">@Model.Colis.VilleDepart → @Model.Colis.VilleArrivee</strong></div>
+                <div style="margin-bottom:10px;"><span style="color:var(--admin-text-muted);">Transporteur :</span> <strong style="color:var(--admin-text);">@Model.Colis.NomTransporteur</strong></div>
+                <div style="margin-bottom:10px;"><span style="color:var(--admin-text-muted);">Destinataire :</span> <strong style="color:var(--admin-text);">@Model.Colis.NomDestinataire</strong></div>
+                <div style="margin-bottom:10px;"><span style="color:var(--admin-text-muted);">Poids déclaré :</span> <strong style="color:var(--admin-text);">@Model.Colis.PoidsDeclare kg</strong></div>
+                @if (!string.IsNullOrEmpty(Model.Colis.Dimensions))
+                {
+                    <div style="margin-bottom:10px;"><span style="color:var(--admin-text-muted);">Dimensions :</span> <strong style="color:var(--admin-text);">@Model.Colis.Dimensions</strong></div>
+                }
+            </div>
+        </div>
+    </div>
+}

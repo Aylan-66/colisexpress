@@ -1,0 +1,43 @@
+@page "/admin/points-relais"
+@model ColisExpress.Web.Pages.Admin.PointsRelaisModel
+@{
+    ViewData["Title"] = "Points relais";
+}
+
+<h1>Points relais</h1>
+<p class="subtitle">@Model.PointsRelais.Count points relais enregistrés</p>
+
+<div class="admin-card">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Nom du relais</th>
+                <th>Ville</th>
+                <th>Pays</th>
+                <th>Téléphone</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model.PointsRelais)
+            {
+                <tr>
+                    <td style="color:var(--admin-text);font-weight:600;">@p.NomRelais</td>
+                    <td>@p.Ville</td>
+                    <td>@p.Pays</td>
+                    <td>@p.Telephone</td>
+                    <td>
+                        @if (p.EstActif)
+                        {
+                            <span class="admin-badge success">Actif</span>
+                        }
+                        else
+                        {
+                            <span class="admin-badge neutral">Inactif</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,36 @@
+@page "/connexion"
+@model ColisExpress.Web.Pages.Client.ConnexionModel
+@{
+    ViewData["Title"] = "Connexion";
+}
+
+<section class="web-page narrow">
+    <div class="text-center mb-4">
+        <h1 class="web-card-title">Se connecter</h1>
+        <p class="web-card-subtitle">Accédez à votre espace Colis Express</p>
+    </div>
+
+    <form method="post" class="web-card">
+        @if (!string.IsNullOrEmpty(Model.Error))
+        {
+            <div class="web-alert error">@Model.Error</div>
+        }
+
+        <div class="web-field">
+            <label class="web-field-label" for="Input_Email">Email</label>
+            <input class="web-field-input" id="Input_Email" type="email" asp-for="Input.Email" autocomplete="email" required />
+        </div>
+
+        <div class="web-field">
+            <label class="web-field-label" for="Input_MotDePasse">Mot de passe</label>
+            <input class="web-field-input" id="Input_MotDePasse" type="password" asp-for="Input.MotDePasse" autocomplete="current-password" required />
+        </div>
+
+        <button type="submit" class="web-btn full mt-2">Se connecter</button>
+
+        <p class="text-center text-muted mt-4" style="font-size:13px;">
+            Pas encore de compte ?
+            <a asp-page="/Client/Inscription" class="text-primary" style="font-weight:700;">Créer un compte</a>
+        </p>
+    </form>
+</section>

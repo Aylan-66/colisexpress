@@ -1,0 +1,87 @@
+@page "/suivi/{codeColis?}"
+@model ColisExpress.Web.Pages.Client.SuiviModel
+@{
+    ViewData["Title"] = "Suivre un colis";
+}
+
+<section class="web-page">
+    <h1>Suivi du colis</h1>
+    <p class="subtitle">Entrez le code colis pour voir son statut en temps réel.</p>
+
+    <form method="get" class="web-card" style="max-width:560px;">
+        <div class="web-field-row">
+            <div class="web-field" style="flex:2;">
+                <label class="web-field-label">Code colis</label>
+                <input name="codeColis" class="web-field-input" value="@Model.CodeColis" placeholder="COL-2026-0001" />
+            </div>
+            <div class="web-field" style="display:flex;align-items:flex-end;">
+                <button type="submit" class="web-btn">Rechercher</button>
+            </div>
+        </div>
+    </form>
+
+    @if (Model.NotFoundColis)
+    {
+        <div class="web-alert error">Aucun colis trouvé pour le code <strong>@Model.CodeColis</strong>.</div>
+    }
+
+    @if (Model.Colis is not null)
+    {
+        <div class="grid-2">
+            <div class="web-card">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <div class="web-code">@Model.Colis.CodeColis</div>
+                        <div style="font-weight:800;font-size:16px;margin-top:6px;">@Model.Colis.VilleDepart → @Model.Colis.VilleArrivee</div>
+                    </div>
+                    <span class="web-badge primary">@Model.Colis.Statut</span>
+                </div>
+
+                <div class="timeline mt-4">
+                    @{
+                        var evenements = Model.Colis.Evenements;
+                        var lastIndex = evenements.Count - 1;
+                    }
+                    @for (int i = 0; i < evenements.Count; i++)
+                    {
+                        var e = evenements[i];
+                        var isLast = i == lastIndex;
+                        var dotClass = isLast ? "timeline-dot current" : "timeline-dot active";
+                        var lineClass = isLast ? "timeline-line" : "timeline-line active";
+                        <div class="timeline-item">
+                            <div class="timeline-dot-col">
+                                <div class="@dotClass"></div>
+                                @if (!isLast) { <div class="@lineClass"></div> }
+                            </div>
+                            <div class="timeline-info">
+                                <div class="timeline-title">@e.NouveauStatut</div>
+                                @if (!string.IsNullOrEmpty(e.Commentaire))
+                                {
+                                    <div class="timeline-desc">@e.Commentaire</div>
+                                }
+                                <div class="timeline-time">@e.DateHeure.ToLocalTime().ToString("dd MMM yyyy — HH:mm")</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div>
+                <div class="web-card">
+                    <h3>Détails du colis</h3>
+                    <div class="flex justify-between mb-2"><span class="text-muted">Poids déclaré</span><span style="font-weight:700;">@Model.Colis.PoidsDeclare kg</span></div>
+                    @if (Model.Colis.PoidsReel.HasValue)
+                    {
+                        <div class="flex justify-between mb-2"><span class="text-muted">Poids réel</span><span style="font-weight:700;">@Model.Colis.PoidsReel kg</span></div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Colis.Dimensions))
+                    {
+                        <div class="flex justify-between mb-2"><span class="text-muted">Dimensions</span><span style="font-weight:700;">@Model.Colis.Dimensions</span></div>
+                    }
+                    <div class="flex justify-between mb-2"><span class="text-muted">Transporteur</span><span style="font-weight:700;">@Model.Colis.NomTransporteur</span></div>
+                    <div class="flex justify-between mb-2"><span class="text-muted">Destinataire</span><span style="font-weight:700;">@Model.Colis.NomDestinataire</span></div>
+                </div>
+            </div>
+        </div>
+    }
+</section>

@@ -1,0 +1,81 @@
+@page "/mes-commandes"
+@using ColisExpress.Application.Interfaces
+@model ColisExpress.Web.Pages.Client.MesCommandesModel
+@{
+    ViewData["Title"] = "Mes commandes";
+    string FilterClass(FiltreCommandes f) => Model.Filtre == f ? "web-btn sm" : "web-btn outline sm";
+}
+
+<section class="web-page">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h1>Mes commandes</h1>
+            <p class="subtitle">Retrouvez l'historique de vos envois.</p>
+        </div>
+        <a class="web-btn accent" asp-page="/Client/Recherche">+ Nouvel envoi</a>
+    </div>
+
+    <div class="flex gap-2 items-center mb-4">
+        <a class="@FilterClass(FiltreCommandes.Toutes)" asp-page="/Client/MesCommandes" asp-route-filtre="Toutes">Toutes</a>
+        <a class="@FilterClass(FiltreCommandes.EnCours)" asp-page="/Client/MesCommandes" asp-route-filtre="EnCours">En cours</a>
+        <a class="@FilterClass(FiltreCommandes.Livrees)" asp-page="/Client/MesCommandes" asp-route-filtre="Livrees">Livrées</a>
+        <a class="@FilterClass(FiltreCommandes.Annulees)" asp-page="/Client/MesCommandes" asp-route-filtre="Annulees">Annulées</a>
+    </div>
+
+    @if (!Model.Commandes.Any())
+    {
+        <div class="web-card text-center" style="padding:48px 24px;">
+            <div style="font-size:48px;margin-bottom:12px;">📦</div>
+            <h2>Aucune commande dans cette catégorie</h2>
+            <p class="text-muted mb-4">Commencez par rechercher un transporteur pour envoyer votre premier colis.</p>
+            <a class="web-btn accent" asp-page="/Client/Recherche">Rechercher un transporteur →</a>
+        </div>
+    }
+    else
+    {
+        <div class="web-card" style="padding:0;">
+            <table class="web-table">
+                <thead>
+                    <tr>
+                        <th>Code colis</th>
+                        <th>Trajet</th>
+                        <th>Transporteur</th>
+                        <th>Statut</th>
+                        <th>Montant</th>
+                        <th>Date</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Commandes)
+                    {
+                        <tr>
+                            <td><span class="web-code">@c.CodeColis</span></td>
+                            <td>@c.Trajet</td>
+                            <td>@c.NomTransporteur</td>
+                            <td>
+                                @{
+                                    var badgeClass = c.StatutColis switch
+                                    {
+                                        ColisExpress.Domain.Enums.StatutColis.LivraisonCloturee => "success",
+                                        ColisExpress.Domain.Enums.StatutColis.RetireParDestinataire => "success",
+                                        ColisExpress.Domain.Enums.StatutColis.Annulee => "neutral",
+                                        ColisExpress.Domain.Enums.StatutColis.Incident => "danger",
+                                        ColisExpress.Domain.Enums.StatutColis.Perdu => "danger",
+                                        _ => "primary"
+                                    };
+                                }
+                                <span class="web-badge @badgeClass">@c.StatutColis</span>
+                            </td>
+                            <td style="font-weight:700;">@c.Total.ToString("0.00") €</td>
+                            <td class="text-muted">@c.DateCreation.ToLocalTime().ToString("dd MMM")</td>
+                            <td>
+                                <a asp-page="/Client/Commande" asp-route-id="@c.Id" class="text-primary" style="font-weight:700;">Détail →</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

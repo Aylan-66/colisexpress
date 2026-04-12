@@ -1,0 +1,186 @@
+@page "/commande/{id:guid}"
+@model ColisExpress.Web.Pages.Client.CommandeModel
+@{
+    ViewData["Title"] = "Détail de la commande";
+}
+
+@if (Model.Commande is null)
+{
+    <section class="web-page">
+        <div class="web-alert error">Commande introuvable.</div>
+        <a class="web-btn" asp-page="/Client/MesCommandes">← Retour à mes commandes</a>
+    </section>
+}
+else
+{
+    var commande = Model.Commande;
+    <section class="web-page">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <div style="font-size:12px;color:var(--gray-500);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Détail de la commande</div>
+                <div class="flex gap-2 items-center"><h1 style="margin:0;">@commande.CodeColis</h1>
+                    @{
+                        var badgeClass = commande.StatutColis switch
+                        {
+                            ColisExpress.Domain.Enums.StatutColis.LivraisonCloturee => "success",
+                            ColisExpress.Domain.Enums.StatutColis.RetireParDestinataire => "success",
+                            ColisExpress.Domain.Enums.StatutColis.Annulee => "neutral",
+                            ColisExpress.Domain.Enums.StatutColis.Incident => "danger",
+                            _ => "primary"
+                        };
+                    }
+                    <span class="web-badge @badgeClass">@commande.StatutColis</span>
+                </div>
+            </div>
+            <a class="web-btn outline" asp-page="/Client/MesCommandes">← Mes commandes</a>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.Success)) { <div class="web-alert success">@Model.Success</div> }
+        @if (!string.IsNullOrEmpty(Model.Error)) { <div class="web-alert error">@Model.Error</div> }
+
+        <div class="grid-2">
+            <div>
+                <div class="web-card">
+                    <h2>Trajet</h2>
+                    <div class="flex gap-4 items-center" style="padding:12px;background:var(--gray-50);border-radius:8px;margin-bottom:12px;">
+                        <div>
+                            <div style="font-size:10px;color:var(--gray-500);font-weight:700;text-transform:uppercase;">Départ</div>
+                            <div style="font-weight:800;">@commande.VilleDepart</div>
+                            <div style="font-size:12px;color:var(--gray-500);">@commande.DateDepart.ToLocalTime().ToString("dd MMM yyyy")</div>
+                        </div>
+                        <div class="route-visual" style="flex:1;">
+                            <div class="route-dot from"></div>
+                            <div class="route-line"></div>
+                            <div class="route-dot to"></div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:10px;color:var(--gray-500);font-weight:700;text-transform:uppercase;">Arrivée estimée</div>
+                            <div style="font-weight:800;">@commande.VilleArrivee</div>
+                            <div style="font-size:12px;color:var(--gray-500);">@commande.DateEstimeeArrivee.ToLocalTime().ToString("dd MMM yyyy")</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="web-card">
+                    <h2>Transporteur</h2>
+                    <div class="flex gap-4 items-center">
+                        <div style="width:48px;height:48px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">
+                            @commande.Initiales
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:800;font-size:16px;">@commande.NomTransporteur</div>
+                            <div style="font-size:12px;color:var(--gray-500);">
+                                ⭐ @commande.NoteTransporteur.ToString("0.0") (@commande.NbAvisTransporteur avis) • @commande.TypeVehicule
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="web-card">
+                    <h2>Destinataire</h2>
+                    <div class="flex justify-between mb-2"><span class="text-muted">Nom</span><span style="font-weight:700;">@commande.NomDestinataire</span></div>
+                    <div class="flex justify-between mb-2"><span class="text-muted">Téléphone</span><span style="font-weight:700;">@commande.TelephoneDestinataire</span></div>
+                    <div class="flex justify-between mb-2"><span class="text-muted">Ville</span><span style="font-weight:700;">@commande.VilleDestinataire</span></div>
+                </div>
+
+                <div class="web-card">
+                    <h2>Colis</h2>
+                    <div class="flex justify-between mb-2"><span class="text-muted">Description</span><span style="font-weight:700;">@commande.DescriptionContenu</span></div>
+                    <div class="flex justify-between mb-2"><span class="text-muted">Poids déclaré</span><span style="font-weight:700;">@commande.PoidsDeclare kg</span></div>
+                    @if (!string.IsNullOrEmpty(commande.Dimensions))
+                    {
+                        <div class="flex justify-between mb-2"><span class="text-muted">Dimensions</span><span style="font-weight:700;">@commande.Dimensions</span></div>
+                    }
+                    <div class="flex justify-between mb-2"><span class="text-muted">Valeur déclarée</span><span style="font-weight:700;">@commande.ValeurDeclaree.ToString("0.00") €</span></div>
+                    @if (!string.IsNullOrEmpty(commande.InstructionsParticulieres))
+                    {
+                        <div class="mt-4" style="padding:10px;background:var(--gray-50);border-radius:6px;font-size:12px;color:var(--gray-600);">
+                            <strong>Instructions :</strong> @commande.InstructionsParticulieres
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div>
+                <div class="web-card">
+                    <h3>Récapitulatif</h3>
+                    <div class="flex justify-between mb-2" style="font-size:13px;">
+                        <span class="text-muted">Transport</span>
+                        <span style="font-weight:700;">@commande.PrixTransport.ToString("0.00") €</span>
+                    </div>
+                    <div class="flex justify-between mb-2" style="font-size:13px;">
+                        <span class="text-muted">Frais de service</span>
+                        <span style="font-weight:700;">@commande.FraisService.ToString("0.00") €</span>
+                    </div>
+                    @if (commande.SupplementsTotal > 0)
+                    {
+                        <div class="flex justify-between mb-2" style="font-size:13px;">
+                            <span class="text-muted">Suppléments</span>
+                            <span style="font-weight:700;">@commande.SupplementsTotal.ToString("0.00") €</span>
+                        </div>
+                    }
+                    <hr style="border:none;border-top:1px solid var(--gray-200);margin:12px 0;" />
+                    <div class="flex justify-between" style="font-size:18px;font-weight:800;color:var(--primary);">
+                        <span>Total</span>
+                        <span>@commande.Total.ToString("0.00") €</span>
+                    </div>
+                    <div class="mt-4">
+                        <span class="text-muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Règlement</span>
+                        @switch (commande.StatutReglement)
+                        {
+                            case ColisExpress.Domain.Enums.StatutReglement.Paye:
+                                <div class="mt-2"><span class="web-badge success">Payé</span></div>
+                                break;
+                            case ColisExpress.Domain.Enums.StatutReglement.Rembourse:
+                                <div class="mt-2"><span class="web-badge warning">Remboursé</span></div>
+                                break;
+                            default:
+                                <div class="mt-2"><span class="web-badge neutral">En attente</span></div>
+                                break;
+                        }
+                    </div>
+                </div>
+
+                @if (commande.StatutReglement != ColisExpress.Domain.Enums.StatutReglement.Paye &&
+                     commande.StatutColis != ColisExpress.Domain.Enums.StatutColis.Annulee)
+                {
+                    <div class="web-card">
+                        <h3>Paiement en attente</h3>
+                        <p class="text-muted" style="font-size:13px;margin-bottom:12px;">Finalisez le paiement pour confirmer votre réservation.</p>
+                        <a class="web-btn accent full" asp-page="/Client/Paiement" asp-route-commandeId="@commande.Id">Payer @commande.Total.ToString("0.00") € →</a>
+                    </div>
+                }
+
+                <div class="web-card">
+                    <h3>Suivi & QR code</h3>
+                    <a class="web-btn outline full mb-2" asp-page="/Client/Suivi" asp-route-codeColis="@commande.CodeColis">Voir la timeline</a>
+                    @if (!string.IsNullOrEmpty(commande.CodeRetrait) && commande.StatutColis != ColisExpress.Domain.Enums.StatutColis.Annulee)
+                    {
+                        <div class="mt-4 text-center">
+                            <div class="text-muted" style="font-size:11px;font-weight:700;text-transform:uppercase;">Code retrait</div>
+                            <div style="font-size:24px;font-weight:800;color:var(--accent);letter-spacing:6px;">@commande.CodeRetrait</div>
+                        </div>
+                    }
+                </div>
+
+                @if (commande.EstAnnulable)
+                {
+                    <div class="web-card">
+                        <h3 style="color:var(--danger);">Annuler la commande</h3>
+                        <p class="text-muted" style="font-size:12px;margin-bottom:12px;">
+                            Cette commande peut encore être annulée.
+                            @if (commande.StatutReglement == ColisExpress.Domain.Enums.StatutReglement.Paye)
+                            {
+                                <span>Le montant vous sera remboursé.</span>
+                            }
+                        </p>
+                        <form method="post" asp-page-handler="Annuler" asp-route-id="@commande.Id"
+                              onsubmit="return confirm('Confirmer l\'annulation de cette commande ?');">
+                            <button type="submit" class="web-btn danger full">Annuler la commande</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+}

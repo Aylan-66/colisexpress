@@ -1,0 +1,67 @@
+@{
+    var user = User;
+    var prenom = user?.FindFirst("Prenom")?.Value ?? "";
+    var nom = user?.FindFirst("Nom")?.Value ?? "";
+    var initiales = (prenom.Length > 0 ? prenom[..1] : "") + (nom.Length > 0 ? nom[..1] : "");
+    if (string.IsNullOrEmpty(initiales)) initiales = "A";
+    var currentPath = (Context.Request.Path.Value ?? "/").ToLowerInvariant();
+    string NavClass(string path) => currentPath == path || (path != "/admin" && currentPath.StartsWith(path))
+        ? "admin-sidebar-link active"
+        : "admin-sidebar-link";
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Admin Colis Express</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+</head>
+<body class="admin-body">
+    <aside class="admin-sidebar">
+        <div class="admin-sidebar-logo">
+            <div class="admin-sidebar-logo-icon">📦</div>
+            <div class="admin-sidebar-logo-text">Colis Express<br><span style="font-size:10px;color:var(--admin-text-muted);font-weight:600;">Admin panel</span></div>
+        </div>
+
+        <div class="admin-sidebar-section">Principal</div>
+        <a class="@NavClass("/admin")" asp-page="/Admin/Dashboard"><span class="admin-sidebar-icon">📊</span> Dashboard</a>
+        <a class="@NavClass("/admin/utilisateurs")" asp-page="/Admin/Utilisateurs"><span class="admin-sidebar-icon">👥</span> Utilisateurs</a>
+
+        <div class="admin-sidebar-section">Opérations</div>
+        <a class="@NavClass("/admin/transporteurs")" asp-page="/Admin/Transporteurs"><span class="admin-sidebar-icon">🚚</span> Transporteurs</a>
+        <a class="@NavClass("/admin/points-relais")" asp-page="/Admin/PointsRelais"><span class="admin-sidebar-icon">📍</span> Points relais</a>
+        <a class="@NavClass("/admin/commandes")" asp-page="/Admin/Commandes"><span class="admin-sidebar-icon">📋</span> Commandes</a>
+        <a class="@NavClass("/admin/colis")" asp-page="/Admin/Colis"><span class="admin-sidebar-icon">📦</span> Colis</a>
+
+        <div class="admin-sidebar-section">Finance & support</div>
+        <a class="@NavClass("/admin/paiements")" asp-page="/Admin/Paiements"><span class="admin-sidebar-icon">💳</span> Paiements</a>
+        <a class="@NavClass("/admin/litiges")" asp-page="/Admin/Litiges"><span class="admin-sidebar-icon">⚠️</span> Litiges</a>
+    </aside>
+
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <input type="text" class="admin-topbar-search" placeholder="🔎 Recherche globale (pas encore branchée)" disabled />
+            <div class="admin-topbar-right">
+                <div class="admin-topbar-user">
+                    <div class="admin-topbar-avatar">@initiales.ToUpper()</div>
+                    <div>
+                        <div style="font-weight:700;">@prenom @nom</div>
+                        <div style="font-size:11px;color:var(--admin-text-muted);">Administrateur</div>
+                    </div>
+                </div>
+                <form method="post" asp-page="/Client/Deconnexion" style="margin:0;">
+                    <button type="submit" class="admin-topbar-logout-btn">Déconnexion</button>
+                </form>
+            </div>
+        </header>
+
+        <main class="admin-content">
+            @RenderBody()
+        </main>
+    </div>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

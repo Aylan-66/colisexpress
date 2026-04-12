@@ -1,0 +1,60 @@
+@{
+    var user = User;
+    var isAuth = user?.Identity?.IsAuthenticated ?? false;
+    var prenom = user?.FindFirst("Prenom")?.Value ?? "";
+    var nom = user?.FindFirst("Nom")?.Value ?? "";
+    var initiales = (prenom.Length > 0 ? prenom[..1] : "") + (nom.Length > 0 ? nom[..1] : "");
+    if (string.IsNullOrEmpty(initiales)) initiales = "?";
+    var currentPath = (Context.Request.Path.Value ?? "/").ToLowerInvariant();
+    string NavClass(string path) => currentPath.StartsWith(path) ? "web-nav-link active" : "web-nav-link";
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Colis Express</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <nav class="web-nav">
+        <a class="web-nav-logo" asp-page="/Index">
+            <span class="web-nav-logo-icon">📦</span>
+            Colis Express
+        </a>
+        <div class="web-nav-links">
+            <a class="@NavClass("/recherche")" asp-page="/Client/Recherche">Rechercher</a>
+            @if (isAuth)
+            {
+                <a class="@NavClass("/mes-commandes")" asp-page="/Client/MesCommandes">Mes commandes</a>
+            }
+            <a class="@NavClass("/suivi")" asp-page="/Client/Suivi">Suivre un colis</a>
+
+            @if (isAuth)
+            {
+                <div class="web-nav-user">
+                    <a asp-page="/Client/Profil" title="Mon profil" style="display:flex;align-items:center;gap:10px;">
+                        <div class="web-nav-user-avatar">@initiales.ToUpper()</div>
+                        <span style="font-weight:600;color:var(--gray-700);font-size:13px;">@prenom</span>
+                    </a>
+                    <form method="post" asp-page="/Client/Deconnexion" style="margin:0;">
+                        <button type="submit" class="web-btn outline sm" title="Se déconnecter">Déconnexion</button>
+                    </form>
+                </div>
+            }
+            else
+            {
+                <a class="web-btn outline sm" asp-page="/Client/Connexion">Connexion</a>
+                <a class="web-btn sm" asp-page="/Client/Inscription">Inscription</a>
+            }
+        </div>
+    </nav>
+
+    <main>
+        @RenderBody()
+    </main>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,51 @@
+@page "/admin/utilisateurs"
+@model ColisExpress.Web.Pages.Admin.UtilisateursModel
+@{
+    ViewData["Title"] = "Utilisateurs";
+}
+
+<h1>Utilisateurs</h1>
+<p class="subtitle">@Model.Utilisateurs.Count utilisateurs enregistrés</p>
+
+<form method="get" class="admin-card" style="padding:18px 22px;margin-bottom:24px;">
+    <input type="text" name="search" value="@Model.Search" class="admin-field-input" placeholder="Rechercher par nom, prénom ou email..." />
+</form>
+
+<div class="admin-card">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Nom complet</th>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Statut</th>
+                <th>Inscrit le</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var u in Model.Utilisateurs)
+            {
+                <tr>
+                    <td style="color:var(--admin-text);font-weight:600;">@u.Prenom @u.Nom</td>
+                    <td>@u.Email</td>
+                    <td><span class="admin-badge primary">@u.Role</span></td>
+                    <td>
+                        @if (u.StatutCompte == ColisExpress.Domain.Enums.StatutCompte.Actif)
+                        {
+                            <span class="admin-badge success">Actif</span>
+                        }
+                        else if (u.StatutCompte == ColisExpress.Domain.Enums.StatutCompte.Suspendu)
+                        {
+                            <span class="admin-badge danger">Suspendu</span>
+                        }
+                        else
+                        {
+                            <span class="admin-badge warning">En attente</span>
+                        }
+                    </td>
+                    <td>@u.DateCreation.ToLocalTime().ToString("dd MMM yyyy")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,92 @@
+@page "/resultats"
+@model ColisExpress.Web.Pages.Client.ResultatsModel
+@{
+    ViewData["Title"] = "Résultats de recherche";
+}
+
+<section class="web-page">
+    <h1>Transporteurs disponibles</h1>
+    <p class="subtitle">
+        <strong>@Model.VilleDepart</strong> → <strong>@Model.VilleArrivee</strong> •
+        @Model.DateDepart.ToString("dd MMM yyyy") • @Model.Poids kg
+    </p>
+
+    @if (!Model.Offres.Any())
+    {
+        <div class="web-card text-center" style="padding:48px 24px;">
+            <div style="font-size:48px;margin-bottom:12px;">🔎</div>
+            <h2>Aucun transporteur trouvé</h2>
+            <p class="text-muted mb-4">Aucun trajet ne correspond à vos critères. Essayez une autre date ou une autre ville.</p>
+            <a class="web-btn" asp-page="/Client/Recherche">← Modifier ma recherche</a>
+        </div>
+    }
+    else
+    {
+        <div class="flex gap-2 items-center mb-4" style="flex-wrap:wrap;">
+            <span class="text-muted" style="font-weight:600;font-size:13px;">@Model.Offres.Count résultat@(Model.Offres.Count > 1 ? "s" : "") • Trier par :</span>
+            <a class="web-btn @(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Prix ? "" : "outline") sm"
+               asp-route-villeDepart="@Model.VilleDepart" asp-route-villeArrivee="@Model.VilleArrivee"
+               asp-route-dateDepart="@Model.DateDepart.ToString("yyyy-MM-dd")" asp-route-poids="@Model.Poids"
+               asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent" asp-route-tri="Prix">Prix croissant</a>
+            <a class="web-btn @(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Note ? "" : "outline") sm"
+               asp-route-villeDepart="@Model.VilleDepart" asp-route-villeArrivee="@Model.VilleArrivee"
+               asp-route-dateDepart="@Model.DateDepart.ToString("yyyy-MM-dd")" asp-route-poids="@Model.Poids"
+               asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent" asp-route-tri="Note">Meilleure note</a>
+            <a class="web-btn @(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Rapidite ? "" : "outline") sm"
+               asp-route-villeDepart="@Model.VilleDepart" asp-route-villeArrivee="@Model.VilleArrivee"
+               asp-route-dateDepart="@Model.DateDepart.ToString("yyyy-MM-dd")" asp-route-poids="@Model.Poids"
+               asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent" asp-route-tri="Rapidite">Plus rapide</a>
+        </div>
+
+        @foreach (var offre in Model.Offres)
+        {
+            <div class="web-card">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex gap-4 items-center">
+                        <div style="width:48px;height:48px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">
+                            @offre.Initiales
+                        </div>
+                        <div>
+                            <div style="font-weight:800;font-size:16px;">@offre.NomTransporteur</div>
+                            <div style="font-size:12px;color:var(--gray-500);">
+                                ⭐ @offre.NoteMoyenne.ToString("0.0") (@offre.NombreAvis avis)
+                                <span class="web-badge success" style="margin-left:4px;">Vérifié</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:24px;font-weight:800;color:var(--primary);">@offre.Prix.ToString("0.00") €</div>
+                        <div style="font-size:11px;color:var(--gray-500);">prix transport</div>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-center mb-4" style="padding:12px;background:var(--gray-50);border-radius:8px;">
+                    <div>
+                        <div style="font-size:10px;color:var(--gray-500);font-weight:700;text-transform:uppercase;">Départ</div>
+                        <div style="font-size:13px;font-weight:700;">@offre.DateDepart.ToString("dd MMM")</div>
+                    </div>
+                    <div class="route-visual" style="flex:1;">
+                        <div class="route-dot from"></div>
+                        <div class="route-line"></div>
+                        <div class="route-dot to"></div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:10px;color:var(--gray-500);font-weight:700;text-transform:uppercase;">Arrivée</div>
+                        <div style="font-size:13px;font-weight:700;">@offre.DateEstimeeArrivee.ToString("dd MMM")</div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <div style="font-size:12px;color:var(--gray-500);">
+                        @offre.CapaciteRestante places restantes • @offre.TypeVehicule
+                    </div>
+                    <a class="web-btn" asp-page="/Client/Reservation"
+                       asp-route-trajetId="@offre.TrajetId"
+                       asp-route-poids="@Model.Poids"
+                       asp-route-fragile="@Model.Fragile"
+                       asp-route-urgent="@Model.Urgent">Réserver →</a>
+                </div>
+            </div>
+        }
+    }
+</section>

@@ -1,0 +1,122 @@
+@page "/reservation"
+@model ColisExpress.Web.Pages.Client.ReservationModel
+@{
+    ViewData["Title"] = "Réservation";
+}
+
+<section class="web-page">
+    <h1>Finaliser votre réservation</h1>
+    <p class="subtitle">Remplissez les informations du destinataire et du colis.</p>
+
+    @if (!string.IsNullOrEmpty(Model.Error))
+    {
+        <div class="web-alert error">@Model.Error</div>
+    }
+
+    @if (Model.Offre is not null)
+    {
+        <div class="web-alert info" style="display:flex;gap:10px;align-items:flex-start;">
+            <span style="font-size:18px;">⚠️</span>
+            <div>
+                <strong>Règles à respecter :</strong> poids maximum <strong>@Model.Offre.CapaciteMaxPoids kg</strong> par colis sur ce trajet.
+                Produits interdits : armes, explosifs, drogues, liquides inflammables, batteries lithium, gaz sous pression, animaux vivants, argent liquide, matières radioactives.
+            </div>
+        </div>
+    }
+
+    <div class="grid-2">
+        <form method="post" asp-route-trajetId="@Model.TrajetId" asp-route-poids="@Model.Poids" asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent">
+            <div class="web-card">
+                <h2>Destinataire</h2>
+                <div class="web-field-row">
+                    <div class="web-field">
+                        <label class="web-field-label">Nom complet</label>
+                        <input class="web-field-input" asp-for="Input.NomDestinataire" required />
+                    </div>
+                    <div class="web-field">
+                        <label class="web-field-label">Téléphone</label>
+                        <input class="web-field-input" asp-for="Input.TelephoneDestinataire" required />
+                    </div>
+                </div>
+                <div class="web-field">
+                    <label class="web-field-label">Ville / Wilaya</label>
+                    <input class="web-field-input" asp-for="Input.VilleDestinataire" required />
+                </div>
+            </div>
+
+            <div class="web-card">
+                <h2>Détails du colis</h2>
+                <div class="web-field">
+                    <label class="web-field-label">Description du contenu</label>
+                    <textarea class="web-field-textarea" asp-for="Input.DescriptionContenu" required></textarea>
+                </div>
+                <div class="web-field-row">
+                    <div class="web-field">
+                        <label class="web-field-label">Poids déclaré (kg)</label>
+                        <input type="number" step="0.1" min="0.1"
+                               max="@(Model.Offre?.CapaciteMaxPoids.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture))"
+                               class="web-field-input" asp-for="Input.PoidsDeclare" required />
+                        @if (Model.Offre is not null)
+                        {
+                            <div class="text-muted" style="font-size:11px;margin-top:4px;">Max @Model.Offre.CapaciteMaxPoids kg sur ce trajet</div>
+                        }
+                    </div>
+                    <div class="web-field">
+                        <label class="web-field-label">Dimensions</label>
+                        <input class="web-field-input" asp-for="Input.Dimensions" placeholder="40x30x25 cm" />
+                    </div>
+                </div>
+                <div class="web-field">
+                    <label class="web-field-label">Valeur déclarée (€)</label>
+                    <input type="number" step="0.01" class="web-field-input" asp-for="Input.ValeurDeclaree" required />
+                </div>
+                <div class="web-field">
+                    <label class="web-field-label">Instructions particulières (optionnel)</label>
+                    <textarea class="web-field-textarea" asp-for="Input.InstructionsParticulieres"></textarea>
+                </div>
+            </div>
+
+            <button type="submit" class="web-btn accent full">Continuer vers le paiement →</button>
+        </form>
+
+        <div>
+            @if (Model.Offre is not null)
+            {
+                <div class="web-card">
+                    <h3>Transporteur</h3>
+                    <div class="flex gap-4 items-center mb-4">
+                        <div style="width:44px;height:44px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;">
+                            @Model.Offre.Initiales
+                        </div>
+                        <div>
+                            <div style="font-weight:800;">@Model.Offre.NomTransporteur</div>
+                            <div style="font-size:12px;color:var(--gray-500);">⭐ @Model.Offre.NoteMoyenne.ToString("0.0") (@Model.Offre.NombreAvis avis)</div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:var(--gray-500);">
+                        @Model.Offre.VilleDepart → @Model.Offre.VilleArrivee<br>
+                        Départ : @Model.Offre.DateDepart.ToString("dd MMM yyyy")<br>
+                        Véhicule : @Model.Offre.TypeVehicule
+                    </div>
+                </div>
+
+                <div class="web-card">
+                    <h3>Récapitulatif</h3>
+                    <div class="flex justify-between mb-2" style="font-size:13px;">
+                        <span class="text-muted">Transport</span>
+                        <span style="font-weight:700;">@Model.Offre.Prix.ToString("0.00") €</span>
+                    </div>
+                    <div class="flex justify-between mb-2" style="font-size:13px;">
+                        <span class="text-muted">Frais de service</span>
+                        <span style="font-weight:700;">5,00 €</span>
+                    </div>
+                    <hr style="border:none;border-top:1px solid var(--gray-200);margin:12px 0;" />
+                    <div class="flex justify-between" style="font-size:18px;font-weight:800;color:var(--primary);">
+                        <span>Total</span>
+                        <span>@((Model.Offre.Prix + 5m).ToString("0.00")) €</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>

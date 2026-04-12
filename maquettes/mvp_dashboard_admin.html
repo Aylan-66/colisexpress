@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MVP — Dashboard Administrateur (CSHTML)</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0F1117; --surface: #1A1D27; --surface-2: #232734; --surface-3: #2C3041;
+  --border: #2E3345; --border-light: #3A3F52;
+  --text: #E8E9ED; --text-2: #9BA1B7; --text-3: #6B7190;
+  --primary: #6C5CE7; --primary-light: #8B7CF0; --primary-bg: rgba(108,92,231,0.12);
+  --accent: #F4A261; --accent-bg: rgba(244,162,97,0.12);
+  --success: #2EC4B6; --success-bg: rgba(46,196,182,0.12);
+  --warning: #E76F51; --warning-bg: rgba(231,111,81,0.12);
+  --info: #4EA8DE; --info-bg: rgba(78,168,222,0.12);
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.layout { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar { width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; }
+.sidebar-logo { padding: 20px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+.sidebar-logo-icon { width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.sidebar-logo-text { font-size: 15px; font-weight: 700; }
+.sidebar-logo-badge { font-size: 9px; font-weight: 700; background: var(--primary-bg); color: var(--primary-light); padding: 2px 7px; border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+.sidebar-section { padding: 14px 10px 6px; }
+.sidebar-section-title { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 1.5px; padding: 0 8px; margin-bottom: 6px; }
+.sidebar-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; margin-bottom: 2px; }
+.sidebar-item:hover { background: var(--surface-2); color: var(--text); }
+.sidebar-item.active { background: var(--primary-bg); color: var(--primary-light); font-weight: 600; }
+.sidebar-item-icon { font-size: 15px; width: 18px; text-align: center; }
+.sidebar-item-badge { margin-left: auto; font-size: 10px; font-weight: 700; background: var(--warning); color: white; padding: 2px 7px; border-radius: 8px; }
+
+.sidebar-bottom { margin-top: auto; padding: 14px 10px; border-top: 1px solid var(--border); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 6px; }
+.sidebar-user-av { width: 30px; height: 30px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.sidebar-user-name { font-size: 12px; font-weight: 600; }
+.sidebar-user-role { font-size: 10px; color: var(--text-3); }
+
+/* Main */
+.main { flex: 1; overflow-x: hidden; }
+.topbar { height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 12px; position: sticky; top: 0; z-index: 10; }
+.topbar-title { font-size: 16px; font-weight: 700; }
+.topbar-spacer { flex: 1; }
+.topbar-search { display: flex; align-items: center; gap: 6px; padding: 7px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; color: var(--text-3); min-width: 200px; }
+.topbar-btn { width: 32px; height: 32px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+
+.page { padding: 24px; }
+
+/* KPI */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
+.kpi-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 10px; }
+.kpi-value { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 2px; }
+.kpi-label { font-size: 11px; color: var(--text-3); font-weight: 500; }
+
+/* Table */
+.table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 20px; }
+.table-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.table-title { font-size: 14px; font-weight: 700; }
+.table-filters { display: flex; gap: 6px; }
+.filter-btn { padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border); cursor: pointer; font-family: inherit; }
+.filter-btn.active { background: var(--primary-bg); color: var(--primary-light); border-color: var(--primary); }
+
+table { width: 100%; border-collapse: collapse; }
+thead th { padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+tbody td { padding: 10px 14px; font-size: 13px; color: var(--text-2); border-bottom: 1px solid var(--border); }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr:last-child td { border-bottom: none; }
+
+.t-user { display: flex; align-items: center; gap: 8px; }
+.t-av { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: white; }
+.t-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.t-email { font-size: 10px; color: var(--text-3); }
+.t-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--primary-light); font-weight: 500; }
+.t-badge { display: inline-block; padding: 3px 9px; border-radius: 7px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+.t-badge.active { background: var(--success-bg); color: var(--success); }
+.t-badge.pending { background: var(--accent-bg); color: var(--accent); }
+.t-badge.transit { background: var(--info-bg); color: var(--info); }
+.t-badge.delivered { background: var(--success-bg); color: var(--success); }
+.t-badge.incident { background: var(--warning-bg); color: var(--warning); }
+.t-badge.incomplete { background: var(--surface-3); color: var(--text-3); }
+
+.t-actions { display: flex; gap: 4px; }
+.t-action { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; background: var(--surface-2); border: 1px solid var(--border); cursor: pointer; }
+.t-action.approve { background: var(--success-bg); border-color: var(--success); }
+.t-action.reject { background: var(--warning-bg); border-color: var(--warning); }
+
+.table-pag { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border); }
+.table-pag-info { font-size: 11px; color: var(--text-3); }
+.table-pag-btns { display: flex; gap: 3px; }
+.table-pag-btn { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3); cursor: pointer; font-family: inherit; }
+.table-pag-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR MVP -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">📦</div>
+      <div><div class="sidebar-logo-text">Colis Express</div><div class="sidebar-logo-badge">Admin</div></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Principal</div>
+      <div class="sidebar-item active"><span class="sidebar-item-icon">📊</span>Dashboard</div>
+      <div class="sidebar-item"><span class="sidebar-item-icon">👥</span>Utilisateurs</div>
+      <div class="sidebar-item"><span class="sidebar-item-icon">🚚</span>Transporteurs<span class="sidebar-item-badge">5</span></div>
+      <div class="sidebar-item"><span class="sidebar-item-icon">📍</span>Points relais</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Opérations</div>
+      <div class="sidebar-item"><span class="sidebar-item-icon">📋</span>Commandes</div>
+      <div class="sidebar-item"><span class="sidebar-item-icon">📦</span>Colis</div>
+      <div class="sidebar-item"><span class="sidebar-item-icon">💰</span>Paiements</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Support</div>
+      <div class="sidebar-item"><span class="sidebar-item-icon">⚠️</span>Litiges<span class="sidebar-item-badge">3</span></div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <div class="sidebar-user-av">AD</div>
+        <div><div class="sidebar-user-name">Admin</div><div class="sidebar-user-role">Administrateur</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">Dashboard</div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-search">🔍 Rechercher un colis, une commande...</div>
+      <div class="topbar-btn">🔔</div>
+    </div>
+
+    <div class="page">
+
+      <!-- KPI -->
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="kpi-icon" style="background:var(--primary-bg);">📦</div>
+          <div class="kpi-value">1 247</div>
+          <div class="kpi-label">Colis ce mois</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-icon" style="background:var(--success-bg);">✅</div>
+          <div class="kpi-value">1 089</div>
+          <div class="kpi-label">Colis livrés</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-icon" style="background:var(--accent-bg);">🚚</div>
+          <div class="kpi-value">127</div>
+          <div class="kpi-label">Transporteurs actifs</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-icon" style="background:var(--warning-bg);">⚠️</div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-label">Incidents en cours</div>
+        </div>
+      </div>
+
+      <!-- Commandes récentes -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">📋 Commandes récentes</div>
+          <div class="table-filters">
+            <button class="filter-btn active">Toutes</button>
+            <button class="filter-btn">En cours</button>
+            <button class="filter-btn">Livrées</button>
+            <button class="filter-btn">Incidents</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Code</th><th>Client</th><th>Trajet</th><th>Transporteur</th><th>Statut</th><th>Montant</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="t-code">COL-2026-0923</span></td>
+              <td><div class="t-user"><div class="t-av" style="background:#6C5CE7;">JD</div><div><div class="t-name">John Doe</div><div class="t-email">john@email.com</div></div></div></td>
+              <td>Paris → Alger</td><td>John D.</td>
+              <td><span class="t-badge transit">En transit</span></td>
+              <td style="font-weight:600;">45,50 €</td><td>14 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action">✏️</div></div></td>
+            </tr>
+            <tr>
+              <td><span class="t-code">COL-2026-0924</span></td>
+              <td><div class="t-user"><div class="t-av" style="background:#F4A261;">PM</div><div><div class="t-name">Pierre M.</div><div class="t-email">pierre@email.com</div></div></div></td>
+              <td>Paris → Alger</td><td>John D.</td>
+              <td><span class="t-badge pending">En attente</span></td>
+              <td style="font-weight:600;">70,00 €</td><td>14 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action">✏️</div></div></td>
+            </tr>
+            <tr>
+              <td><span class="t-code">COL-2026-0847</span></td>
+              <td><div class="t-user"><div class="t-av" style="background:#4EA8DE;">AL</div><div><div class="t-name">Alice L.</div><div class="t-email">alice@email.com</div></div></div></td>
+              <td>Lyon → Casablanca</td><td>Alice L.</td>
+              <td><span class="t-badge delivered">Livré</span></td>
+              <td style="font-weight:600;">38,00 €</td><td>12 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action">✏️</div></div></td>
+            </tr>
+            <tr>
+              <td><span class="t-code">COL-2026-0740</span></td>
+              <td><div class="t-user"><div class="t-av" style="background:#E76F51;">TB</div><div><div class="t-name">Tom B.</div><div class="t-email">tom@email.com</div></div></div></td>
+              <td>Paris → Oran</td><td>John D.</td>
+              <td><span class="t-badge incident">Incident</span></td>
+              <td style="font-weight:600;">40,00 €</td><td>8 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action">✏️</div></div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="table-pag">
+          <div class="table-pag-info">1-4 sur 1 247</div>
+          <div class="table-pag-btns"><button class="table-pag-btn">←</button><button class="table-pag-btn active">1</button><button class="table-pag-btn">2</button><button class="table-pag-btn">3</button><button class="table-pag-btn">→</button></div>
+        </div>
+      </div>
+
+      <!-- Transporteurs à valider -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">🚚 Transporteurs en attente de validation</div>
+          <div class="table-filters">
+            <button class="filter-btn active">En attente (5)</button>
+            <button class="filter-btn">Vérifiés</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Transporteur</th><th>Corridors</th><th>Documents</th><th>Statut KYC</th><th>Inscrit le</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div class="t-user"><div class="t-av" style="background:#F4A261;">EK</div><div><div class="t-name">Eva K.</div><div class="t-email">eva@email.com</div></div></div></td>
+              <td>FR → DZ</td><td>4/5 soumis</td>
+              <td><span class="t-badge pending">En attente</span></td><td>13 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action approve">✓</div><div class="t-action reject">✕</div></div></td>
+            </tr>
+            <tr>
+              <td><div class="t-user"><div class="t-av" style="background:#4EA8DE;">LR</div><div><div class="t-name">Lucas R.</div><div class="t-email">lucas@email.com</div></div></div></td>
+              <td>FR → MA</td><td>5/5 soumis</td>
+              <td><span class="t-badge pending">En attente</span></td><td>12 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action approve">✓</div><div class="t-action reject">✕</div></div></td>
+            </tr>
+            <tr>
+              <td><div class="t-user"><div class="t-av" style="background:#2EC4B6;">SN</div><div><div class="t-name">Sophie N.</div><div class="t-email">sophie@email.com</div></div></div></td>
+              <td>FR → TN</td><td>3/5 soumis</td>
+              <td><span class="t-badge incomplete">Incomplet</span></td><td>11 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action">📩</div></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Litiges -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">⚠️ Litiges en cours</div>
+          <div class="table-filters">
+            <button class="filter-btn active">Ouverts (3)</button>
+            <button class="filter-btn">Résolus</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Code</th><th>Type</th><th>Signalé par</th><th>Transporteur</th><th>Statut</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="t-code">COL-2026-0740</span></td><td>Colis endommagé</td>
+              <td><div class="t-name">Tom B.</div></td><td>John D.</td>
+              <td><span class="t-badge incident">Ouvert</span></td><td>8 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action">💬</div></div></td>
+            </tr>
+            <tr>
+              <td><span class="t-code">COL-2026-0698</span></td><td>Retard</td>
+              <td><div class="t-name">Alice L.</div></td><td>Eva K.</td>
+              <td><span class="t-badge pending">En cours</span></td><td>5 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action">💬</div></div></td>
+            </tr>
+            <tr>
+              <td><span class="t-code">COL-2026-0651</span></td><td>Colis perdu</td>
+              <td><div class="t-name">Pierre M.</div></td><td>Sophie N.</td>
+              <td><span class="t-badge incident">Ouvert</span></td><td>2 avr.</td>
+              <td><div class="t-actions"><div class="t-action">👁</div><div class="t-action">💬</div></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

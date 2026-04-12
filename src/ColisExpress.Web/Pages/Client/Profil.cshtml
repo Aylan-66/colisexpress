@@ -1,0 +1,110 @@
+@page "/profil"
+@model ColisExpress.Web.Pages.Client.ProfilModel
+@{
+    ViewData["Title"] = "Mon profil";
+}
+
+<section class="web-page" style="max-width:780px;">
+    <h1>Mon profil</h1>
+    <p class="subtitle">Gérez vos informations personnelles et votre mot de passe.</p>
+
+    @if (!string.IsNullOrEmpty(Model.Success)) { <div class="web-alert success">@Model.Success</div> }
+    @if (!string.IsNullOrEmpty(Model.Error)) { <div class="web-alert error">@Model.Error</div> }
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Envois totaux</div>
+            <div class="kpi-value">@Model.Stats.EnvoisTotaux</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Livrés</div>
+            <div class="kpi-value">@Model.Stats.Livres</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Membre depuis</div>
+            <div class="kpi-value" style="font-size:18px;">@Model.Stats.MembreDepuis.ToString("MMM yyyy")</div>
+        </div>
+    </div>
+
+    <div class="web-card">
+        <div class="flex justify-between items-center mb-2">
+            <h2 style="margin:0;">Cotransportage @DateTime.UtcNow.Year</h2>
+            @if (Model.Stats.AlerteCotransportage)
+            {
+                <span class="web-badge warning">Proche du plafond</span>
+            }
+        </div>
+        <p class="text-muted" style="font-size:12px;margin-bottom:12px;">
+            Suivi du partage de frais sur l'année en cours. Au-delà du plafond, l'activité pourrait être requalifiée en transport professionnel (article L.3232-1 du Code des transports).
+        </p>
+        @{
+            var pct = Model.Stats.PlafondCotransportage > 0
+                ? (double)(Model.Stats.MontantAnneeEnCours / Model.Stats.PlafondCotransportage) * 100
+                : 0;
+            if (pct > 100) pct = 100;
+            var barColor = Model.Stats.AlerteCotransportage ? "var(--warning)" : "var(--success)";
+        }
+        <div style="height:10px;background:var(--gray-100);border-radius:6px;overflow:hidden;margin-bottom:8px;">
+            <div style="height:100%;width:@pct.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%;background:@barColor;"></div>
+        </div>
+        <div class="flex justify-between" style="font-size:13px;">
+            <span style="font-weight:700;color:var(--gray-800);">@Model.Stats.MontantAnneeEnCours.ToString("0.00") €</span>
+            <span class="text-muted">sur @Model.Stats.PlafondCotransportage.ToString("0") € / an</span>
+        </div>
+        @if (Model.Stats.AlerteCotransportage)
+        {
+            <div class="web-alert error mt-4" style="margin-bottom:0;">
+                Vous approchez du plafond annuel de partage de frais. Contactez-nous si vos besoins d'envoi dépassent ce seuil.
+            </div>
+        }
+    </div>
+
+    <form method="post" asp-page-handler="Update" class="web-card">
+        <h2>Informations personnelles</h2>
+        <div class="web-field-row">
+            <div class="web-field">
+                <label class="web-field-label">Prénom</label>
+                <input class="web-field-input" asp-for="Input.Prenom" required />
+            </div>
+            <div class="web-field">
+                <label class="web-field-label">Nom</label>
+                <input class="web-field-input" asp-for="Input.Nom" required />
+            </div>
+        </div>
+        <div class="web-field">
+            <label class="web-field-label">Email</label>
+            <input class="web-field-input" value="@Model.Email" readonly />
+        </div>
+        <div class="web-field">
+            <label class="web-field-label">Téléphone</label>
+            <input class="web-field-input" asp-for="Input.Telephone" required />
+        </div>
+        <div class="web-field">
+            <label class="web-field-label">Adresse</label>
+            <input class="web-field-input" asp-for="Input.Adresse" />
+        </div>
+        <div class="web-field">
+            <label class="web-field-label">Rôle</label>
+            <input class="web-field-input" value="@Model.Role" readonly />
+        </div>
+
+        <button type="submit" class="web-btn">Enregistrer</button>
+    </form>
+
+    <form method="post" asp-page-handler="ChangePassword" class="web-card">
+        <h2>Mot de passe</h2>
+        <div class="web-field">
+            <label class="web-field-label">Ancien mot de passe</label>
+            <input type="password" class="web-field-input" asp-for="ChangePwd.AncienMotDePasse" autocomplete="current-password" required />
+        </div>
+        <div class="web-field">
+            <label class="web-field-label">Nouveau mot de passe</label>
+            <input type="password" class="web-field-input" asp-for="ChangePwd.NouveauMotDePasse" autocomplete="new-password" minlength="8" required />
+        </div>
+        <div class="web-field">
+            <label class="web-field-label">Confirmer le nouveau mot de passe</label>
+            <input type="password" class="web-field-input" asp-for="ChangePwd.ConfirmationNouveauMotDePasse" autocomplete="new-password" minlength="8" required />
+        </div>
+        <button type="submit" class="web-btn">Changer le mot de passe</button>
+    </form>
+</section>

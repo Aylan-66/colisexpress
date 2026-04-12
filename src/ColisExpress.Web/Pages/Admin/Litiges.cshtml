@@ -1,0 +1,50 @@
+@page "/admin/litiges"
+@model ColisExpress.Web.Pages.Admin.LitigesModel
+@{
+    ViewData["Title"] = "Litiges";
+}
+
+<h1>Litiges</h1>
+<p class="subtitle">Gestion des incidents et réclamations</p>
+
+<div class="admin-alert info">
+    🚧 Module litiges — hors scope MVP. Le cahier des charges prévoit un simple email pour le MVP.
+    Quand on activera la gestion via UI, on liera ici les colis en statut <strong>Incident</strong>, <strong>Refusé</strong>,
+    <strong>Endommagé</strong>, <strong>Perdu</strong> ou <strong>RetourExpediteur</strong>.
+</div>
+
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h3 class="admin-card-title">Colis en incident (@Model.ColisEnIncident.Count)</h3>
+    </div>
+    @if (!Model.ColisEnIncident.Any())
+    {
+        <div class="admin-card-body" style="color:var(--admin-text-muted);font-size:13px;">Aucun colis en incident pour l'instant.</div>
+    }
+    else
+    {
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Code colis</th>
+                    <th>Client</th>
+                    <th>Trajet</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.ColisEnIncident)
+                {
+                    <tr>
+                        <td><span class="admin-code">@c.CodeColis</span></td>
+                        <td>@c.Client</td>
+                        <td>@c.Trajet</td>
+                        <td><span class="admin-badge danger">@c.StatutColis</span></td>
+                        <td>@c.DateCreation.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

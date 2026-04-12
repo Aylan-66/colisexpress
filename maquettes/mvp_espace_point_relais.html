@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MVP — Espace Point Relais (App Mobile)</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #1B4965; --accent: #F4A261; --accent-dark: #E08A3A; --success: #2EC4B6; --success-light: #E8F8F6; --warning: #E76F51;
+  --relay: #7C3AED; --relay-light: #EDE9FE; --relay-dark: #5B21B6;
+  --bg: #F7F5F2; --white: #FFFFFF; --gray-50: #FAFAF9; --gray-100: #F3F2F0; --gray-200: #E8E6E3; --gray-300: #D4D1CC; --gray-400: #A8A29E; --gray-500: #78716C; --gray-600: #57534E; --gray-700: #44403C; --gray-800: #292524; --gray-900: #1C1917;
+  --shadow-sm: 0 1px 3px rgba(27,73,101,0.06); --shadow-md: 0 4px 12px rgba(27,73,101,0.08);
+  --radius-sm: 10px; --radius-md: 14px; --radius-lg: 20px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: #E8E6E3; color: var(--gray-800); padding: 40px 20px; }
+h1.page-title { text-align: center; font-size: 28px; font-weight: 800; color: var(--relay); margin-bottom: 8px; }
+p.page-subtitle { text-align: center; font-size: 15px; color: var(--gray-500); margin-bottom: 40px; }
+.section-divider { padding: 30px 0 16px; text-align: center; }
+.section-divider h2 { font-size: 20px; font-weight: 800; color: var(--relay); margin-bottom: 4px; }
+.section-divider p { font-size: 13px; color: var(--gray-500); }
+.screens-row { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; margin-bottom: 50px; }
+.screen-wrapper { display: flex; flex-direction: column; align-items: center; }
+.screen-label { font-size: 13px; font-weight: 700; color: var(--relay); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; background: var(--white); padding: 6px 16px; border-radius: 20px; box-shadow: var(--shadow-sm); }
+.phone-frame { width: 310px; height: 660px; background: var(--white); border-radius: 40px; box-shadow: 0 20px 60px rgba(27,73,101,0.15), 0 0 0 1px rgba(27,73,101,0.05); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.notch { width: 100px; height: 25px; background: var(--gray-900); border-radius: 0 0 18px 18px; position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 10; }
+.status-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; font-weight: 600; flex-shrink: 0; color: var(--gray-800); }
+.status-bar .icons { display: flex; gap: 5px; }
+.status-bar .icons span { font-size: 11px; }
+.screen-content { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.screen-content::-webkit-scrollbar { display: none; }
+.s { background: var(--bg); display: flex; flex-direction: column; height: 100%; }
+.bottom-nav { height: 68px; background: var(--white); border-top: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-around; padding: 0 8px; flex-shrink: 0; }
+.nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: var(--gray-400); }
+.nav-item.active { color: var(--relay); }
+.nav-icon { font-size: 20px; height: 24px; display: flex; align-items: center; }
+.back-btn { width: 38px; height: 38px; background: var(--white); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: var(--shadow-sm); }
+.hdr { padding: 8px 20px 16px; display: flex; align-items: center; gap: 12px; }
+.hdr h2 { font-size: 18px; font-weight: 700; color: var(--gray-900); flex: 1; }
+.card { margin: 0 20px 12px; background: var(--white); border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow-sm); }
+.card-lg { margin: 0 20px 12px; background: var(--white); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-md); }
+.fl { font-size: 10px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+.fi { width: 100%; padding: 12px 14px; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; color: var(--gray-800); font-weight: 500; font-family: inherit; }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.badge.expected { background: var(--relay-light); color: var(--relay); }
+.badge.stored { background: #E8F0F7; color: var(--primary); }
+.badge.available { background: var(--success-light); color: var(--success); }
+.btn-relay { width: 100%; padding: 16px; background: var(--relay); border: none; border-radius: var(--radius-md); color: white; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 15px rgba(124,58,237,0.25); display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-success { width: 100%; padding: 16px; background: var(--success); border: none; border-radius: var(--radius-md); color: white; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 15px rgba(46,196,182,0.25); display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-warning { width: 100%; padding: 16px; background: var(--warning); border: none; border-radius: var(--radius-md); color: white; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">📍 MVP — Espace Point Relais</h1>
+<p class="page-subtitle">Maquettes mobile Flutter — Version MVP (6 écrans)</p>
+
+<!-- ================================================ -->
+<!-- ROW 1 : Dashboard + Réception + Stock            -->
+<!-- ================================================ -->
+<div class="section-divider">
+  <h2>Dashboard & Réception</h2>
+  <p>Accueil, réception et stock</p>
+</div>
+
+<div class="screens-row">
+
+  <!-- ECRAN 1 : Dashboard -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Dashboard</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="s">
+        <div class="status-bar"><span>09:41</span><div class="icons"><span>📶</span><span>🔋</span></div></div>
+        <div class="screen-content">
+          <div style="padding:8px 20px 0;display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:40px;height:40px;background:linear-gradient(135deg,var(--relay),var(--relay-dark));border-radius:13px;display:flex;align-items:center;justify-content:center;color:white;font-size:15px;font-weight:700;">RP</div>
+              <div><div style="font-size:12px;color:var(--gray-500);">Point Relais 📍</div><div style="font-size:16px;font-weight:700;">Relais Centre</div></div>
+            </div>
+            <div style="width:40px;height:40px;background:var(--white);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:var(--shadow-sm);">🔔</div>
+          </div>
+
+          <div style="margin:18px 20px 0;background:linear-gradient(145deg,var(--relay),var(--relay-dark));border-radius:var(--radius-lg);padding:22px;color:white;">
+            <div style="font-size:18px;font-weight:700;margin-bottom:6px;">Aujourd'hui</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.6);">3 colis attendus · 5 disponibles au retrait</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:18px 20px 0;">
+            <div style="background:var(--white);border-radius:var(--radius-md);padding:12px 6px;text-align:center;box-shadow:var(--shadow-sm);"><div style="font-size:18px;font-weight:800;color:var(--relay);">3</div><div style="font-size:9px;color:var(--gray-500);font-weight:600;">Attendus</div></div>
+            <div style="background:var(--white);border-radius:var(--radius-md);padding:12px 6px;text-align:center;box-shadow:var(--shadow-sm);"><div style="font-size:18px;font-weight:800;color:var(--success);">5</div><div style="font-size:9px;color:var(--gray-500);font-weight:600;">À retirer</div></div>
+            <div style="background:var(--white);border-radius:var(--radius-md);padding:12px 6px;text-align:center;box-shadow:var(--shadow-sm);"><div style="font-size:18px;font-weight:800;color:var(--primary);">2</div><div style="font-size:9px;color:var(--gray-500);font-weight:600;">Stockés</div></div>
+          </div>
+
+          <div style="padding:18px 20px 10px;font-size:16px;font-weight:700;">Colis attendus</div>
+
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;"><div style="font-size:11px;font-weight:600;color:var(--gray-500);font-family:'DM Sans',monospace;">COL-2026-0923</div><div class="badge expected">Attendu</div></div>
+            <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Paris <span style="color:var(--accent);">→</span> Alger</div>
+            <div style="font-size:11px;color:var(--gray-500);">🚚 John D. · 📦 8 kg · 📅 Auj.</div>
+          </div>
+
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;"><div style="font-size:11px;font-weight:600;color:var(--gray-500);font-family:'DM Sans',monospace;">COL-2026-0924</div><div class="badge expected">Attendu</div></div>
+            <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Paris <span style="color:var(--accent);">→</span> Alger</div>
+            <div style="font-size:11px;color:var(--gray-500);">🚚 John D. · 📦 15 kg · 📅 Auj.</div>
+          </div>
+
+          <div style="padding:14px 20px 10px;font-size:16px;font-weight:700;">Disponibles au retrait</div>
+
+          <div class="card" style="border-left:3px solid var(--success);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;"><div style="font-size:11px;font-weight:600;color:var(--gray-500);font-family:'DM Sans',monospace;">COL-2026-0847</div><div class="badge available">À retirer</div></div>
+            <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Lyon <span style="color:var(--accent);">→</span> Casablanca</div>
+            <div style="font-size:11px;color:var(--gray-500);">👤 Alice L. · 📦 12 kg · ⏰ 2 jours</div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-icon">🏠</div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon">📥</div>Réception</div>
+          <div class="nav-item"><div class="nav-icon">📦</div>Stock</div>
+          <div class="nav-item"><div class="nav-icon">📤</div>Retrait</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ECRAN 2 : Réception -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Réception colis</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="s">
+        <div class="status-bar"><span>09:42</span><div class="icons"><span>📶</span><span>🔋</span></div></div>
+        <div class="screen-content">
+          <div class="hdr"><div class="back-btn">←</div><h2>Réception d'un colis</h2></div>
+
+          <div style="margin:0 20px 14px;background:var(--gray-900);border-radius:var(--radius-lg);height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;position:relative;overflow:hidden;">
+            <div style="position:absolute;width:130px;height:130px;border:2px solid rgba(124,58,237,0.5);border-radius:20px;"></div>
+            <div style="font-size:34px;margin-bottom:6px;opacity:0.8;">📷</div>
+            <div style="font-size:12px;font-weight:600;opacity:0.6;">Scannez le QR code</div>
+          </div>
+
+          <div style="text-align:center;font-size:12px;color:var(--gray-400);margin:0 20px 14px;display:flex;align-items:center;gap:10px;"><div style="flex:1;height:1px;background:var(--gray-200);"></div>ou saisir le code<div style="flex:1;height:1px;background:var(--gray-200);"></div></div>
+
+          <div class="card"><div class="fl">Code colis</div><div class="fi" style="font-family:'DM Sans',monospace;font-weight:700;letter-spacing:1px;">COL-2026-0923</div></div>
+
+          <div class="card-lg">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div><div style="font-size:14px;font-weight:700;">Paris → Alger</div><div style="font-size:11px;color:var(--gray-500);">Transporteur : John D.</div></div>
+              <div class="badge expected">Attendu</div>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:10px;">
+              <div style="flex:1;"><div class="fl">Destinataire</div><div class="fi">Jane S.</div></div>
+              <div style="flex:1;"><div class="fl">Poids</div><div class="fi">8 kg</div></div>
+            </div>
+            <div class="fl">État du colis</div>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+              <div style="padding:8px 14px;border-radius:20px;font-size:11px;font-weight:700;background:var(--success-light);color:var(--success);border:1.5px solid var(--success);">✓ Bon état</div>
+              <div style="padding:8px 14px;border-radius:20px;font-size:11px;font-weight:600;background:var(--white);color:var(--gray-500);border:1.5px solid var(--gray-200);">Abîmé</div>
+              <div style="padding:8px 14px;border-radius:20px;font-size:11px;font-weight:600;background:var(--white);color:var(--gray-500);border:1.5px solid var(--gray-200);">Ouvert</div>
+            </div>
+          </div>
+
+          <div style="margin:0 20px 20px;"><button class="btn-relay">✓ Confirmer la réception</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ECRAN 3 : Stock -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Stock</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="s">
+        <div class="status-bar"><span>09:43</span><div class="icons"><span>📶</span><span>🔋</span></div></div>
+        <div class="screen-content">
+          <div class="hdr"><h2>Colis en stock</h2></div>
+
+          <div style="display:flex;gap:6px;padding:0 20px;margin-bottom:14px;">
+            <div style="padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;background:var(--relay);color:white;border:1.5px solid var(--relay);">Tous (7)</div>
+            <div style="padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;background:var(--white);color:var(--gray-500);border:1.5px solid var(--gray-200);">Stockés</div>
+            <div style="padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;background:var(--white);color:var(--gray-500);border:1.5px solid var(--gray-200);">À retirer</div>
+          </div>
+
+          <div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><div style="font-size:11px;font-weight:600;color:var(--gray-500);font-family:'DM Sans',monospace;">COL-2026-0923</div><div class="badge stored">Stocké</div></div><div style="font-size:14px;font-weight:700;margin-bottom:4px;">Paris <span style="color:var(--accent);">→</span> Alger</div><div style="font-size:11px;color:var(--gray-500);">👤 Jane S. · 8 kg · Reçu auj.</div></div>
+          <div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><div style="font-size:11px;font-weight:600;color:var(--gray-500);font-family:'DM Sans',monospace;">COL-2026-0924</div><div class="badge stored">Stocké</div></div><div style="font-size:14px;font-weight:700;margin-bottom:4px;">Paris <span style="color:var(--accent);">→</span> Alger</div><div style="font-size:11px;color:var(--gray-500);">👤 Pierre M. · 15 kg · Reçu auj.</div></div>
+          <div class="card" style="border-left:3px solid var(--success);"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><div style="font-size:11px;font-weight:600;color:var(--gray-500);font-family:'DM Sans',monospace;">COL-2026-0847</div><div class="badge available">À retirer</div></div><div style="font-size:14px;font-weight:700;margin-bottom:4px;">Lyon <span style="color:var(--accent);">→</span> Casablanca</div><div style="font-size:11px;color:var(--gray-500);">👤 Alice L. · 12 kg · ⏰ 2 jours</div></div>
+          <div class="card" style="border-left:3px solid var(--success);"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><div style="font-size:11px;font-weight:600;color:var(--gray-500);font-family:'DM Sans',monospace;">COL-2026-0850</div><div class="badge available">À retirer</div></div><div style="font-size:14px;font-weight:700;margin-bottom:4px;">Marseille <span style="color:var(--accent);">→</span> Tunis</div><div style="font-size:11px;color:var(--gray-500);">👤 Tom B. · 6 kg · ⏰ 1 jour</div></div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon">🏠</div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon">📥</div>Réception</div>
+          <div class="nav-item active"><div class="nav-icon">📦</div>Stock</div>
+          <div class="nav-item"><div class="nav-icon">📤</div>Retrait</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================ -->
+<!-- ROW 2 : Retrait + Incident                       -->
+<!-- ================================================ -->
+<div class="section-divider">
+  <h2>Retrait & Incidents</h2>
+  <p>Validation retrait et signalement</p>
+</div>
+
+<div class="screens-row">
+
+  <!-- ECRAN 4 : Retrait -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Validation retrait</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="s">
+        <div class="status-bar"><span>10:00</span><div class="icons"><span>📶</span><span>🔋</span></div></div>
+        <div class="screen-content">
+          <div class="hdr"><div class="back-btn">←</div><h2>Validation du retrait</h2></div>
+
+          <div style="margin:0 20px 14px;background:var(--gray-900);border-radius:var(--radius-lg);height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;position:relative;overflow:hidden;">
+            <div style="position:absolute;width:120px;height:120px;border:2px solid rgba(124,58,237,0.5);border-radius:20px;"></div>
+            <div style="font-size:30px;margin-bottom:6px;opacity:0.8;">📷</div>
+            <div style="font-size:11px;font-weight:600;opacity:0.6;">Scanner le QR de retrait</div>
+          </div>
+
+          <div style="text-align:center;font-size:12px;color:var(--gray-400);margin:0 20px 14px;display:flex;align-items:center;gap:10px;"><div style="flex:1;height:1px;background:var(--gray-200);"></div>ou saisir le code de retrait<div style="flex:1;height:1px;background:var(--gray-200);"></div></div>
+
+          <div style="margin:0 20px 14px;background:var(--white);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-md);text-align:center;">
+            <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Code de retrait</div>
+            <div style="font-size:28px;font-weight:800;color:var(--relay);font-family:'DM Sans',monospace;letter-spacing:3px;margin-bottom:4px;">8 4 7 2</div>
+            <div style="font-size:10px;color:var(--gray-400);">Code à 4 chiffres du destinataire</div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin:0 20px 14px;">
+            <div style="flex:1;background:var(--white);border-radius:var(--radius-md);padding:14px 8px;text-align:center;box-shadow:var(--shadow-sm);border:1.5px solid var(--relay);background:var(--relay-light);cursor:pointer;">
+              <div style="font-size:22px;margin-bottom:4px;">🔢</div>
+              <div style="font-size:10px;font-weight:700;color:var(--gray-700);">Code</div>
+            </div>
+            <div style="flex:1;background:var(--white);border-radius:var(--radius-md);padding:14px 8px;text-align:center;box-shadow:var(--shadow-sm);border:1.5px solid var(--gray-200);cursor:pointer;">
+              <div style="font-size:22px;margin-bottom:4px;">📱</div>
+              <div style="font-size:10px;font-weight:700;color:var(--gray-700);">QR</div>
+            </div>
+            <div style="flex:1;background:var(--white);border-radius:var(--radius-md);padding:14px 8px;text-align:center;box-shadow:var(--shadow-sm);border:1.5px solid var(--gray-200);cursor:pointer;">
+              <div style="font-size:22px;margin-bottom:4px;">🪪</div>
+              <div style="font-size:10px;font-weight:700;color:var(--gray-700);">Identité</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div style="font-size:14px;font-weight:700;">COL-2026-0847</div>
+              <div class="badge available">À retirer</div>
+            </div>
+            <div style="font-size:12px;color:var(--gray-600);">Lyon → Casablanca · 12 kg<br><strong>Destinataire :</strong> Alice L.</div>
+          </div>
+
+          <div style="margin:0 20px 20px;"><button class="btn-success">✓ Confirmer le retrait</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ECRAN 5 : Confirmation retrait -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Retrait confirmé</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="s">
+        <div class="status-bar"><span>10:01</span><div class="icons"><span>📶</span><span>🔋</span></div></div>
+        <div class="screen-content">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:50px 24px 0;">
+            <div style="width:70px;height:70px;background:var(--success-light);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:16px;">✓</div>
+            <h2 style="font-size:20px;font-weight:800;margin-bottom:6px;text-align:center;">Retrait confirmé !</h2>
+            <p style="font-size:13px;color:var(--gray-500);text-align:center;margin-bottom:24px;">Livraison clôturée.</p>
+            <div style="width:100%;background:var(--white);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow-md);margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span style="color:var(--gray-500);">Colis</span><span style="font-weight:700;">COL-2026-0847</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span style="color:var(--gray-500);">Trajet</span><span style="font-weight:700;">Lyon → Casablanca</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span style="color:var(--gray-500);">Destinataire</span><span style="font-weight:700;">Alice L.</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--gray-500);">Date/Heure</span><span style="font-weight:700;color:var(--success);">20 avr. · 10:01 ✓</span></div>
+            </div>
+            <button class="btn-relay" style="width:100%;">📦 Retour au stock</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ECRAN 6 : Signaler incident -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Signaler incident</div>
+    <div class="phone-frame">
+      <div class="notch"></div>
+      <div class="s">
+        <div class="status-bar"><span>10:10</span><div class="icons"><span>📶</span><span>🔋</span></div></div>
+        <div class="screen-content">
+          <div class="hdr"><div class="back-btn">←</div><h2>Signaler un incident</h2></div>
+
+          <div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:4px;">📦 Colis</div><div class="fi" style="font-family:'DM Sans',monospace;font-weight:700;">COL-2026-0923 · Paris → Alger</div></div>
+
+          <div class="card-lg">
+            <div style="font-size:13px;font-weight:700;margin-bottom:12px;">Type d'incident</div>
+            <div style="padding:12px;border:1.5px solid var(--warning);background:#FFF5F3;border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:20px;">💔</span><div style="font-size:13px;font-weight:600;">Colis endommagé</div></div>
+            <div style="padding:12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:20px;">📦</span><div style="font-size:13px;font-weight:600;">Contenu manquant</div></div>
+            <div style="padding:12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:20px;">🚫</span><div style="font-size:13px;font-weight:600;">Colis non conforme</div></div>
+            <div style="padding:12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;"><span style="font-size:20px;">🔄</span><div style="font-size:13px;font-weight:600;">Autre</div></div>
+          </div>
+
+          <div class="card">
+            <div class="fl">Description</div>
+            <div style="padding:12px 14px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;color:var(--gray-800);min-height:60px;">Carton écrasé, traces d'humidité...</div>
+            <div style="margin-top:10px;">
+              <div class="fl">Photos</div>
+              <div style="display:flex;gap:10px;margin-top:4px;">
+                <div style="width:55px;height:55px;background:var(--gray-100);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;">📷</div>
+                <div style="width:55px;height:55px;border:2px dashed var(--gray-300);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--gray-400);">+</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin:0 20px 20px;"><button class="btn-warning">⚠️ Envoyer le signalement</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
