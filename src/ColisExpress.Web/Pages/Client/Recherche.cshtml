@@ -13,11 +13,25 @@
         <div class="web-field-row">
             <div class="web-field">
                 <label class="web-field-label">Ville de départ</label>
-                <input name="villeDepart" class="web-field-input" placeholder="Paris" required />
+                <input name="villeDepart" class="web-field-input" placeholder="Paris"
+                       list="villes-depart" autocomplete="off" required />
+                <datalist id="villes-depart">
+                    @foreach (var v in Model.VillesDepart)
+                    {
+                        <option value="@v"></option>
+                    }
+                </datalist>
             </div>
             <div class="web-field">
                 <label class="web-field-label">Ville de destination</label>
-                <input name="villeArrivee" class="web-field-input" placeholder="Alger" required />
+                <input name="villeArrivee" class="web-field-input" placeholder="Alger"
+                       list="villes-arrivee" autocomplete="off" required />
+                <datalist id="villes-arrivee">
+                    @foreach (var v in Model.VillesArrivee)
+                    {
+                        <option value="@v"></option>
+                    }
+                </datalist>
             </div>
         </div>
 

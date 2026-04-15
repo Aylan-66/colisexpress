@@ -12,3 +12,7 @@ services:
         value: Production
       - key: DATABASE_URL
         sync: false
+      - key: Stripe__PublishableKey
+        sync: false
+      - key: Stripe__SecretKey
+        sync: false

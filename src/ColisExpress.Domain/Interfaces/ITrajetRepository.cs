@@ -12,6 +12,8 @@ public interface ITrajetRepository
         DateTime dateMin,
         decimal poidsKg,
         CancellationToken ct = default);
+    Task<IReadOnlyList<string>> GetVillesDepartAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<string>> GetVillesArriveeAsync(CancellationToken ct = default);
     Task AddAsync(Trajet trajet, CancellationToken ct = default);
     void Update(Trajet trajet);
     void Remove(Trajet trajet);

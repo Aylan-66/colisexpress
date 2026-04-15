@@ -1,4 +1,4 @@
-@page "/paiement/{commandeId:guid}"
+@page "/paiement/{commandeId:guid}/{handler?}"
 @model ColisExpress.Web.Pages.Client.PaiementModel
 @{
     ViewData["Title"] = "Paiement";
@@ -8,15 +8,11 @@
     <h1 class="text-center">Paiement</h1>
     <p class="subtitle text-center">Choisissez votre mode de règlement.</p>
 
-    @if (!string.IsNullOrEmpty(Model.Error))
-    {
-        <div class="web-alert error">@Model.Error</div>
-    }
+    @if (!string.IsNullOrEmpty(Model.Error)) { <div class="web-alert error">@Model.Error</div> }
+    @if (!string.IsNullOrEmpty(Model.Info)) { <div class="web-alert info">@Model.Info</div> }
 
     @if (Model.Commande is not null)
     {
-        <div class="web-alert info">🚧 Paiement non réel — Stripe arrive en V2. Cliquez pour simuler la confirmation.</div>
-
         <div class="web-card">
             <div class="flex justify-between mb-2" style="font-size:12px;color:var(--gray-500);">
                 <span>Code colis</span><span class="web-code">@Model.Commande.CodeColis</span>
@@ -37,15 +33,36 @@
         <form method="post" asp-route-commandeId="@Model.CommandeId">
             <div class="web-card">
                 <h3>Mode de paiement</h3>
+
                 <label style="display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid var(--primary);border-radius:8px;margin-bottom:10px;cursor:pointer;background:#E8F0F7;">
                     <input type="radio" name="mode" value="Carte" checked />
                     <div style="flex:1;">
-                        <div style="font-weight:700;">💳 Carte bancaire</div>
-                        <div style="font-size:12px;color:var(--gray-500);">Paiement simulé pour l'instant</div>
+                        <div style="font-weight:700;">💳 Carte bancaire <span class="web-badge primary" style="margin-left:6px;">Stripe</span></div>
+                        <div style="font-size:12px;color:var(--gray-500);">Paiement sécurisé via Stripe Checkout. Vous serez redirigé.</div>
                     </div>
                 </label>
 
-                <button type="submit" class="web-btn accent full mt-4">Confirmer le paiement @Model.Commande.Total.ToString("0.00") € →</button>
+                <label style="display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid var(--gray-200);border-radius:8px;margin-bottom:10px;cursor:pointer;">
+                    <input type="radio" name="mode" value="Especes" />
+                    <div style="flex:1;">
+                        <div style="font-weight:700;">💵 Espèces au dépôt</div>
+                        <div style="font-size:12px;color:var(--gray-500);">Remise au transporteur (déclaration manuelle)</div>
+                    </div>
+                </label>
+
+                <label style="display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;">
+                    <input type="radio" name="mode" value="Cheque" />
+                    <div style="flex:1;">
+                        <div style="font-weight:700;">📝 Chèque</div>
+                        <div style="font-size:12px;color:var(--gray-500);">Déclaration et remise lors du dépôt</div>
+                    </div>
+                </label>
+
+                <button type="submit" class="web-btn accent full mt-4">Payer @Model.Commande.Total.ToString("0.00") € →</button>
+
+                <p class="text-muted text-center mt-2" style="font-size:11px;">
+                    🔒 Mode test Stripe — utilisez la carte <code>4242 4242 4242 4242</code>, n'importe quelle date future et CVC.
+                </p>
             </div>
         </form>
     }

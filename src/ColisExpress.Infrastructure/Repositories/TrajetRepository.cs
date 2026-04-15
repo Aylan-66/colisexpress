@@ -38,6 +38,22 @@ public class TrajetRepository : ITrajetRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<string>> GetVillesDepartAsync(CancellationToken ct = default) =>
+        await _db.Trajets
+            .Where(t => t.Statut == StatutTrajet.Actif && t.CapaciteRestante > 0)
+            .Select(t => t.VilleDepart)
+            .Distinct()
+            .OrderBy(v => v)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<string>> GetVillesArriveeAsync(CancellationToken ct = default) =>
+        await _db.Trajets
+            .Where(t => t.Statut == StatutTrajet.Actif && t.CapaciteRestante > 0)
+            .Select(t => t.VilleArrivee)
+            .Distinct()
+            .OrderBy(v => v)
+            .ToListAsync(ct);
+
     public async Task AddAsync(Trajet trajet, CancellationToken ct = default) =>
         await _db.Trajets.AddAsync(trajet, ct);
 

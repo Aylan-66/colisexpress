@@ -238,7 +238,7 @@ public class CommandeService : ICommandeService
         return OperationResult.Ok();
     }
 
-    public async Task ConfirmerPaiementAsync(Guid commandeId, Guid clientId, CancellationToken ct = default)
+    public async Task ConfirmerPaiementAsync(Guid commandeId, Guid clientId, string? referenceExterne = null, CancellationToken ct = default)
     {
         var commande = await _uow.Commandes.GetByIdAsync(commandeId, ct)
             ?? throw new DomainException("Commande introuvable.");
@@ -256,7 +256,8 @@ public class CommandeService : ICommandeService
             Mode = commande.ModeReglement,
             Montant = commande.Total,
             Statut = StatutReglement.Paye,
-            DateEncaissement = DateTime.UtcNow
+            DateEncaissement = DateTime.UtcNow,
+            ReferenceExterne = referenceExterne
         };
         await _uow.Paiements.AddAsync(paiement, ct);
 

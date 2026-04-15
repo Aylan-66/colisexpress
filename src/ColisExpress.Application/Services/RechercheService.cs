@@ -42,6 +42,13 @@ public class RechercheService : IRechercheService
         return ToOffre(trajet, poids, false, false);
     }
 
+    public async Task<(IReadOnlyList<string> Depart, IReadOnlyList<string> Arrivee)> GetVillesDispoAsync(CancellationToken ct = default)
+    {
+        var depart = await _uow.Trajets.GetVillesDepartAsync(ct);
+        var arrivee = await _uow.Trajets.GetVillesArriveeAsync(ct);
+        return (depart, arrivee);
+    }
+
     private static OffreResponse ToOffre(Trajet t, decimal poids, bool urgent, bool fragile)
     {
         var transporteur = t.Transporteur;
