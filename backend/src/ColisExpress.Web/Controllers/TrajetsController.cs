@@ -123,6 +123,35 @@ public class TrajetsController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("{id:guid}/colis")]
+    public async Task<IActionResult> GetColisForTrajet(Guid id, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var trajet = await _uow.Trajets.GetByIdAsync(id, ct);
+        if (trajet is null || trajet.TransporteurId != transporteur.Id)
+            return NotFound(new { error = "Trajet introuvable." });
+
+        var commandes = await _uow.Commandes.GetByTransporteurIdAsync(transporteur.Id, ct);
+        var colisTrajet = commandes
+            .Where(c => c.TrajetId == id && c.Colis is not null)
+            .Select(c => new
+            {
+                c.Colis!.CodeColis,
+                Statut = c.Colis.Statut.ToString(),
+                c.NomDestinataire,
+                c.TelephoneDestinataire,
+                c.VilleDestinataire,
+                c.PoidsDeclare,
+                c.Total,
+                c.DateCreation
+            })
+            .ToList();
+
+        return Ok(colisTrajet);
+    }
+
     private async Task<Transporteur?> GetTransporteurAsync(CancellationToken ct)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

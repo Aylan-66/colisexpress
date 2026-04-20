@@ -57,5 +57,13 @@ public class CommandesController : ControllerBase
         return Ok(new { message = "Commande annulée." });
     }
 
+    [HttpGet("transporteur")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = "EstTransporteur")]
+    public async Task<IActionResult> GetCommandesTransporteur(CancellationToken ct)
+    {
+        var commandes = await _commande.GetCommandesTransporteurAsync(GetUserId(), ct);
+        return Ok(commandes);
+    }
+
     private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

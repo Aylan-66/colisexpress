@@ -279,6 +279,31 @@ public class CommandeService : ICommandeService
         await _uow.SaveChangesAsync(ct);
     }
 
+    public async Task<IReadOnlyList<CommandeListItem>> GetCommandesTransporteurAsync(Guid utilisateurId, CancellationToken ct = default)
+    {
+        var transporteur = await _uow.Transporteurs.GetByUtilisateurIdAsync(utilisateurId, ct);
+        if (transporteur is null) return Array.Empty<CommandeListItem>();
+
+        var commandes = await _uow.Commandes.GetByTransporteurIdAsync(transporteur.Id, ct);
+        var result = new List<CommandeListItem>();
+        foreach (var c in commandes)
+        {
+            var client = await _uow.Utilisateurs.GetByIdAsync(c.ClientId, ct);
+            var nomClient = client is null ? "—" : $"{client.Prenom} {client.Nom[..1]}.";
+            result.Add(new CommandeListItem
+            {
+                Id = c.Id,
+                CodeColis = c.Colis?.CodeColis ?? "",
+                Trajet = $"{c.Trajet?.VilleDepart} → {c.Trajet?.VilleArrivee}",
+                NomTransporteur = nomClient,
+                StatutColis = c.Colis?.Statut ?? StatutColis.Brouillon,
+                Total = c.Total,
+                DateCreation = c.DateCreation
+            });
+        }
+        return result;
+    }
+
     private async Task<string> GenerateCodeColisAsync(CancellationToken ct)
     {
         var year = DateTime.UtcNow.Year;
