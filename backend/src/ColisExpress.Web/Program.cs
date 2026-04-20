@@ -32,7 +32,8 @@ builder.Services.AddRazorPages(options =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 
-var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? "ColisExpressDefaultDevKeyMinimum32Chars!!";
+var jwtKey = builder.Configuration["Jwt:SecretKey"];
+if (string.IsNullOrWhiteSpace(jwtKey)) jwtKey = "ColisExpressDefaultDevKeyMinimum32Chars!!";
 
 builder.Services
     .AddAuthentication(options =>
