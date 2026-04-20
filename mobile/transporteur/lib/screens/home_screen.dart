@@ -40,11 +40,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get _kycValide => _kycStatut == 'Valide';
 
-  // Sans KYC validé : seuls KYC (index 0) et Profil (index 1) sont accessibles
-  // Avec KYC validé : tout est accessible
+  void _onKycValidated() {
+    setState(() {
+      _kycStatut = 'Valide';
+      _index = 0; // Aller aux Trajets
+    });
+  }
+
   List<Widget> get _screens => _kycValide
-      ? const [TrajetsScreen(), ColisScreen(), ScanScreen(), KycScreen(), ProfilScreen()]
-      : const [KycScreen(), ProfilScreen()];
+      ? [const TrajetsScreen(), const ColisScreen(), const ScanScreen(), KycScreen(onKycValidated: _onKycValidated), const ProfilScreen()]
+      : [KycScreen(onKycValidated: _onKycValidated), const ProfilScreen()];
 
   @override
   Widget build(BuildContext context) {

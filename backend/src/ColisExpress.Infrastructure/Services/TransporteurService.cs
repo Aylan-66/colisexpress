@@ -113,6 +113,7 @@ public class TransporteurService : ITransporteurService
             existing.Statut = StatutKyc.EnAttente;
             existing.DateSoumission = DateTime.UtcNow;
             existing.DateValidation = null;
+            existing.ValidePar = null;
         }
         else
         {

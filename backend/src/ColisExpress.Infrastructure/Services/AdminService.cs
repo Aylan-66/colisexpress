@@ -178,16 +178,6 @@ public class AdminService : IAdminService
         doc.Statut = approuver ? StatutKyc.Valide : StatutKyc.Rejete;
         doc.DateValidation = DateTime.UtcNow;
 
-        if (approuver)
-        {
-            // Si rejeté, supprimer le contenu pour forcer un re-upload
-        }
-        else
-        {
-            doc.ContenuFichier = null;
-            doc.NomFichier = "rejeté — à re-soumettre";
-        }
-
         // Recalculer le statut KYC global du transporteur
         var allDocs = await _db.DocumentsKyc
             .Where(d => d.TransporteurId == doc.TransporteurId)

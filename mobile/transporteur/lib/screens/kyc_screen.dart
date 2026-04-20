@@ -6,7 +6,8 @@ import '../services/api_service.dart';
 import '../theme.dart';
 
 class KycScreen extends StatefulWidget {
-  const KycScreen({super.key});
+  final VoidCallback? onKycValidated;
+  const KycScreen({super.key, this.onKycValidated});
 
   @override
   State<KycScreen> createState() => _KycScreenState();
@@ -18,6 +19,7 @@ class _KycScreenState extends State<KycScreen> {
   String? _uploadingType;
   String? _success;
   String? _error;
+  bool _polling = false;
 
   static const _docTypes = [
     ('PieceIdentite', "Pièce d'identité", Icons.badge),
@@ -33,15 +35,51 @@ class _KycScreenState extends State<KycScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _polling = false;
+    super.dispose();
+  }
+
+  void _startPolling() {
+    if (_polling) return;
+    _polling = true;
+    _poll();
+  }
+
+  Future<void> _poll() async {
+    while (_polling && mounted) {
+      await Future.delayed(const Duration(seconds: 10));
+      if (!mounted || !_polling) break;
+      final res = await context.read<ApiService>().getKycStatus();
+      if (!mounted) break;
+      final statut = res['statutKyc']?.toString();
+      if (statut == 'Valide') {
+        _polling = false;
+        setState(() => _status = res);
+        widget.onKycValidated?.call();
+        break;
+      } else {
+        setState(() => _status = res);
+      }
+    }
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
     final res = await context.read<ApiService>().getKycStatus();
+    if (!mounted) return;
     setState(() {
       _loading = false;
       if (res.containsKey('error')) {
         _error = res['error'];
       } else {
         _status = res;
+        if (res['statutKyc'] == 'Valide') {
+          widget.onKycValidated?.call();
+        } else if (res['statutKyc'] == 'EnAttente') {
+          _startPolling();
+        }
       }
     });
   }
@@ -79,9 +117,12 @@ class _KycScreenState extends State<KycScreen> {
       setState(() { _uploadingType = null; _error = res['error']; });
     } else {
       setState(() { _uploadingType = null; _success = 'Document soumis !'; });
-      // Recharger sans tout masquer
       final status = await context.read<ApiService>().getKycStatus();
-      if (mounted) setState(() { _status = status.containsKey('error') ? _status : status; });
+      if (mounted) {
+        setState(() { _status = status.containsKey('error') ? _status : status; });
+        if (status['statutKyc'] == 'EnAttente') _startPolling();
+        if (status['statutKyc'] == 'Valide') widget.onKycValidated?.call();
+      }
     }
   }
 
