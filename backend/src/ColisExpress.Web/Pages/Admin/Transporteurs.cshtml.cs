@@ -47,21 +47,13 @@ public class TransporteursModel : PageModel
 
     public async Task<IActionResult> OnPostApproveDocAsync(Guid documentId, Guid voirKyc, CancellationToken ct)
     {
-        var result = await _admin.DecideDocumentKycAsync(documentId, true, ct);
-        if (result.Success) Success = "Document validé.";
-        else Error = result.Error;
-        VoirKyc = voirKyc;
-        await OnGetAsync(ct);
-        return Page();
+        await _admin.DecideDocumentKycAsync(documentId, true, ct);
+        return RedirectToPage("/Admin/Transporteurs", new { voirKyc });
     }
 
     public async Task<IActionResult> OnPostRejectDocAsync(Guid documentId, Guid voirKyc, CancellationToken ct)
     {
-        var result = await _admin.DecideDocumentKycAsync(documentId, false, ct);
-        if (result.Success) Success = "Document rejeté. Le transporteur devra le re-soumettre.";
-        else Error = result.Error;
-        VoirKyc = voirKyc;
-        await OnGetAsync(ct);
-        return Page();
+        await _admin.DecideDocumentKycAsync(documentId, false, ct);
+        return RedirectToPage("/Admin/Transporteurs", new { voirKyc });
     }
 }
