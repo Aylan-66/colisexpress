@@ -87,3 +87,40 @@ public class KycDecisionRequest
     public bool Approuver { get; set; }
     public string? Motif { get; set; }
 }
+
+public class CreatePointRelaisRequest
+{
+    public string NomRelais { get; set; } = string.Empty;
+    public string Adresse { get; set; } = string.Empty;
+    public string Ville { get; set; } = string.Empty;
+    public string Pays { get; set; } = string.Empty;
+    public string Telephone { get; set; } = string.Empty;
+}
+
+public class CommandeAdminDetail
+{
+    public Guid Id { get; init; }
+    public string CodeColis { get; init; } = string.Empty;
+    public string CodeRetrait { get; init; } = string.Empty;
+    public StatutColis StatutColis { get; init; }
+    public StatutReglement StatutReglement { get; init; }
+    public string Client { get; init; } = string.Empty;
+    public string EmailClient { get; init; } = string.Empty;
+    public string Transporteur { get; init; } = string.Empty;
+    public string Trajet { get; init; } = string.Empty;
+    public DateTime DateDepart { get; init; }
+    public string NomDestinataire { get; init; } = string.Empty;
+    public string TelephoneDestinataire { get; init; } = string.Empty;
+    public string VilleDestinataire { get; init; } = string.Empty;
+    public string DescriptionContenu { get; init; } = string.Empty;
+    public decimal PoidsDeclare { get; init; }
+    public string? Dimensions { get; init; }
+    public decimal ValeurDeclaree { get; init; }
+    public decimal PrixTransport { get; init; }
+    public decimal FraisService { get; init; }
+    public decimal SupplementsTotal { get; init; }
+    public decimal Total { get; init; }
+    public string? InstructionsParticulieres { get; init; }
+    public DateTime DateCreation { get; init; }
+    public bool EstAnnulable { get; init; }
+}

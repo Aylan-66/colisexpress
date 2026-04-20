@@ -7,6 +7,15 @@
 <h1>Utilisateurs</h1>
 <p class="subtitle">@Model.Utilisateurs.Count utilisateurs enregistrés</p>
 
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="admin-alert success">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="admin-alert danger">@Model.Error</div>
+}
+
 <form method="get" class="admin-card" style="padding:18px 22px;margin-bottom:24px;">
     <input type="text" name="search" value="@Model.Search" class="admin-field-input" placeholder="Rechercher par nom, prénom ou email..." />
 </form>
@@ -20,6 +29,7 @@
                 <th>Rôle</th>
                 <th>Statut</th>
                 <th>Inscrit le</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -44,6 +54,25 @@
                         }
                     </td>
                     <td>@u.DateCreation.ToLocalTime().ToString("dd MMM yyyy")</td>
+                    <td>
+                        @if (u.Role != ColisExpress.Domain.Enums.RoleUtilisateur.Admin)
+                        {
+                            @if (u.StatutCompte == ColisExpress.Domain.Enums.StatutCompte.Actif)
+                            {
+                                <form method="post" asp-page-handler="Suspendre" style="display:inline;">
+                                    <input type="hidden" name="utilisateurId" value="@u.Id" />
+                                    <button type="submit" class="admin-btn sm danger">Suspendre</button>
+                                </form>
+                            }
+                            else if (u.StatutCompte == ColisExpress.Domain.Enums.StatutCompte.Suspendu)
+                            {
+                                <form method="post" asp-page-handler="Reactiver" style="display:inline;">
+                                    <input type="hidden" name="utilisateurId" value="@u.Id" />
+                                    <button type="submit" class="admin-btn sm success">Réactiver</button>
+                                </form>
+                            }
+                        }
+                    </td>
                 </tr>
             }
         </tbody>

@@ -7,6 +7,17 @@
 <h1>Paiements</h1>
 <p class="subtitle">@Model.Paiements.Count paiements enregistrés</p>
 
+<form method="get" class="admin-card" style="padding:18px 22px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+    <label style="font-size:13px;color:var(--admin-text-muted);white-space:nowrap;">Filtrer par mode :</label>
+    <select name="ModeFilter" class="admin-field-input" onchange="this.form.submit();" style="max-width:260px;">
+        <option value="">Tous les modes</option>
+        @foreach (var m in Enum.GetValues<ColisExpress.Domain.Enums.ModeReglement>())
+        {
+            <option value="@m" selected="@(Model.ModeFilter == m.ToString() ? "selected" : null)">@m</option>
+        }
+    </select>
+</form>
+
 <div class="admin-card">
     <table class="admin-table">
         <thead>
@@ -29,13 +40,13 @@
                         @switch (p.Mode)
                         {
                             case ColisExpress.Domain.Enums.ModeReglement.Carte:
-                                <span>💳 Carte</span>
+                                <span>Carte</span>
                                 break;
                             case ColisExpress.Domain.Enums.ModeReglement.Especes:
-                                <span>💵 Espèces</span>
+                                <span>Espèces</span>
                                 break;
                             default:
-                                <span>📝 Chèque</span>
+                                <span>Chèque</span>
                                 break;
                         }
                     </td>

@@ -7,11 +7,14 @@
 <h1>Litiges</h1>
 <p class="subtitle">Gestion des incidents et réclamations</p>
 
-<div class="admin-alert info">
-    🚧 Module litiges — hors scope MVP. Le cahier des charges prévoit un simple email pour le MVP.
-    Quand on activera la gestion via UI, on liera ici les colis en statut <strong>Incident</strong>, <strong>Refusé</strong>,
-    <strong>Endommagé</strong>, <strong>Perdu</strong> ou <strong>RetourExpediteur</strong>.
-</div>
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="admin-alert success">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="admin-alert danger">@Model.Error</div>
+}
 
 <div class="admin-card">
     <div class="admin-card-header">
@@ -31,6 +34,7 @@
                     <th>Trajet</th>
                     <th>Statut</th>
                     <th>Date</th>
+                    <th>Résolution</th>
                 </tr>
             </thead>
             <tbody>
@@ -42,6 +46,13 @@
                         <td>@c.Trajet</td>
                         <td><span class="admin-badge danger">@c.StatutColis</span></td>
                         <td>@c.DateCreation.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                        <td>
+                            <form method="post" asp-page-handler="Resoudre" style="display:flex;gap:8px;align-items:flex-start;">
+                                <input type="hidden" name="commandeId" value="@c.Id" />
+                                <textarea name="commentaire" class="admin-field-input" rows="2" placeholder="Commentaire de résolution..." required style="min-width:180px;max-width:300px;resize:vertical;"></textarea>
+                                <button type="submit" class="admin-btn sm success" style="white-space:nowrap;">Résoudre</button>
+                            </form>
+                        </td>
                     </tr>
                 }
             </tbody>

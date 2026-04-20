@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddSingleton<IQrCodeService, Services.QrCodeService>();
         services.AddScoped<IAdminService, Services.AdminService>();
         services.AddScoped<ITransporteurService, Services.TransporteurService>();
+        services.AddScoped<IAvisService, Services.AvisService>();
 
         services.Configure<StripeOptions>(configuration.GetSection("Stripe"));
         services.AddSingleton<IStripeService, Services.StripeService>();

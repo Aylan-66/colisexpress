@@ -7,6 +7,17 @@
 <h1>Commandes</h1>
 <p class="subtitle">@Model.Commandes.Count commandes au total</p>
 
+<form method="get" class="admin-card" style="padding:18px 22px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+    <label style="font-size:13px;color:var(--admin-text-muted);white-space:nowrap;">Filtrer par statut :</label>
+    <select name="Filtre" class="admin-field-input" onchange="this.form.submit();" style="max-width:260px;">
+        <option value="">Tous les statuts</option>
+        @foreach (var s in Enum.GetValues<ColisExpress.Domain.Enums.StatutColis>())
+        {
+            <option value="@s" selected="@(Model.Filtre == s.ToString() ? "selected" : null)">@s</option>
+        }
+    </select>
+</form>
+
 <div class="admin-card">
     <table class="admin-table">
         <thead>
@@ -19,6 +30,7 @@
                 <th>Règlement</th>
                 <th>Total</th>
                 <th>Date</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -46,6 +58,9 @@
                     </td>
                     <td style="font-weight:700;color:var(--admin-text);">@c.Total.ToString("0.00") €</td>
                     <td>@c.DateCreation.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                    <td>
+                        <a href="/admin/commandes/@c.Id" class="admin-btn sm outline">Détail</a>
+                    </td>
                 </tr>
             }
         </tbody>

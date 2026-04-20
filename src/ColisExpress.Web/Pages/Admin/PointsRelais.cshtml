@@ -7,6 +7,48 @@
 <h1>Points relais</h1>
 <p class="subtitle">@Model.PointsRelais.Count points relais enregistrés</p>
 
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="admin-alert success">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="admin-alert danger">@Model.Error</div>
+}
+
+<div class="admin-card" style="margin-bottom:24px;">
+    <div class="admin-card-header">
+        <h3 class="admin-card-title">Nouveau point relais</h3>
+    </div>
+    <div class="admin-card-body">
+        <form method="post" asp-page-handler="Create" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+            <div style="flex:1;min-width:160px;">
+                <label style="display:block;font-size:12px;margin-bottom:4px;color:var(--admin-text-muted);">Nom du relais</label>
+                <input type="text" asp-for="NewRelais.NomRelais" class="admin-field-input" required />
+            </div>
+            <div style="flex:1;min-width:160px;">
+                <label style="display:block;font-size:12px;margin-bottom:4px;color:var(--admin-text-muted);">Adresse</label>
+                <input type="text" asp-for="NewRelais.Adresse" class="admin-field-input" required />
+            </div>
+            <div style="flex:1;min-width:120px;">
+                <label style="display:block;font-size:12px;margin-bottom:4px;color:var(--admin-text-muted);">Ville</label>
+                <input type="text" asp-for="NewRelais.Ville" class="admin-field-input" required />
+            </div>
+            <div style="flex:1;min-width:120px;">
+                <label style="display:block;font-size:12px;margin-bottom:4px;color:var(--admin-text-muted);">Pays</label>
+                <input type="text" asp-for="NewRelais.Pays" class="admin-field-input" required />
+            </div>
+            <div style="flex:1;min-width:140px;">
+                <label style="display:block;font-size:12px;margin-bottom:4px;color:var(--admin-text-muted);">Téléphone</label>
+                <input type="text" asp-for="NewRelais.Telephone" class="admin-field-input" required />
+            </div>
+            <div>
+                <button type="submit" class="admin-btn sm success">Créer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="admin-card">
     <table class="admin-table">
         <thead>
@@ -16,6 +58,7 @@
                 <th>Pays</th>
                 <th>Téléphone</th>
                 <th>Statut</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -35,6 +78,19 @@
                         {
                             <span class="admin-badge neutral">Inactif</span>
                         }
+                    </td>
+                    <td>
+                        <form method="post" asp-page-handler="Toggle" style="display:inline;">
+                            <input type="hidden" name="id" value="@p.Id" />
+                            @if (p.EstActif)
+                            {
+                                <button type="submit" class="admin-btn sm danger">Désactiver</button>
+                            }
+                            else
+                            {
+                                <button type="submit" class="admin-btn sm success">Activer</button>
+                            }
+                        </form>
                     </td>
                 </tr>
             }

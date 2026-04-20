@@ -42,7 +42,9 @@
 
     <div class="admin-main">
         <header class="admin-topbar">
-            <input type="text" class="admin-topbar-search" placeholder="🔎 Recherche globale (pas encore branchée)" disabled />
+            <form method="get" action="/admin/utilisateurs" style="flex:1;max-width:400px;">
+                <input type="text" name="search" class="admin-topbar-search" placeholder="🔎 Rechercher un utilisateur (nom, email)..." />
+            </form>
             <div class="admin-topbar-right">
                 <div class="admin-topbar-user">
                     <div class="admin-topbar-avatar">@initiales.ToUpper()</div>
