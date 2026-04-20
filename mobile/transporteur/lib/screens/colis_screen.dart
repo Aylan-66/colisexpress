@@ -24,7 +24,7 @@ class _ColisScreenState extends State<ColisScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    _commandes = await context.read<ApiService>().getMesCommandes();
+    _commandes = await context.read<ApiService>().getMesCommandesTransporteur();
     setState(() => _loading = false);
   }
 

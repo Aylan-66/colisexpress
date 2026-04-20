@@ -5,6 +5,8 @@ import 'theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
   runApp(const ColisExpressTransporteur());
 }
@@ -20,6 +22,7 @@ class ColisExpressTransporteur extends StatelessWidget {
         title: 'Colis Express Transporteur',
         theme: AppTheme.theme,
         debugShowCheckedModeBanner: false,
+        navigatorKey: navigatorKey,
         home: const AuthGate(),
       ),
     );
@@ -46,10 +49,17 @@ class _AuthGateState extends State<AuthGate> {
   Future<void> _checkAuth() async {
     final api = context.read<ApiService>();
     await api.init();
+    api.onSessionExpired = _onSessionExpired;
     setState(() {
       _loggedIn = api.isLoggedIn;
       _loading = false;
     });
+  }
+
+  void _onSessionExpired() {
+    if (mounted) {
+      setState(() => _loggedIn = false);
+    }
   }
 
   @override
@@ -61,6 +71,10 @@ class _AuthGateState extends State<AuthGate> {
     }
     return _loggedIn
         ? const HomeScreen()
-        : LoginScreen(onLogin: () => setState(() => _loggedIn = true));
+        : LoginScreen(onLogin: () {
+            final api = context.read<ApiService>();
+            api.onSessionExpired = _onSessionExpired;
+            setState(() => _loggedIn = true);
+          });
   }
 }

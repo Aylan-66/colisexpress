@@ -28,6 +28,9 @@ public class CommandeRepository : ICommandeRepository
 
     public async Task<IReadOnlyList<Commande>> GetByTransporteurIdAsync(Guid transporteurId, CancellationToken ct = default) =>
         await _db.Commandes
+            .Include(c => c.Trajet)
+            .Include(c => c.Colis)
+            .Include(c => c.Client)
             .Where(c => c.TransporteurId == transporteurId)
             .OrderByDescending(c => c.DateCreation)
             .ToListAsync(ct);

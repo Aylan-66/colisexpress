@@ -4,10 +4,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 
+typedef VoidCallback = void Function();
+
 class ApiService {
   final _storage = const FlutterSecureStorage();
   String? _accessToken;
   String? _refreshToken;
+  VoidCallback? onSessionExpired;
 
   Future<void> init() async {
     _accessToken = await _storage.read(key: 'accessToken');
@@ -167,13 +170,20 @@ class ApiService {
   // HELPERS
   // ============================================
 
+  Future<void> _handleExpiredSession() async {
+    await logout();
+    onSessionExpired?.call();
+  }
+
   Future<Map<String, dynamic>> _get(String path) async {
     final res = await http.get(
       Uri.parse('${AppConfig.apiBaseUrl}$path'),
       headers: _headers,
     );
-    if (res.statusCode == 401 && await refreshToken()) {
-      return _get(path);
+    if (res.statusCode == 401) {
+      if (await refreshToken()) return _get(path);
+      await _handleExpiredSession();
+      return {'error': 'Session expirée. Veuillez vous reconnecter.'};
     }
     return _parseJson(res);
   }
@@ -183,8 +193,10 @@ class ApiService {
       Uri.parse('${AppConfig.apiBaseUrl}$path'),
       headers: _headers,
     );
-    if (res.statusCode == 401 && await refreshToken()) {
-      return _getList(path);
+    if (res.statusCode == 401) {
+      if (await refreshToken()) return _getList(path);
+      await _handleExpiredSession();
+      return [];
     }
     if (res.statusCode != 200) return [];
     return jsonDecode(res.body);
@@ -197,8 +209,10 @@ class ApiService {
       headers: _headers,
       body: jsonEncode(body),
     );
-    if (res.statusCode == 401 && await refreshToken()) {
-      return _post(path, body);
+    if (res.statusCode == 401) {
+      if (await refreshToken()) return _post(path, body);
+      await _handleExpiredSession();
+      return {'error': 'Session expirée. Veuillez vous reconnecter.'};
     }
     return _parseJson(res);
   }
@@ -210,8 +224,10 @@ class ApiService {
       headers: _headers,
       body: jsonEncode(body),
     );
-    if (res.statusCode == 401 && await refreshToken()) {
-      return _put(path, body);
+    if (res.statusCode == 401) {
+      if (await refreshToken()) return _put(path, body);
+      await _handleExpiredSession();
+      return {'error': 'Session expirée. Veuillez vous reconnecter.'};
     }
     return _parseJson(res);
   }
