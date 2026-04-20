@@ -12,9 +12,8 @@ public class StripeService : IStripeService
     public StripeService(IOptions<StripeOptions> options)
     {
         _options = options.Value;
-        if (string.IsNullOrWhiteSpace(_options.SecretKey))
-            throw new InvalidOperationException("Stripe SecretKey n'est pas configurée. Vérifie appsettings.Development.json ou la variable d'env Stripe__SecretKey.");
-        StripeConfiguration.ApiKey = _options.SecretKey;
+        if (!string.IsNullOrWhiteSpace(_options.SecretKey))
+            StripeConfiguration.ApiKey = _options.SecretKey;
     }
 
     public async Task<StripeCheckoutSession> CreateCheckoutSessionAsync(
