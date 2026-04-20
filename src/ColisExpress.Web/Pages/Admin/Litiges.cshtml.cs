@@ -18,7 +18,7 @@ public class LitigesModel : PageModel
 
     public async Task OnGetAsync(CancellationToken ct)
     {
-        var all = await _admin.GetCommandesAsync(null, ct);
+        var (all, _) = await _admin.GetCommandesAsync(null, 1, 1000, ct);
         ColisEnIncident = all.Where(c =>
             c.StatutColis == StatutColis.Incident ||
             c.StatutColis == StatutColis.Endommage ||
@@ -36,7 +36,7 @@ public class LitigesModel : PageModel
         else
             Error = result.Error ?? "Erreur lors de la résolution du litige.";
 
-        var all = await _admin.GetCommandesAsync(null, ct);
+        var (all, _) = await _admin.GetCommandesAsync(null, 1, 1000, ct);
         ColisEnIncident = all.Where(c =>
             c.StatutColis == StatutColis.Incident ||
             c.StatutColis == StatutColis.Endommage ||

@@ -76,4 +76,11 @@ public class AuthService : IAuthService
 
         return AuthResult.Ok(utilisateur.Id, utilisateur.Email, utilisateur.Prenom, utilisateur.Nom, utilisateur.Role);
     }
+
+    public async Task<AuthResult?> LoginByIdAsync(Guid utilisateurId, CancellationToken ct = default)
+    {
+        var utilisateur = await _uow.Utilisateurs.GetByIdAsync(utilisateurId, ct);
+        if (utilisateur is null || utilisateur.StatutCompte == StatutCompte.Suspendu) return null;
+        return AuthResult.Ok(utilisateur.Id, utilisateur.Email, utilisateur.Prenom, utilisateur.Nom, utilisateur.Role);
+    }
 }

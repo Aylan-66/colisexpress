@@ -1,7 +1,11 @@
+using System.Text;
 using ColisExpress.Application;
+using ColisExpress.Application.Interfaces;
 using ColisExpress.Infrastructure;
 using ColisExpress.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,8 +32,14 @@ builder.Services.AddRazorPages(options =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 
+var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? "ColisExpressDefaultDevKeyMinimum32Chars!!";
+
 builder.Services
-    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    })
     .AddCookie(options =>
     {
         options.LoginPath = "/connexion";
@@ -40,12 +50,27 @@ builder.Services
         options.Cookie.Name = "ColisExpress.Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
+    })
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "ColisExpress",
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "ColisExpressApp",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
     });
 
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("EstConnecte", p => p.RequireAuthenticatedUser());
     options.AddPolicy("EstAdmin", p => p.RequireClaim(System.Security.Claims.ClaimTypes.Role, "Admin"));
+    options.AddPolicy("EstTransporteur", p => p.RequireClaim(System.Security.Claims.ClaimTypes.Role, "Transporteur"));
 });
 
 var app = builder.Build();

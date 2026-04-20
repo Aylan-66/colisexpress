@@ -69,6 +69,34 @@ public class AdminService : IAdminService
             })
             .ToListAsync(ct);
 
+        // Chart data: last 6 months
+        var sixMonthsAgo = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-5);
+
+        var colisParMois = await _db.Colis
+            .Where(c => c.DateCreation >= sixMonthsAgo)
+            .GroupBy(c => new { c.DateCreation.Year, c.DateCreation.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var caParMois = await _db.Commandes
+            .Where(c => c.DateCreation >= sixMonthsAgo && c.StatutReglement == StatutReglement.Paye)
+            .GroupBy(c => new { c.DateCreation.Year, c.DateCreation.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Montant = g.Sum(c => c.Total) })
+            .ToListAsync(ct);
+
+        // Build ordered list for last 6 months
+        var colisChart = new List<ChartDataPoint>();
+        var caChart = new List<ChartDataPoint>();
+        for (int i = 0; i < 6; i++)
+        {
+            var mois = sixMonthsAgo.AddMonths(i);
+            var label = mois.ToString("MMM yyyy");
+            var colisCount = colisParMois.FirstOrDefault(x => x.Year == mois.Year && x.Month == mois.Month);
+            colisChart.Add(new ChartDataPoint { Label = label, Value = colisCount?.Count ?? 0 });
+            var caCount = caParMois.FirstOrDefault(x => x.Year == mois.Year && x.Month == mois.Month);
+            caChart.Add(new ChartDataPoint { Label = label, Value = caCount?.Montant ?? 0 });
+        }
+
         return new DashboardResponse
         {
             ColisCeMois = colisCeMois,
@@ -77,11 +105,13 @@ public class AdminService : IAdminService
             Incidents = incidents,
             TransporteursEnAttenteKyc = kycEnAttente,
             CommandesRecentes = commandesRecentes,
-            TransporteursAValider = transporteursAValider
+            TransporteursAValider = transporteursAValider,
+            ColisParMois = colisChart,
+            CaParMois = caChart
         };
     }
 
-    public async Task<IReadOnlyList<UtilisateurListItem>> GetUtilisateursAsync(string? search, CancellationToken ct = default)
+    public async Task<(IReadOnlyList<UtilisateurListItem> Items, int TotalCount)> GetUtilisateursAsync(string? search, int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
         var query = _db.Utilisateurs.AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
@@ -92,9 +122,11 @@ public class AdminService : IAdminService
                 u.Nom.ToLower().Contains(s) ||
                 u.Prenom.ToLower().Contains(s));
         }
-        return await query
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
             .OrderByDescending(u => u.DateCreation)
-            .Take(100)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(u => new UtilisateurListItem
             {
                 Id = u.Id,
@@ -106,6 +138,7 @@ public class AdminService : IAdminService
                 DateCreation = u.DateCreation
             })
             .ToListAsync(ct);
+        return (items, totalCount);
     }
 
     public async Task<IReadOnlyList<TransporteurListItem>> GetTransporteursAsync(CancellationToken ct = default)
@@ -216,7 +249,7 @@ public class AdminService : IAdminService
         return OperationResult.Ok();
     }
 
-    public async Task<IReadOnlyList<CommandeAdminListItem>> GetCommandesAsync(string? statutFilter, CancellationToken ct = default)
+    public async Task<(IReadOnlyList<CommandeAdminListItem> Items, int TotalCount)> GetCommandesAsync(string? statutFilter, int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
         var query = _db.Commandes
             .Include(c => c.Trajet)
@@ -228,9 +261,11 @@ public class AdminService : IAdminService
         if (!string.IsNullOrWhiteSpace(statutFilter) && Enum.TryParse<StatutColis>(statutFilter, out var statut))
             query = query.Where(c => c.Colis != null && c.Colis.Statut == statut);
 
-        return await query
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
             .OrderByDescending(c => c.DateCreation)
-            .Take(200)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(c => new CommandeAdminListItem
             {
                 Id = c.Id,
@@ -246,6 +281,7 @@ public class AdminService : IAdminService
                 DateCreation = c.DateCreation
             })
             .ToListAsync(ct);
+        return (items, totalCount);
     }
 
     public async Task<CommandeAdminDetail?> GetCommandeDetailAsync(Guid commandeId, CancellationToken ct = default)
@@ -290,7 +326,7 @@ public class AdminService : IAdminService
         };
     }
 
-    public async Task<IReadOnlyList<PaiementAdminListItem>> GetPaiementsAsync(string? modeFilter, CancellationToken ct = default)
+    public async Task<(IReadOnlyList<PaiementAdminListItem> Items, int TotalCount)> GetPaiementsAsync(string? modeFilter, int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
         var query = _db.Paiements
             .Include(p => p.Commande).ThenInclude(c => c!.Client)
@@ -300,9 +336,11 @@ public class AdminService : IAdminService
         if (!string.IsNullOrWhiteSpace(modeFilter) && Enum.TryParse<ModeReglement>(modeFilter, out var mode))
             query = query.Where(p => p.Mode == mode);
 
-        return await query
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
             .OrderByDescending(p => p.DateCreation)
-            .Take(200)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(p => new PaiementAdminListItem
             {
                 Id = p.Id,
@@ -316,6 +354,7 @@ public class AdminService : IAdminService
                 DateCreation = p.DateCreation
             })
             .ToListAsync(ct);
+        return (items, totalCount);
     }
 
     public Task<ColisDetailResponse?> GetColisByCodeAsync(string codeColis, CancellationToken ct = default) =>

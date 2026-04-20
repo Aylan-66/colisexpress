@@ -1,5 +1,6 @@
 @page "/admin"
 @model ColisExpress.Web.Pages.Admin.DashboardModel
+@using System.Text.Json
 @{
     ViewData["Title"] = "Dashboard";
 }
@@ -27,6 +28,25 @@
         <div class="admin-kpi-label">Incidents</div>
         <div class="admin-kpi-value">@Model.Dashboard.Incidents</div>
         <div class="admin-kpi-hint">Colis en incident / perdus</div>
+    </div>
+</div>
+
+<div class="admin-grid-2">
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3 class="admin-card-title">Colis par mois</h3>
+        </div>
+        <div class="admin-card-body" style="padding:16px;">
+            <canvas id="chartColisParMois" height="220"></canvas>
+        </div>
+    </div>
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3 class="admin-card-title">Chiffre d'affaires mensuel</h3>
+        </div>
+        <div class="admin-card-body" style="padding:16px;">
+            <canvas id="chartCaParMois" height="220"></canvas>
+        </div>
     </div>
 </div>
 
@@ -75,7 +95,7 @@
         </div>
         @if (!Model.Dashboard.TransporteursAValider.Any())
         {
-            <div class="admin-card-body" style="color:var(--admin-text-muted);font-size:13px;">Aucun KYC en attente. 🎉</div>
+            <div class="admin-card-body" style="color:var(--admin-text-muted);font-size:13px;">Aucun KYC en attente.</div>
         }
         else
         {
@@ -91,3 +111,77 @@
         }
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script>
+        (function() {
+            var colisLabels = @Html.Raw(JsonSerializer.Serialize(Model.Dashboard.ColisParMois.Select(x => x.Label)));
+            var colisValues = @Html.Raw(JsonSerializer.Serialize(Model.Dashboard.ColisParMois.Select(x => (double)x.Value)));
+            var caLabels = @Html.Raw(JsonSerializer.Serialize(Model.Dashboard.CaParMois.Select(x => x.Label)));
+            var caValues = @Html.Raw(JsonSerializer.Serialize(Model.Dashboard.CaParMois.Select(x => (double)x.Value)));
+
+            var chartColors = {
+                primary: '#6C5CE7',
+                primaryLight: 'rgba(108, 92, 231, 0.15)',
+                accent: '#00D2D3',
+                accentLight: 'rgba(0, 210, 211, 0.15)',
+                text: '#E2E8F0',
+                grid: 'rgba(255,255,255,0.06)'
+            };
+
+            Chart.defaults.color = chartColors.text;
+            Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+
+            new Chart(document.getElementById('chartColisParMois'), {
+                type: 'bar',
+                data: {
+                    labels: colisLabels,
+                    datasets: [{
+                        label: 'Colis',
+                        data: colisValues,
+                        backgroundColor: chartColors.primary,
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: chartColors.grid }, ticks: { precision: 0 } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            new Chart(document.getElementById('chartCaParMois'), {
+                type: 'line',
+                data: {
+                    labels: caLabels,
+                    datasets: [{
+                        label: 'CA (€)',
+                        data: caValues,
+                        borderColor: chartColors.accent,
+                        backgroundColor: chartColors.accentLight,
+                        fill: true,
+                        tension: 0.35,
+                        pointBackgroundColor: chartColors.accent,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: chartColors.grid }, ticks: { callback: function(v) { return v + ' €'; } } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        })();
+    </script>
+}

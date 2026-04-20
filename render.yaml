@@ -12,6 +12,8 @@ services:
         value: Production
       - key: DATABASE_URL
         sync: false
+      - key: Jwt__SecretKey
+        sync: false
       - key: Stripe__PublishableKey
         sync: false
       - key: Stripe__SecretKey

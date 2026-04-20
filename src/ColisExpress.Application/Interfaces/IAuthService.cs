@@ -6,6 +6,7 @@ public interface IAuthService
 {
     Task<AuthResult> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
     Task<AuthResult> LoginAsync(LoginRequest request, CancellationToken ct = default);
+    Task<AuthResult?> LoginByIdAsync(Guid utilisateurId, CancellationToken ct = default);
 }
 
 public interface IPasswordHasher

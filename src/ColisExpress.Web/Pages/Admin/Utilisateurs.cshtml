@@ -5,7 +5,7 @@
 }
 
 <h1>Utilisateurs</h1>
-<p class="subtitle">@Model.Utilisateurs.Count utilisateurs enregistrés</p>
+<p class="subtitle">@Model.TotalCount utilisateurs enregistrés</p>
 
 @if (!string.IsNullOrEmpty(Model.Success))
 {
@@ -16,8 +16,9 @@
     <div class="admin-alert danger">@Model.Error</div>
 }
 
-<form method="get" class="admin-card" style="padding:18px 22px;margin-bottom:24px;">
-    <input type="text" name="search" value="@Model.Search" class="admin-field-input" placeholder="Rechercher par nom, prénom ou email..." />
+<form method="get" class="admin-card" style="padding:18px 22px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+    <input type="text" name="search" value="@Model.Search" class="admin-field-input" placeholder="Rechercher par nom, prénom ou email..." style="flex:1;" />
+    <a class="admin-btn sm outline" asp-page="/Admin/Utilisateurs" asp-page-handler="ExportCsv" asp-route-search="@Model.Search" style="white-space:nowrap;">Exporter CSV</a>
 </form>
 
 <div class="admin-card">
@@ -78,3 +79,18 @@
         </tbody>
     </table>
 </div>
+
+@if (Model.TotalPages > 1)
+{
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:20px;">
+        @if (Model.Page > 1)
+        {
+            <a class="admin-btn sm outline" asp-page="/Admin/Utilisateurs" asp-route-page="@(Model.Page - 1)" asp-route-search="@Model.Search">Précédent</a>
+        }
+        <span style="color:var(--admin-text);font-size:14px;">Page @Model.Page sur @Model.TotalPages</span>
+        @if (Model.Page < Model.TotalPages)
+        {
+            <a class="admin-btn sm outline" asp-page="/Admin/Utilisateurs" asp-route-page="@(Model.Page + 1)" asp-route-search="@Model.Search">Suivant</a>
+        }
+    </div>
+}

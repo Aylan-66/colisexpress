@@ -37,6 +37,9 @@ public static class DependencyInjection
         services.AddScoped<ITransporteurService, Services.TransporteurService>();
         services.AddScoped<IAvisService, Services.AvisService>();
 
+        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+        services.AddSingleton<IJwtService, Security.JwtService>();
+
         services.Configure<StripeOptions>(configuration.GetSection("Stripe"));
         services.AddSingleton<IStripeService, Services.StripeService>();
 

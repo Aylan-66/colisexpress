@@ -11,6 +11,14 @@ public class DashboardResponse
     public int TransporteursEnAttenteKyc { get; init; }
     public IReadOnlyList<CommandeRecenteItem> CommandesRecentes { get; init; } = Array.Empty<CommandeRecenteItem>();
     public IReadOnlyList<TransporteurListItem> TransporteursAValider { get; init; } = Array.Empty<TransporteurListItem>();
+    public IReadOnlyList<ChartDataPoint> ColisParMois { get; init; } = Array.Empty<ChartDataPoint>();
+    public IReadOnlyList<ChartDataPoint> CaParMois { get; init; } = Array.Empty<ChartDataPoint>();
+}
+
+public class ChartDataPoint
+{
+    public string Label { get; init; } = string.Empty;
+    public decimal Value { get; init; }
 }
 
 public class CommandeRecenteItem

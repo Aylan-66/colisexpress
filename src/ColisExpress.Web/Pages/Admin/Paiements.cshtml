@@ -5,7 +5,7 @@
 }
 
 <h1>Paiements</h1>
-<p class="subtitle">@Model.Paiements.Count paiements enregistrés</p>
+<p class="subtitle">@Model.TotalCount paiements enregistrés</p>
 
 <form method="get" class="admin-card" style="padding:18px 22px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
     <label style="font-size:13px;color:var(--admin-text-muted);white-space:nowrap;">Filtrer par mode :</label>
@@ -16,6 +16,7 @@
             <option value="@m" selected="@(Model.ModeFilter == m.ToString() ? "selected" : null)">@m</option>
         }
     </select>
+    <a class="admin-btn sm outline" asp-page="/Admin/Paiements" asp-page-handler="ExportCsv" asp-route-modeFilter="@Model.ModeFilter" style="white-space:nowrap;margin-left:auto;">Exporter CSV</a>
 </form>
 
 <div class="admin-card">
@@ -71,3 +72,18 @@
         </tbody>
     </table>
 </div>
+
+@if (Model.TotalPages > 1)
+{
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:20px;">
+        @if (Model.Page > 1)
+        {
+            <a class="admin-btn sm outline" asp-page="/Admin/Paiements" asp-route-page="@(Model.Page - 1)" asp-route-modeFilter="@Model.ModeFilter">Précédent</a>
+        }
+        <span style="color:var(--admin-text);font-size:14px;">Page @Model.Page sur @Model.TotalPages</span>
+        @if (Model.Page < Model.TotalPages)
+        {
+            <a class="admin-btn sm outline" asp-page="/Admin/Paiements" asp-route-page="@(Model.Page + 1)" asp-route-modeFilter="@Model.ModeFilter">Suivant</a>
+        }
+    </div>
+}
