@@ -14,11 +14,15 @@ public class JwtService : IJwtService
     private readonly JwtOptions _options;
     private readonly ConcurrentDictionary<string, (Guid UserId, DateTime Expires)> _refreshTokens = new();
 
+    private const string DefaultKey = "ColisExpressDefaultDevKeyMinimum32Chars!!";
+
     public JwtService(IOptions<JwtOptions> options) => _options = options.Value;
+
+    private string EffectiveKey => string.IsNullOrWhiteSpace(_options.SecretKey) ? DefaultKey : _options.SecretKey;
 
     public JwtTokenResult GenerateToken(Guid utilisateurId, string email, string prenom, string nom, string role)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SecretKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(EffectiveKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
