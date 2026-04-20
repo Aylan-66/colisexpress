@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Colis Express a besoin de la caméra pour scanner les QR codes et prendre des photos de prise en charge.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Colis Express a besoin d'accéder à vos photos pour les documents KYC.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

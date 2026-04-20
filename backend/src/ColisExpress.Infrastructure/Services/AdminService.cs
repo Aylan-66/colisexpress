@@ -170,6 +170,47 @@ public class AdminService : IAdminService
         return OperationResult.Ok();
     }
 
+    public async Task<OperationResult> DecideDocumentKycAsync(Guid documentId, bool approuver, CancellationToken ct = default)
+    {
+        var doc = await _db.DocumentsKyc.FirstOrDefaultAsync(d => d.Id == documentId, ct);
+        if (doc is null) return OperationResult.Fail("Document introuvable.");
+
+        doc.Statut = approuver ? StatutKyc.Valide : StatutKyc.Rejete;
+        doc.DateValidation = DateTime.UtcNow;
+
+        if (approuver)
+        {
+            // Si rejeté, supprimer le contenu pour forcer un re-upload
+        }
+        else
+        {
+            doc.ContenuFichier = null;
+            doc.NomFichier = "rejeté — à re-soumettre";
+        }
+
+        // Recalculer le statut KYC global du transporteur
+        var allDocs = await _db.DocumentsKyc
+            .Where(d => d.TransporteurId == doc.TransporteurId)
+            .ToListAsync(ct);
+
+        var transporteur = await _db.Transporteurs.FirstOrDefaultAsync(t => t.Id == doc.TransporteurId, ct);
+        if (transporteur is not null)
+        {
+            var hasRejected = allDocs.Any(d => d.Statut == StatutKyc.Rejete);
+            var allValidated = allDocs.Count >= 3 && allDocs.All(d => d.Statut == StatutKyc.Valide);
+
+            if (allValidated)
+                transporteur.StatutKyc = StatutKyc.Valide;
+            else if (hasRejected)
+                transporteur.StatutKyc = StatutKyc.Rejete;
+            else
+                transporteur.StatutKyc = StatutKyc.EnAttente;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return OperationResult.Ok();
+    }
+
     public async Task<OperationResult> SuspendreCompteAsync(Guid utilisateurId, CancellationToken ct = default)
     {
         var u = await _db.Utilisateurs.FirstOrDefaultAsync(x => x.Id == utilisateurId, ct);

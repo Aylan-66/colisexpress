@@ -111,7 +111,24 @@
                                 }
                             </td>
                             <td>@doc.DateSoumission.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
-                            <td><a href="/api/kyc/document/@doc.Id" target="_blank" class="admin-btn sm outline">Ouvrir ↗</a></td>
+                            <td>
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <a href="/api/kyc/document/@doc.Id" target="_blank" class="admin-btn sm outline">Ouvrir ↗</a>
+                                    @if (doc.Statut == ColisExpress.Domain.Enums.StatutKyc.EnAttente)
+                                    {
+                                        <form method="post" style="margin:0;">
+                                            <input type="hidden" name="documentId" value="@doc.Id" />
+                                            <input type="hidden" name="voirKyc" value="@Model.VoirKyc" />
+                                            <button type="submit" asp-page-handler="ApproveDoc" class="admin-btn sm success">✓</button>
+                                        </form>
+                                        <form method="post" style="margin:0;">
+                                            <input type="hidden" name="documentId" value="@doc.Id" />
+                                            <input type="hidden" name="voirKyc" value="@Model.VoirKyc" />
+                                            <button type="submit" asp-page-handler="RejectDoc" class="admin-btn sm danger">✗</button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>

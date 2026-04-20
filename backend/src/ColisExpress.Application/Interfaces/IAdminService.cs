@@ -12,6 +12,7 @@ public interface IAdminService
     Task<OperationResult> ReactiverCompteAsync(Guid utilisateurId, CancellationToken ct = default);
     Task<IReadOnlyList<TransporteurListItem>> GetTransporteursAsync(CancellationToken ct = default);
     Task<OperationResult> DecideKycAsync(KycDecisionRequest request, CancellationToken ct = default);
+    Task<OperationResult> DecideDocumentKycAsync(Guid documentId, bool approuver, CancellationToken ct = default);
     Task<IReadOnlyList<PointRelaisListItem>> GetPointsRelaisAsync(CancellationToken ct = default);
     Task<OperationResult> CreatePointRelaisAsync(CreatePointRelaisRequest request, CancellationToken ct = default);
     Task<OperationResult> TogglePointRelaisAsync(Guid id, CancellationToken ct = default);
