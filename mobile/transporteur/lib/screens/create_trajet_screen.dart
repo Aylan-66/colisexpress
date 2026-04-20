@@ -79,7 +79,15 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
 
     if (res.containsKey('error')) {
       setState(() => _error = res['error']);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(res['error']), backgroundColor: Colors.red),
+        );
+      }
     } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Trajet publié !'), backgroundColor: Colors.green),
+      );
       Navigator.pop(context, true);
     }
   }

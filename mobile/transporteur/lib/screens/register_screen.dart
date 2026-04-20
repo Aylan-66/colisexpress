@@ -46,6 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _error = res['error']);
     } else {
       widget.onRegister();
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 

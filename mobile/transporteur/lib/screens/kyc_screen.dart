@@ -15,6 +15,7 @@ class KycScreen extends StatefulWidget {
 class _KycScreenState extends State<KycScreen> {
   Map<String, dynamic>? _status;
   bool _loading = true;
+  String? _uploadingType;
   String? _success;
   String? _error;
 
@@ -71,15 +72,16 @@ class _KycScreenState extends State<KycScreen> {
     final file = await picker.pickImage(source: source, maxWidth: 1600, imageQuality: 85);
     if (file == null) return;
 
-    setState(() { _loading = true; _success = null; _error = null; });
+    setState(() { _uploadingType = typeDocument; _success = null; _error = null; });
     final res = await context.read<ApiService>().uploadKycDocument(typeDocument, File(file.path));
-    setState(() => _loading = false);
 
     if (res.containsKey('error')) {
-      setState(() => _error = res['error']);
+      setState(() { _uploadingType = null; _error = res['error']; });
     } else {
-      setState(() => _success = 'Document soumis !');
-      _load();
+      setState(() { _uploadingType = null; _success = 'Document soumis !'; });
+      // Recharger sans tout masquer
+      final status = await context.read<ApiService>().getKycStatus();
+      if (mounted) setState(() { _status = status.containsKey('error') ? _status : status; });
     }
   }
 
@@ -143,48 +145,56 @@ class _KycScreenState extends State<KycScreen> {
     final docs = (_status?['documents'] as List?) ?? [];
     final existing = docs.cast<Map<String, dynamic>>().where((d) => d['typeDocument'] == type).firstOrNull;
     final statut = existing?['statut']?.toString();
+    final isUploading = _uploadingType == type;
+    final isOtherUploading = _uploadingType != null && !isUploading;
 
     Color badgeColor = AppTheme.textMuted;
     String badgeText = 'Non soumis';
-    if (statut == 'EnAttente') { badgeColor = AppTheme.accent; badgeText = 'En attente'; }
-    if (statut == 'Valide') { badgeColor = AppTheme.success; badgeText = 'Validé'; }
-    if (statut == 'Rejete') { badgeColor = AppTheme.danger; badgeText = 'Rejeté'; }
+    if (isUploading) { badgeColor = AppTheme.primary; badgeText = 'Envoi...'; }
+    else if (statut == 'EnAttente') { badgeColor = AppTheme.accent; badgeText = 'En attente'; }
+    else if (statut == 'Valide') { badgeColor = AppTheme.success; badgeText = 'Validé'; }
+    else if (statut == 'Rejete') { badgeColor = AppTheme.danger; badgeText = 'Rejeté'; }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        leading: Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
+    return Opacity(
+      opacity: isOtherUploading ? 0.5 : 1.0,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          leading: Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: isUploading
+                ? const Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2))
+                : Icon(icon, color: AppTheme.primary, size: 22),
           ),
-          child: Icon(icon, color: AppTheme.primary, size: 22),
-        ),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-        subtitle: existing != null
-            ? Text(existing['nomFichier'] ?? '', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted))
-            : null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: badgeColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
+          title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          subtitle: existing != null
+              ? Text(existing['nomFichier'] ?? '', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted))
+              : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(badgeText,
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: badgeColor)),
               ),
-              child: Text(badgeText,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: badgeColor)),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(existing == null ? Icons.add_a_photo : Icons.refresh, size: 20),
-              color: AppTheme.primary,
-              onPressed: () => _upload(type),
-            ),
-          ],
+              const SizedBox(width: 8),
+              IconButton(
+                icon: Icon(existing == null ? Icons.add_a_photo : Icons.refresh, size: 20),
+                color: AppTheme.primary,
+                onPressed: isUploading || isOtherUploading ? null : () => _upload(type),
+              ),
+            ],
+          ),
         ),
       ),
     );

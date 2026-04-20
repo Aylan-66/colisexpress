@@ -56,6 +56,8 @@ public class ConnexionModel : PageModel
         if (!string.IsNullOrEmpty(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
             return Redirect(ReturnUrl);
 
-        return RedirectToPage("/Client/MesCommandes");
+        return result.Role.ToString() == "Admin"
+            ? RedirectToPage("/Admin/Dashboard")
+            : RedirectToPage("/Client/MesCommandes");
     }
 }

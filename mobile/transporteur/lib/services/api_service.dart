@@ -175,7 +175,7 @@ class ApiService {
     if (res.statusCode == 401 && await refreshToken()) {
       return _get(path);
     }
-    return jsonDecode(res.body);
+    return _parseJson(res);
   }
 
   Future<List<dynamic>> _getList(String path) async {
@@ -200,7 +200,7 @@ class ApiService {
     if (res.statusCode == 401 && await refreshToken()) {
       return _post(path, body);
     }
-    return jsonDecode(res.body);
+    return _parseJson(res);
   }
 
   Future<Map<String, dynamic>> _put(
@@ -213,7 +213,18 @@ class ApiService {
     if (res.statusCode == 401 && await refreshToken()) {
       return _put(path, body);
     }
-    return jsonDecode(res.body);
+    return _parseJson(res);
+  }
+
+  Map<String, dynamic> _parseJson(http.Response res) {
+    if (res.body.trimLeft().startsWith('<')) {
+      return {'error': 'Erreur serveur (HTTP ${res.statusCode}). Réessayez.'};
+    }
+    try {
+      return jsonDecode(res.body);
+    } catch (_) {
+      return {'error': 'Réponse invalide du serveur (HTTP ${res.statusCode}).'};
+    }
   }
 
   Future<void> _delete(String path) async {
