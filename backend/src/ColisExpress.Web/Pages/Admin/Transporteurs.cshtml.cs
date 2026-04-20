@@ -45,24 +45,6 @@ public class TransporteursModel : PageModel
         }
     }
 
-    public async Task<IActionResult> OnPostApproveAsync(Guid transporteurId, CancellationToken ct)
-    {
-        var result = await _admin.DecideKycAsync(new KycDecisionRequest { TransporteurId = transporteurId, Approuver = true }, ct);
-        if (result.Success) Success = "KYC approuvé.";
-        else Error = result.Error;
-        Transporteurs = await _admin.GetTransporteursAsync(ct);
-        return Page();
-    }
-
-    public async Task<IActionResult> OnPostRejectAsync(Guid transporteurId, CancellationToken ct)
-    {
-        var result = await _admin.DecideKycAsync(new KycDecisionRequest { TransporteurId = transporteurId, Approuver = false }, ct);
-        if (result.Success) Success = "KYC rejeté.";
-        else Error = result.Error;
-        Transporteurs = await _admin.GetTransporteursAsync(ct);
-        return Page();
-    }
-
     public async Task<IActionResult> OnPostApproveDocAsync(Guid documentId, Guid voirKyc, CancellationToken ct)
     {
         var result = await _admin.DecideDocumentKycAsync(documentId, true, ct);

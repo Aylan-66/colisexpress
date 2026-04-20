@@ -50,16 +50,8 @@
                                 break;
                         }
                     </td>
-                    <td style="display:flex;gap:6px;align-items:center;">
-                        <a class="admin-btn sm outline" asp-page="/Admin/Transporteurs" asp-route-voirKyc="@t.Id">📄 Docs</a>
-                        @if (t.StatutKyc == ColisExpress.Domain.Enums.StatutKyc.EnAttente)
-                        {
-                            <form method="post" style="display:inline-flex;gap:6px;margin:0;">
-                                <input type="hidden" name="transporteurId" value="@t.Id" />
-                                <button type="submit" asp-page-handler="Approve" class="admin-btn sm success">✓</button>
-                                <button type="submit" asp-page-handler="Reject" class="admin-btn sm danger">✗</button>
-                            </form>
-                        }
+                    <td>
+                        <a class="admin-btn sm outline" asp-page="/Admin/Transporteurs" asp-route-voirKyc="@t.Id">📄 Voir les documents</a>
                     </td>
                 </tr>
             }
@@ -72,7 +64,7 @@
     <div class="admin-card">
         <div class="admin-card-header">
             <h3 class="admin-card-title">Documents KYC</h3>
-            <a class="admin-btn sm outline" asp-page="/Admin/Transporteurs">Fermer</a>
+            <a class="admin-btn sm outline" asp-page="/Admin/Transporteurs">✕ Fermer</a>
         </div>
         @if (!Model.Documents.Any())
         {
@@ -80,59 +72,58 @@
         }
         else
         {
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Fichier</th>
-                        <th>Statut</th>
-                        <th>Soumis le</th>
-                        <th>Voir</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var doc in Model.Documents)
+            <div class="admin-card-body" style="display:flex;flex-direction:column;gap:16px;">
+                @foreach (var doc in Model.Documents)
+                {
+                    var badgeClass = doc.Statut switch
                     {
-                        <tr>
-                            <td style="color:var(--admin-text);font-weight:600;">@doc.TypeDocument</td>
-                            <td>@doc.NomFichier</td>
-                            <td>
-                                @switch (doc.Statut)
-                                {
-                                    case ColisExpress.Domain.Enums.StatutKyc.Valide:
-                                        <span class="admin-badge success">Validé</span>
-                                        break;
-                                    case ColisExpress.Domain.Enums.StatutKyc.Rejete:
-                                        <span class="admin-badge danger">Rejeté</span>
-                                        break;
-                                    default:
-                                        <span class="admin-badge warning">En attente</span>
-                                        break;
-                                }
-                            </td>
-                            <td>@doc.DateSoumission.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
-                            <td>
-                                <div style="display:flex;gap:6px;align-items:center;">
-                                    <a href="/api/kyc/document/@doc.Id" target="_blank" class="admin-btn sm outline">Ouvrir ↗</a>
-                                    @if (doc.Statut == ColisExpress.Domain.Enums.StatutKyc.EnAttente)
-                                    {
-                                        <form method="post" style="margin:0;">
-                                            <input type="hidden" name="documentId" value="@doc.Id" />
-                                            <input type="hidden" name="voirKyc" value="@Model.VoirKyc" />
-                                            <button type="submit" asp-page-handler="ApproveDoc" class="admin-btn sm success">✓</button>
-                                        </form>
-                                        <form method="post" style="margin:0;">
-                                            <input type="hidden" name="documentId" value="@doc.Id" />
-                                            <input type="hidden" name="voirKyc" value="@Model.VoirKyc" />
-                                            <button type="submit" asp-page-handler="RejectDoc" class="admin-btn sm danger">✗</button>
-                                        </form>
-                                    }
+                        ColisExpress.Domain.Enums.StatutKyc.Valide => "success",
+                        ColisExpress.Domain.Enums.StatutKyc.Rejete => "danger",
+                        _ => "warning"
+                    };
+                    var badgeText = doc.Statut switch
+                    {
+                        ColisExpress.Domain.Enums.StatutKyc.Valide => "Validé",
+                        ColisExpress.Domain.Enums.StatutKyc.Rejete => "Rejeté",
+                        _ => "En attente"
+                    };
+
+                    <div style="border:1px solid var(--admin-border);border-radius:10px;overflow:hidden;">
+                        <a href="/api/kyc/document/@doc.Id" target="_blank" style="display:block;background:var(--admin-bg);padding:12px;text-align:center;min-height:140px;display:flex;align-items:center;justify-content:center;">
+                            <img src="/api/kyc/document/@doc.Id" alt="@doc.TypeDocument"
+                                 style="max-height:200px;max-width:100%;border-radius:6px;"
+                                 onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\'color:var(--admin-text-muted);text-align:center;\'><div style=\'font-size:32px;\'>📄</div><div style=\'font-size:12px;margin-top:4px;\'>Cliquer pour ouvrir</div></div>';" />
+                        </a>
+
+                        <div style="padding:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                            <div>
+                                <div style="font-weight:700;color:var(--admin-text);font-size:14px;">@doc.TypeDocument</div>
+                                <div style="font-size:11px;color:var(--admin-text-muted);margin-top:2px;">
+                                    @doc.NomFichier — @doc.DateSoumission.ToLocalTime().ToString("dd MMM yyyy HH:mm")
                                 </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+                            </div>
+
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <span class="admin-badge @badgeClass">@badgeText</span>
+
+                                @if (doc.Statut == ColisExpress.Domain.Enums.StatutKyc.EnAttente)
+                                {
+                                    <form method="post" style="margin:0;">
+                                        <input type="hidden" name="documentId" value="@doc.Id" />
+                                        <input type="hidden" name="voirKyc" value="@Model.VoirKyc" />
+                                        <button type="submit" asp-page-handler="ApproveDoc" class="admin-btn sm success">✓ Valider</button>
+                                    </form>
+                                    <form method="post" style="margin:0;">
+                                        <input type="hidden" name="documentId" value="@doc.Id" />
+                                        <input type="hidden" name="voirKyc" value="@Model.VoirKyc" />
+                                        <button type="submit" asp-page-handler="RejectDoc" class="admin-btn sm danger">✗ Rejeter</button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
         }
     </div>
 }
