@@ -9,6 +9,8 @@ public class DocumentKyc
     public TypeDocument TypeDocument { get; set; }
     public string NomFichier { get; set; } = string.Empty;
     public string CheminFichier { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public byte[]? ContenuFichier { get; set; }
     public StatutKyc Statut { get; set; } = StatutKyc.EnAttente;
     public DateTime DateSoumission { get; set; } = DateTime.UtcNow;
     public DateTime? DateValidation { get; set; }

@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IQrCodeService, Services.QrCodeService>();
         services.AddScoped<IAdminService, Services.AdminService>();
+        services.AddScoped<ITransporteurService, Services.TransporteurService>();
 
         services.Configure<StripeOptions>(configuration.GetSection("Stripe"));
         services.AddSingleton<IStripeService, Services.StripeService>();

@@ -1,0 +1,89 @@
+@page "/transporteur/kyc"
+@model ColisExpress.Web.Pages.Transporteur.KycModel
+@{
+    ViewData["Title"] = "Vérification KYC";
+}
+
+<section class="web-page" style="max-width:780px;">
+    <h1>Vérification d'identité (KYC)</h1>
+    <p class="subtitle">Soumettez vos documents pour activer votre compte transporteur. Formats acceptés : JPG, PNG, PDF (5 Mo max).</p>
+
+    @if (!string.IsNullOrEmpty(Model.Success)) { <div class="web-alert success">@Model.Success</div> }
+    @if (!string.IsNullOrEmpty(Model.Error)) { <div class="web-alert error">@Model.Error</div> }
+
+    @if (Model.Dashboard is not null)
+    {
+        <div class="web-card">
+            <div class="flex justify-between items-center">
+                <h2 style="margin:0;">Statut KYC</h2>
+                @switch (Model.Dashboard.StatutKyc)
+                {
+                    case ColisExpress.Domain.Enums.StatutKyc.Valide:
+                        <span class="web-badge success">Validé</span>
+                        break;
+                    case ColisExpress.Domain.Enums.StatutKyc.EnAttente:
+                        <span class="web-badge accent">En attente de validation</span>
+                        break;
+                    case ColisExpress.Domain.Enums.StatutKyc.Rejete:
+                        <span class="web-badge danger">Rejeté — veuillez re-soumettre</span>
+                        break;
+                    default:
+                        <span class="web-badge neutral">Non soumis</span>
+                        break;
+                }
+            </div>
+            @if (Model.Dashboard.PeutPublierOffres)
+            {
+                <div class="web-alert success mt-4" style="margin-bottom:0;">
+                    Votre identité est vérifiée. Vous pouvez publier des offres de transport.
+                </div>
+            }
+        </div>
+
+        @foreach (var (type, label, hint) in ColisExpress.Web.Pages.Transporteur.KycModel.TypesDocuments)
+        {
+            var existing = Model.Dashboard.Documents.FirstOrDefault(d => d.TypeDocument == type);
+            <div class="web-card">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 style="margin:0;">@label</h3>
+                    @if (existing is not null)
+                    {
+                        switch (existing.Statut)
+                        {
+                            case ColisExpress.Domain.Enums.StatutKyc.Valide:
+                                <span class="web-badge success">Validé</span>
+                                break;
+                            case ColisExpress.Domain.Enums.StatutKyc.Rejete:
+                                <span class="web-badge danger">Rejeté</span>
+                                break;
+                            default:
+                                <span class="web-badge accent">En attente</span>
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        <span class="web-badge neutral">Non soumis</span>
+                    }
+                </div>
+                <p class="text-muted" style="font-size:12px;margin-bottom:12px;">@hint</p>
+
+                @if (existing is not null)
+                {
+                    <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px;">
+                        Fichier actuel : <strong>@existing.NomFichier</strong> — soumis le @existing.DateSoumission.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                    </div>
+                }
+
+                <form method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="typeDocument" value="@type" />
+                    <div class="flex gap-2 items-center">
+                        <input type="file" name="fichier" accept=".jpg,.jpeg,.png,.pdf" required
+                               style="font-size:13px;color:var(--gray-600);" />
+                        <button type="submit" class="web-btn sm">@(existing is null ? "Soumettre" : "Remplacer")</button>
+                    </div>
+                </form>
+            </div>
+        }
+    }
+</section>

@@ -11,10 +11,12 @@ if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
+builder.Services.AddControllers();
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Client", "EstConnecte");
     options.Conventions.AllowAnonymousToPage("/Client/Inscription");
+    options.Conventions.AllowAnonymousToPage("/Client/InscriptionTransporteur");
     options.Conventions.AllowAnonymousToPage("/Client/Connexion");
     options.Conventions.AllowAnonymousToPage("/Client/Recherche");
     options.Conventions.AllowAnonymousToPage("/Client/Resultats");
@@ -68,5 +70,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();
+app.MapControllers();
 
 app.Run();

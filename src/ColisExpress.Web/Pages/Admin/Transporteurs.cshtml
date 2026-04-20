@@ -50,18 +50,15 @@
                                 break;
                         }
                     </td>
-                    <td>
+                    <td style="display:flex;gap:6px;align-items:center;">
+                        <a class="admin-btn sm outline" asp-page="/Admin/Transporteurs" asp-route-voirKyc="@t.Id">📄 Docs</a>
                         @if (t.StatutKyc == ColisExpress.Domain.Enums.StatutKyc.EnAttente)
                         {
                             <form method="post" style="display:inline-flex;gap:6px;margin:0;">
                                 <input type="hidden" name="transporteurId" value="@t.Id" />
-                                <button type="submit" asp-page-handler="Approve" class="admin-btn sm success">✓ Approuver</button>
-                                <button type="submit" asp-page-handler="Reject" class="admin-btn sm danger">✗ Rejeter</button>
+                                <button type="submit" asp-page-handler="Approve" class="admin-btn sm success">✓</button>
+                                <button type="submit" asp-page-handler="Reject" class="admin-btn sm danger">✗</button>
                             </form>
-                        }
-                        else
-                        {
-                            <span style="color:var(--admin-text-muted);font-size:12px;">—</span>
                         }
                     </td>
                 </tr>
@@ -69,3 +66,56 @@
         </tbody>
     </table>
 </div>
+
+@if (Model.VoirKyc.HasValue)
+{
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3 class="admin-card-title">Documents KYC</h3>
+            <a class="admin-btn sm outline" asp-page="/Admin/Transporteurs">Fermer</a>
+        </div>
+        @if (!Model.Documents.Any())
+        {
+            <div class="admin-card-body" style="color:var(--admin-text-muted);">Aucun document soumis par ce transporteur.</div>
+        }
+        else
+        {
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Fichier</th>
+                        <th>Statut</th>
+                        <th>Soumis le</th>
+                        <th>Voir</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var doc in Model.Documents)
+                    {
+                        <tr>
+                            <td style="color:var(--admin-text);font-weight:600;">@doc.TypeDocument</td>
+                            <td>@doc.NomFichier</td>
+                            <td>
+                                @switch (doc.Statut)
+                                {
+                                    case ColisExpress.Domain.Enums.StatutKyc.Valide:
+                                        <span class="admin-badge success">Validé</span>
+                                        break;
+                                    case ColisExpress.Domain.Enums.StatutKyc.Rejete:
+                                        <span class="admin-badge danger">Rejeté</span>
+                                        break;
+                                    default:
+                                        <span class="admin-badge warning">En attente</span>
+                                        break;
+                                }
+                            </td>
+                            <td>@doc.DateSoumission.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                            <td><a href="/api/kyc/document/@doc.Id" target="_blank" class="admin-btn sm outline">Ouvrir ↗</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+}
