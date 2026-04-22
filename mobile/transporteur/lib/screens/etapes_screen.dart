@@ -140,11 +140,23 @@ class _EtapesScreenState extends State<EtapesScreen> {
   }
 
   Future<void> _modifierHeureEtape(String etapeId) async {
-    final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 12, minute: 0), helpText: 'Nouvelle heure d\'arrivée');
+    // Trouver l'étape actuelle et la précédente
+    final idx = _etapes.indexWhere((e) => e['id'] == etapeId);
+    final currentEtape = idx >= 0 ? _etapes[idx] : null;
+    final prevEtape = idx > 0 ? _etapes[idx - 1] : null;
+
+    final currentDt = currentEtape != null ? DateTime.tryParse(currentEtape['heureEstimeeArrivee']?.toString() ?? '')?.toLocal() : null;
+    final prevDt = prevEtape != null ? DateTime.tryParse(prevEtape['heureEstimeeArrivee']?.toString() ?? '')?.toLocal() : null;
+
+    final initialDate = currentDt ?? DateTime.now().add(const Duration(days: 3));
+    final initialTime = currentDt != null ? TimeOfDay(hour: currentDt.hour, minute: currentDt.minute) : const TimeOfDay(hour: 12, minute: 0);
+    final firstDate = prevDt ?? DateTime.now();
+
+    final time = await showTimePicker(context: context, initialTime: initialTime, helpText: 'Nouvelle heure d\'arrivée');
     if (time == null || !mounted) return;
 
-    final date = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 3)),
-        firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), helpText: 'Date d\'arrivée');
+    final date = await showDatePicker(context: context, initialDate: initialDate,
+        firstDate: firstDate, lastDate: firstDate.add(const Duration(days: 365)), helpText: 'Date d\'arrivée');
     if (date == null || !mounted) return;
 
     final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);

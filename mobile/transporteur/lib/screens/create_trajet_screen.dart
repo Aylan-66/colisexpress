@@ -30,6 +30,8 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
   final List<Map<String, dynamic>> _etapes = [];
   Map<String, dynamic>? _relaisDepart;
   Map<String, dynamic>? _relaisArrivee;
+  TimeOfDay _heureDepart = const TimeOfDay(hour: 8, minute: 0);
+  TimeOfDay _heureArrivee = const TimeOfDay(hour: 16, minute: 0);
 
   Future<void> _pickDate(bool isDepart) async {
     final picked = await showDatePicker(
@@ -103,18 +105,19 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
     final trajetId = res['id'];
 
     // Ajouter étape départ
-    final depDt = DateTime(_dateDepart.year, _dateDepart.month, _dateDepart.day, 8, 0);
+    final depDt = DateTime(_dateDepart.year, _dateDepart.month, _dateDepart.day, _heureDepart.hour, _heureDepart.minute);
     await api.addEtape(trajetId, _relaisDepart!['id'], depDt.toUtc().toIso8601String());
 
     // Ajouter étapes intermédiaires
     for (final e in _etapes) {
       final h = e['heure'] as TimeOfDay;
-      final dt = DateTime(_dateDepart.year, _dateDepart.month, _dateDepart.day, h.hour, h.minute);
+      final d = e['date'] as DateTime? ?? _dateDepart;
+      final dt = DateTime(d.year, d.month, d.day, h.hour, h.minute);
       await api.addEtape(trajetId, e['relais']['id'], dt.toUtc().toIso8601String());
     }
 
     // Ajouter étape arrivée
-    final arrDt = DateTime(_dateArrivee.year, _dateArrivee.month, _dateArrivee.day, 16, 0);
+    final arrDt = DateTime(_dateArrivee.year, _dateArrivee.month, _dateArrivee.day, _heureArrivee.hour, _heureArrivee.minute);
     await api.addEtape(trajetId, _relaisArrivee!['id'], arrDt.toUtc().toIso8601String());
 
     setState(() => _loading = false);
@@ -175,11 +178,23 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
             const Text('Minimum : 1 relais départ + 1 relais arrivée', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
             const SizedBox(height: 10),
 
-            // Relais départ
+            // Relais départ + heure
             _relaisSelector('Relais de départ', _relaisDepart, () async {
               final r = await _selectRelais(label: 'Relais de départ');
               if (r != null) setState(() => _relaisDepart = r);
             }),
+            if (_relaisDepart != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.schedule, size: 16),
+                  label: Text('Heure départ : ${_heureDepart.hour.toString().padLeft(2, '0')}:${_heureDepart.minute.toString().padLeft(2, '0')}'),
+                  onPressed: () async {
+                    final t = await showTimePicker(context: context, initialTime: _heureDepart, helpText: 'Heure de départ');
+                    if (t != null) setState(() => _heureDepart = t);
+                  },
+                ),
+              ),
 
             // Étapes intermédiaires
             ..._etapes.asMap().entries.map((entry) {
@@ -208,11 +223,23 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Relais arrivée
+            // Relais arrivée + heure
             _relaisSelector('Relais d\'arrivée (destination)', _relaisArrivee, () async {
               final r = await _selectRelais(label: 'Relais d\'arrivée');
               if (r != null) setState(() => _relaisArrivee = r);
             }),
+            if (_relaisArrivee != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.schedule, size: 16),
+                  label: Text('Heure arrivée : ${_heureArrivee.hour.toString().padLeft(2, '0')}:${_heureArrivee.minute.toString().padLeft(2, '0')}'),
+                  onPressed: () async {
+                    final t = await showTimePicker(context: context, initialTime: _heureArrivee, helpText: 'Heure d\'arrivée');
+                    if (t != null) setState(() => _heureArrivee = t);
+                  },
+                ),
+              ),
 
             const SizedBox(height: 20), _label('CAPACITÉ'),
             Row(children: [
