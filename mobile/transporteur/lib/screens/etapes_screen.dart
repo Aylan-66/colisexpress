@@ -43,10 +43,23 @@ class _EtapesScreenState extends State<EtapesScreen> {
       return;
     }
 
+    // Calculer la date/heure minimum : dernière étape existante ou début du trajet
+    DateTime minDate;
+    TimeOfDay minTime;
+    if (_etapes.isNotEmpty) {
+      final lastEtape = _etapes.last;
+      final lastDt = DateTime.tryParse(lastEtape['heureEstimeeArrivee']?.toString() ?? '')?.toLocal();
+      minDate = lastDt ?? DateTime.now();
+      minTime = lastDt != null ? TimeOfDay(hour: lastDt.hour, minute: lastDt.minute) : const TimeOfDay(hour: 8, minute: 0);
+    } else {
+      minDate = DateTime.now().add(const Duration(days: 1));
+      minTime = const TimeOfDay(hour: 8, minute: 0);
+    }
+
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => _SelectRelaisSheet(relaisList: relaisList),
+      builder: (ctx) => _SelectRelaisSheet(relaisList: relaisList, minDate: minDate, minTime: minTime),
     );
 
     if (result == null || !mounted) return;
@@ -274,8 +287,8 @@ class _EtapesScreenState extends State<EtapesScreen> {
     final relais = e['relais'] as Map<String, dynamic>? ?? {};
     final statut = e['statut']?.toString() ?? 'Planifiee';
     final ouvert = e['relaisOuvertALArrivee'] == true;
-    final heureEstimee = DateTime.tryParse(e['heureEstimeeArrivee']?.toString() ?? '');
-    final heureReelle = DateTime.tryParse(e['heureReelleArrivee']?.toString() ?? '');
+    final heureEstimee = DateTime.tryParse(e['heureEstimeeArrivee']?.toString() ?? '')?.toLocal();
+    final heureReelle = DateTime.tryParse(e['heureReelleArrivee']?.toString() ?? '')?.toLocal();
     final heureStr = heureEstimee != null ? '${heureEstimee.hour}:${heureEstimee.minute.toString().padLeft(2, '0')}' : '—';
 
     Color statutColor;
@@ -450,7 +463,9 @@ class _EtapesScreenState extends State<EtapesScreen> {
 
 class _SelectRelaisSheet extends StatefulWidget {
   final List<dynamic> relaisList;
-  const _SelectRelaisSheet({required this.relaisList});
+  final DateTime minDate;
+  final TimeOfDay minTime;
+  const _SelectRelaisSheet({required this.relaisList, required this.minDate, required this.minTime});
 
   @override
   State<_SelectRelaisSheet> createState() => _SelectRelaisSheetState();
@@ -458,9 +473,16 @@ class _SelectRelaisSheet extends StatefulWidget {
 
 class _SelectRelaisSheetState extends State<_SelectRelaisSheet> {
   Map<String, dynamic>? _selected;
-  TimeOfDay _heure = const TimeOfDay(hour: 10, minute: 0);
-  DateTime _date = DateTime.now().add(const Duration(days: 3));
+  late TimeOfDay _heure;
+  late DateTime _date;
   String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _date = widget.minDate;
+    _heure = widget.minTime;
+  }
 
   List<dynamic> get _filtered {
     if (_search.isEmpty) return widget.relaisList;
@@ -512,7 +534,7 @@ class _SelectRelaisSheetState extends State<_SelectRelaisSheet> {
                       onPressed: () async {
                         final d = await showDatePicker(
                           context: context, initialDate: _date,
-                          firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)),
+                          firstDate: widget.minDate, lastDate: widget.minDate.add(const Duration(days: 365)),
                         );
                         if (d != null) setState(() => _date = d);
                       },
