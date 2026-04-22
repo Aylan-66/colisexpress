@@ -59,14 +59,25 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
 
   Future<void> _addEtapeIntermediaire() async {
     final relais = await _selectRelais(label: 'Ajouter un arrêt intermédiaire');
-    if (relais == null) return;
+    if (relais == null || !mounted) return;
 
-    final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 12, minute: 0));
+    // Date min = date de la dernière étape intermédiaire ou date départ
+    final prevDate = _etapes.isNotEmpty ? (_etapes.last['date'] as DateTime? ?? _dateDepart) : _dateDepart;
+    final prevTime = _etapes.isNotEmpty ? (_etapes.last['heure'] as TimeOfDay? ?? const TimeOfDay(hour: 10, minute: 0)) : _heureDepart;
+
+    final date = await showDatePicker(
+      context: context, initialDate: prevDate,
+      firstDate: prevDate, lastDate: _dateArrivee.add(const Duration(days: 30)),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(context: context, initialTime: prevTime);
     if (time == null) return;
 
     setState(() {
       _etapes.add({
         'relais': relais,
+        'date': date,
         'heure': TimeOfDay(hour: time.hour, minute: time.minute),
       });
     });
@@ -188,7 +199,7 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.schedule, size: 16),
-                  label: Text('Heure départ : ${_heureDepart.hour.toString().padLeft(2, '0')}:${_heureDepart.minute.toString().padLeft(2, '0')}'),
+                  label: Text('Départ : ${_fmt(_dateDepart)} à ${_heureDepart.hour.toString().padLeft(2, '0')}:${_heureDepart.minute.toString().padLeft(2, '0')}'),
                   onPressed: () async {
                     final t = await showTimePicker(context: context, initialTime: _heureDepart, helpText: 'Heure de départ');
                     if (t != null) setState(() => _heureDepart = t);
@@ -202,13 +213,38 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
               final e = entry.value;
               final r = e['relais'] as Map<String, dynamic>;
               final h = e['heure'] as TimeOfDay;
+              final d = e['date'] as DateTime? ?? _dateDepart;
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.swap_vert, color: AppTheme.accent),
-                  title: Text(r['nomRelais'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  subtitle: Text('${r['ville']}, ${r['pays']} — ${h.hour}:${h.minute.toString().padLeft(2, '0')}', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                  trailing: IconButton(icon: const Icon(Icons.delete_outline, color: AppTheme.danger, size: 20), onPressed: () => setState(() => _etapes.removeAt(i))),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.swap_vert, color: AppTheme.accent),
+                      title: Text(r['nomRelais'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      subtitle: Text('${r['ville']}, ${r['pays']}', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                      trailing: IconButton(icon: const Icon(Icons.delete_outline, color: AppTheme.danger, size: 20), onPressed: () => setState(() => _etapes.removeAt(i))),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.schedule, size: 16),
+                        label: Text('Arrivée : ${d.day}/${d.month}/${d.year} à ${h.hour.toString().padLeft(2, '0')}:${h.minute.toString().padLeft(2, '0')}'),
+                        onPressed: () async {
+                          final pickedDate = await showDatePicker(
+                            context: context, initialDate: d,
+                            firstDate: _dateDepart, lastDate: _dateArrivee.add(const Duration(days: 30)),
+                          );
+                          if (pickedDate == null || !mounted) return;
+                          final pickedTime = await showTimePicker(context: context, initialTime: h);
+                          if (pickedTime == null || !mounted) return;
+                          setState(() {
+                            _etapes[i]['date'] = pickedDate;
+                            _etapes[i]['heure'] = pickedTime;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               );
             }),
@@ -233,7 +269,7 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.schedule, size: 16),
-                  label: Text('Heure arrivée : ${_heureArrivee.hour.toString().padLeft(2, '0')}:${_heureArrivee.minute.toString().padLeft(2, '0')}'),
+                  label: Text('Arrivée : ${_fmt(_dateArrivee)} à ${_heureArrivee.hour.toString().padLeft(2, '0')}:${_heureArrivee.minute.toString().padLeft(2, '0')}'),
                   onPressed: () async {
                     final t = await showTimePicker(context: context, initialTime: _heureArrivee, helpText: 'Heure d\'arrivée');
                     if (t != null) setState(() => _heureArrivee = t);
