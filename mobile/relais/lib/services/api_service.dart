@@ -50,15 +50,11 @@ class ApiService {
     required String ville,
     required String pays,
   }) async {
-    final res = await _post('/api/auth/register', {
-      'prenom': prenom,
-      'nom': nom,
+    final res = await _post('/api/auth/register/relais', {
+      'nomRelais': nomRelais,
       'email': email,
       'telephone': telephone,
       'motDePasse': motDePasse,
-      'confirmationMotDePasse': motDePasse,
-      'role': 2,
-      'nomRelais': nomRelais,
       'adresse': adresse,
       'ville': ville,
       'pays': pays,
