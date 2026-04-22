@@ -276,123 +276,159 @@ class _EtapesScreenState extends State<EtapesScreen> {
     final ouvert = e['relaisOuvertALArrivee'] == true;
     final heureEstimee = DateTime.tryParse(e['heureEstimeeArrivee']?.toString() ?? '');
     final heureReelle = DateTime.tryParse(e['heureReelleArrivee']?.toString() ?? '');
+    final heureStr = heureEstimee != null ? '${heureEstimee.hour}:${heureEstimee.minute.toString().padLeft(2, '0')}' : '—';
 
     Color statutColor;
-    IconData statutIcon;
+    String statutLabel;
     switch (statut) {
-      case 'Terminee': statutColor = AppTheme.success; statutIcon = Icons.check_circle; break;
-      case 'EnCours': statutColor = AppTheme.accent; statutIcon = Icons.directions; break;
-      default: statutColor = AppTheme.textMuted; statutIcon = Icons.circle_outlined;
+      case 'Terminee': statutColor = AppTheme.success; statutLabel = 'Terminé'; break;
+      case 'EnCours': statutColor = AppTheme.accent; statutLabel = 'En cours'; break;
+      default: statutColor = AppTheme.textMuted; statutLabel = 'Planifié';
     }
 
-    return Column(
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        children: [
+          // Header avec nom + statut + horaire
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: statutColor.withValues(alpha: 0.05),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
             child: Row(
               children: [
-                // Timeline dot
-                Column(
-                  children: [
-                    Icon(statutIcon, color: statutColor, size: 24),
-                    if (!isLast) Container(width: 2, height: 30, color: AppTheme.border),
-                  ],
+                Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(color: statutColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                  child: Center(child: Text('${e['ordre']}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: statutColor))),
                 ),
                 const SizedBox(width: 14),
-
-                // Info (tappable)
                 Expanded(
-                  child: GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => EtapeDetailScreen(
-                        trajetId: widget.trajetId,
-                        etapeId: e['id'],
-                        relaisNom: relais['nomRelais'] ?? '—',
-                      ),
-                    )),
-                    child: Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${e['ordre']}. ${relais['nomRelais'] ?? '—'}',
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-                      Text('${relais['ville']}, ${relais['pays']}',
-                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.schedule, size: 14, color: AppTheme.textMuted),
-                          const SizedBox(width: 4),
-                          GestureDetector(
-                            onTap: statut == 'Planifiee' ? () => _modifierHeureEtape(e['id']) : null,
-                            child: Text(
-                              heureEstimee != null
-                                  ? '${heureEstimee.hour}:${heureEstimee.minute.toString().padLeft(2, '0')}${statut == 'Planifiee' ? ' ✏️' : ''}'
-                                  : '—',
-                              style: TextStyle(fontSize: 12, color: statut == 'Planifiee' ? AppTheme.primary : AppTheme.textMuted,
-                                  fontWeight: statut == 'Planifiee' ? FontWeight.w700 : FontWeight.normal),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Icon(
-                            ouvert ? Icons.lock_open : Icons.lock,
-                            size: 14,
-                            color: ouvert ? AppTheme.success : AppTheme.danger,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            ouvert ? 'Ouvert' : 'Fermé',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: ouvert ? AppTheme.success : AppTheme.danger,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (heureReelle != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            'Arrivé à ${heureReelle.hour}:${heureReelle.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(fontSize: 11, color: AppTheme.success, fontWeight: FontWeight.w600),
-                          ),
-                        ),
+                      Text(relais['nomRelais'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      Text('${relais['ville'] ?? ''}, ${relais['pays'] ?? ''}', style: const TextStyle(color: AppTheme.textMuted, fontSize: 13)),
                     ],
-                  ),
                   ),
                 ),
-
-                // Actions
-                if (statut == 'Planifiee')
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20, color: AppTheme.danger),
-                    onPressed: () => _removeEtape(e['id']),
-                  ),
-                if (statut == 'EnCours')
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.navigation, color: AppTheme.primary, size: 22),
-                        tooltip: 'Ouvrir dans Maps',
-                        onPressed: () => _ouvrirMaps(relais),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => _marquerArrivee(e['id']),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.success,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        child: const Text('Arrivé', style: TextStyle(fontSize: 12)),
-                      ),
-                    ],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: statutColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                      child: Text(statutLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: statutColor)),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(ouvert ? Icons.lock_open : Icons.lock, size: 14, color: ouvert ? AppTheme.success : AppTheme.danger),
+                        const SizedBox(width: 3),
+                        Text(ouvert ? 'Ouvert' : 'Fermé', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ouvert ? AppTheme.success : AppTheme.danger)),
+                      ],
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-        ),
-      ],
+
+          // Horaire + arrivée réelle
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule, size: 18, color: AppTheme.textMuted),
+                const SizedBox(width: 8),
+                Text('Arrivée prévue : $heureStr', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                if (heureReelle != null) ...[
+                  const SizedBox(width: 12),
+                  Icon(Icons.check, size: 16, color: AppTheme.success),
+                  Text(' Réelle : ${heureReelle.hour}:${heureReelle.minute.toString().padLeft(2, '0')}',
+                      style: const TextStyle(fontSize: 13, color: AppTheme.success, fontWeight: FontWeight.w600)),
+                ],
+              ],
+            ),
+          ),
+
+          // Boutons d'action — gros et clairs
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Row(
+              children: [
+                // Voir les colis
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.inventory_2, size: 18),
+                    label: const Text('Voir colis'),
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => EtapeDetailScreen(
+                        trajetId: widget.trajetId, etapeId: e['id'],
+                        relaisNom: relais['nomRelais'] ?? '—',
+                      ),
+                    )),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                if (statut == 'Planifiee') ...[
+                  // Modifier l'heure
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.edit, size: 18, color: AppTheme.primary),
+                      label: const Text('Modifier heure'),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                      onPressed: () => _modifierHeureEtape(e['id']),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Supprimer
+                  SizedBox(
+                    width: 48,
+                    child: IconButton(
+                      icon: const Icon(Icons.delete, color: AppTheme.danger, size: 24),
+                      onPressed: () => _removeEtape(e['id']),
+                    ),
+                  ),
+                ],
+
+                if (statut == 'EnCours') ...[
+                  // Navigation Maps
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.navigation, size: 18),
+                      label: const Text('Naviguer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => _ouvrirMaps(relais),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Marquer arrivée
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.check_circle, size: 18),
+                      label: const Text('Arrivé'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.success,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => _marquerArrivee(e['id']),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
