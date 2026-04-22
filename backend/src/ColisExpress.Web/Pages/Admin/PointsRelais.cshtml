@@ -54,9 +54,9 @@
         <thead>
             <tr>
                 <th>Nom du relais</th>
-                <th>Ville</th>
-                <th>Pays</th>
-                <th>Téléphone</th>
+                <th>Ville / Pays</th>
+                <th>Horaires</th>
+                <th>Commission</th>
                 <th>Statut</th>
                 <th>Actions</th>
             </tr>
@@ -65,10 +65,32 @@
             @foreach (var p in Model.PointsRelais)
             {
                 <tr>
-                    <td style="color:var(--admin-text);font-weight:600;">@p.NomRelais</td>
-                    <td>@p.Ville</td>
-                    <td>@p.Pays</td>
-                    <td>@p.Telephone</td>
+                    <td>
+                        <div style="font-weight:600;color:var(--admin-text);">@p.NomRelais</div>
+                        <div style="font-size:11px;color:var(--admin-text-muted);">@p.Telephone</div>
+                    </td>
+                    <td>@p.Ville, @p.Pays</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(p.JoursOuverture))
+                        {
+                            <div style="font-size:11px;">@p.JoursOuverture</div>
+                            <div style="font-size:11px;color:var(--admin-text-muted);">@p.HeureOuverture — @p.HeureFermeture</div>
+                        }
+                        else
+                        {
+                            <span style="font-size:11px;color:var(--admin-text-muted);">Non défini</span>
+                        }
+                    </td>
+                    <td>
+                        @if (p.MontantCommission > 0)
+                        {
+                            <span class="admin-badge primary">@(p.TypeCommission == "Pourcentage" ? $"{p.MontantCommission}%" : $"{p.MontantCommission} €")</span>
+                        }
+                        else
+                        {
+                            <span style="font-size:11px;color:var(--admin-text-muted);">0</span>
+                        }
+                    </td>
                     <td>
                         @if (p.EstActif)
                         {

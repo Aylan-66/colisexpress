@@ -72,6 +72,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("EstConnecte", p => p.RequireAuthenticatedUser());
     options.AddPolicy("EstAdmin", p => p.RequireClaim(System.Security.Claims.ClaimTypes.Role, "Admin"));
     options.AddPolicy("EstTransporteur", p => p.RequireClaim(System.Security.Claims.ClaimTypes.Role, "Transporteur"));
+    options.AddPolicy("EstPointRelais", p => p.RequireClaim(System.Security.Claims.ClaimTypes.Role, "PointRelais"));
 });
 
 var app = builder.Build();

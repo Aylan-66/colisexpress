@@ -230,7 +230,12 @@ public class AdminService : IAdminService
                 Ville = p.Ville,
                 Pays = p.Pays,
                 Telephone = p.Telephone,
-                EstActif = p.EstActif
+                EstActif = p.EstActif,
+                JoursOuverture = p.JoursOuverture,
+                HeureOuverture = p.HeureOuverture.HasValue ? p.HeureOuverture.Value.ToString("HH:mm") : null,
+                HeureFermeture = p.HeureFermeture.HasValue ? p.HeureFermeture.Value.ToString("HH:mm") : null,
+                TypeCommission = p.TypeCommission.ToString(),
+                MontantCommission = p.MontantCommission
             })
             .ToListAsync(ct);
     }

@@ -60,6 +60,11 @@ public class PointRelaisListItem
     public Guid Id { get; init; }
     public string NomRelais { get; init; } = string.Empty;
     public string Ville { get; init; } = string.Empty;
+    public string? JoursOuverture { get; init; }
+    public string? HeureOuverture { get; init; }
+    public string? HeureFermeture { get; init; }
+    public string TypeCommission { get; init; } = "Pourcentage";
+    public decimal MontantCommission { get; init; }
     public string Pays { get; init; } = string.Empty;
     public string Telephone { get; init; } = string.Empty;
     public bool EstActif { get; init; }

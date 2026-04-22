@@ -374,6 +374,18 @@ namespace ColisExpress.Infrastructure.Migrations
                     b.Property<bool>("EstActif")
                         .HasColumnType("boolean");
 
+                    b.Property<TimeOnly?>("HeureFermeture")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<TimeOnly?>("HeureOuverture")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("JoursOuverture")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("MontantCommission")
+                        .HasColumnType("numeric");
+
                     b.Property<string>("NomRelais")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -388,6 +400,9 @@ namespace ColisExpress.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<int>("TypeCommission")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("UtilisateurId")
                         .HasColumnType("uuid");
