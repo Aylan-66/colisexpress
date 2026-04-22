@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import 'etape_detail_screen.dart';
@@ -95,6 +96,63 @@ class _EtapesScreenState extends State<EtapesScreen> {
       setState(() => _success = 'Tournée lancée !');
       await _load();
     }
+  }
+
+  Future<void> _demanderAnnulation() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Demander l\'annulation ?'),
+        content: const Text('Cette action enverra une demande à l\'admin. Les clients Stripe seront remboursés. Vous ne pourrez pas annuler vous-même.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Non')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Oui, annuler', style: TextStyle(color: AppTheme.danger))),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    final res = await context.read<ApiService>().demanderAnnulation(widget.trajetId);
+    if (res.containsKey('error')) {
+      setState(() => _error = res['error']);
+    } else {
+      setState(() => _success = res['message'] ?? 'Demande d\'annulation envoyée.');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demande d\'annulation envoyée à l\'admin.'), backgroundColor: Colors.orange),
+        );
+      }
+    }
+  }
+
+  Future<void> _modifierHeureEtape(String etapeId) async {
+    final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 12, minute: 0), helpText: 'Nouvelle heure d\'arrivée');
+    if (time == null || !mounted) return;
+
+    final date = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 3)),
+        firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), helpText: 'Date d\'arrivée');
+    if (date == null || !mounted) return;
+
+    final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    setState(() { _loading = true; _error = null; });
+    final res = await context.read<ApiService>().updateEtapeHeure(widget.trajetId, etapeId, dt.toUtc().toIso8601String());
+
+    if (res.containsKey('error')) {
+      setState(() { _error = res['error']; _loading = false; });
+    } else {
+      final warning = res['warning'];
+      setState(() { _success = warning ?? 'Heure mise à jour.'; });
+      if (warning != null) setState(() => _error = warning);
+      await _load();
+    }
+  }
+
+  void _ouvrirMaps(Map<String, dynamic> relais) {
+    final adresse = '${relais['nomRelais'] ?? ''}, ${relais['ville'] ?? ''}, ${relais['pays'] ?? ''}';
+    final encoded = Uri.encodeComponent(adresse);
+    // Essayer Waze d'abord, sinon Google Maps
+    launchUrl(Uri.parse('https://waze.com/ul?q=$encoded'), mode: LaunchMode.externalApplication);
   }
 
   Future<void> _marquerArrivee(String etapeId) async {
@@ -195,6 +253,16 @@ class _EtapesScreenState extends State<EtapesScreen> {
                         onPressed: _lancerTournee,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.cancel_outlined, size: 18, color: AppTheme.danger),
+                        label: const Text('Demander l\'annulation', style: TextStyle(color: AppTheme.danger)),
+                        style: OutlinedButton.styleFrom(side: const BorderSide(color: AppTheme.danger)),
+                        onPressed: _demanderAnnulation,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -255,11 +323,15 @@ class _EtapesScreenState extends State<EtapesScreen> {
                         children: [
                           Icon(Icons.schedule, size: 14, color: AppTheme.textMuted),
                           const SizedBox(width: 4),
-                          Text(
-                            heureEstimee != null
-                                ? '${heureEstimee.hour}:${heureEstimee.minute.toString().padLeft(2, '0')}'
-                                : '—',
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                          GestureDetector(
+                            onTap: statut == 'Planifiee' ? () => _modifierHeureEtape(e['id']) : null,
+                            child: Text(
+                              heureEstimee != null
+                                  ? '${heureEstimee.hour}:${heureEstimee.minute.toString().padLeft(2, '0')}${statut == 'Planifiee' ? ' ✏️' : ''}'
+                                  : '—',
+                              style: TextStyle(fontSize: 12, color: statut == 'Planifiee' ? AppTheme.primary : AppTheme.textMuted,
+                                  fontWeight: statut == 'Planifiee' ? FontWeight.w700 : FontWeight.normal),
+                            ),
                           ),
                           const SizedBox(width: 10),
                           Icon(
@@ -298,13 +370,23 @@ class _EtapesScreenState extends State<EtapesScreen> {
                     onPressed: () => _removeEtape(e['id']),
                   ),
                 if (statut == 'EnCours')
-                  ElevatedButton(
-                    onPressed: () => _marquerArrivee(e['id']),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.success,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    child: const Text('Arrivé', style: TextStyle(fontSize: 12)),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.navigation, color: AppTheme.primary, size: 22),
+                        tooltip: 'Ouvrir dans Maps',
+                        onPressed: () => _ouvrirMaps(relais),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => _marquerArrivee(e['id']),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.success,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        child: const Text('Arrivé', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
                   ),
               ],
             ),

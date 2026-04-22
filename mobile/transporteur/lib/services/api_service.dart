@@ -131,6 +131,12 @@ class ApiService {
   Future<Map<String, dynamic>> marquerArrivee(String trajetId, String etapeId) async =>
       await _post('/api/trajets/$trajetId/etapes/$etapeId/arrivee', {});
 
+  Future<Map<String, dynamic>> updateEtapeHeure(String trajetId, String etapeId, String heureEstimee) async =>
+      await _put('/api/trajets/$trajetId/etapes/$etapeId', {'heureEstimeeArrivee': heureEstimee});
+
+  Future<Map<String, dynamic>> demanderAnnulation(String trajetId) async =>
+      await _post('/api/trajets/$trajetId/demander-annulation', {});
+
   Future<Map<String, dynamic>> getColisForEtape(String trajetId, String etapeId) async =>
       await _get('/api/trajets/$trajetId/etapes/$etapeId/colis');
 
