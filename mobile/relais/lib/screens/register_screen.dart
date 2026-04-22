@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../theme.dart';
 
 class RegisterScreen extends StatefulWidget {
-  final VoidCallback onRegister;
+  final void Function({bool isNew}) onRegister;
   const RegisterScreen({super.key, required this.onRegister});
 
   @override
@@ -58,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (res.containsKey('error')) {
       setState(() => _error = res['error']);
     } else {
-      widget.onRegister();
+      widget.onRegister(isNew: true);
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }

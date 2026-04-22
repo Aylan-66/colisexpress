@@ -5,7 +5,7 @@ import '../theme.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  final VoidCallback onLogin;
+  final void Function({bool isNew}) onLogin;
   const LoginScreen({super.key, required this.onLogin});
 
   @override

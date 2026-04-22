@@ -39,6 +39,7 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _loading = true;
   bool _loggedIn = false;
+  bool _isNewAccount = false;
 
   @override
   void initState() {
@@ -70,11 +71,11 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
     return _loggedIn
-        ? const HomeScreen()
-        : LoginScreen(onLogin: () {
+        ? HomeScreen(showProfilFirst: _isNewAccount)
+        : LoginScreen(onLogin: ({bool isNew = false}) {
             final api = context.read<ApiService>();
             api.onSessionExpired = _onSessionExpired;
-            setState(() => _loggedIn = true);
+            setState(() { _loggedIn = true; _isNewAccount = isNew; });
           });
   }
 }

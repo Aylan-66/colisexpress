@@ -13,10 +13,14 @@ public class PointRelais
     public string Telephone { get; set; } = string.Empty;
     public bool EstActif { get; set; } = true;
 
-    // Horaires d'ouverture
+    // Horaires d'ouverture semaine
     public string? JoursOuverture { get; set; }       // ex: "Lun,Mar,Mer,Jeu,Ven,Sam"
     public TimeOnly? HeureOuverture { get; set; }      // ex: 08:00
     public TimeOnly? HeureFermeture { get; set; }      // ex: 18:00
+
+    // Horaires weekend (Sam/Dim si différents)
+    public TimeOnly? HeureOuvertureWeekend { get; set; }  // ex: 09:00
+    public TimeOnly? HeureFermetureWeekend { get; set; }  // ex: 14:00
 
     // Commission
     public TypeCommission TypeCommission { get; set; } = TypeCommission.Pourcentage;
@@ -27,7 +31,6 @@ public class PointRelais
     public bool EstOuvert(DayOfWeek jour, TimeOnly heure)
     {
         if (string.IsNullOrWhiteSpace(JoursOuverture)) return true;
-        if (HeureOuverture is null || HeureFermeture is null) return true;
 
         var joursFr = new Dictionary<DayOfWeek, string>
         {
@@ -43,6 +46,21 @@ public class PointRelais
         if (!JoursOuverture.Contains(joursFr[jour], StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return heure >= HeureOuverture.Value && heure <= HeureFermeture.Value;
+        var isWeekend = jour == DayOfWeek.Saturday || jour == DayOfWeek.Sunday;
+
+        TimeOnly? ouv, fer;
+        if (isWeekend && HeureOuvertureWeekend.HasValue)
+        {
+            ouv = HeureOuvertureWeekend;
+            fer = HeureFermetureWeekend;
+        }
+        else
+        {
+            ouv = HeureOuverture;
+            fer = HeureFermeture;
+        }
+
+        if (ouv is null || fer is null) return true;
+        return heure >= ouv.Value && heure <= fer.Value;
     }
 }

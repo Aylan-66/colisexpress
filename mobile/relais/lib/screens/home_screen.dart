@@ -4,19 +4,26 @@ import 'colis_screen.dart';
 import 'profil_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool showProfilFirst;
+  const HomeScreen({super.key, this.showProfilFirst = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _index = 0;
+  late int _index;
 
   final _screens = const [
     ColisScreen(),
     ProfilScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.showProfilFirst ? 1 : 0;
+  }
 
   @override
   Widget build(BuildContext context) {

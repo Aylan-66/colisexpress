@@ -42,6 +42,8 @@ public class RelaisController : ControllerBase
             joursOuverture = relais.JoursOuverture ?? "",
             heureOuverture = relais.HeureOuverture?.ToString("HH:mm"),
             heureFermeture = relais.HeureFermeture?.ToString("HH:mm"),
+            heureOuvertureWeekend = relais.HeureOuvertureWeekend?.ToString("HH:mm"),
+            heureFermetureWeekend = relais.HeureFermetureWeekend?.ToString("HH:mm"),
             typeCommission = relais.TypeCommission.ToString(),
             montantCommission = relais.MontantCommission
         });
@@ -64,6 +66,10 @@ public class RelaisController : ControllerBase
             relais.HeureOuverture = ho;
         if (request.HeureFermeture is not null && TimeOnly.TryParse(request.HeureFermeture, out var hf))
             relais.HeureFermeture = hf;
+        if (request.HeureOuvertureWeekend is not null && TimeOnly.TryParse(request.HeureOuvertureWeekend, out var how))
+            relais.HeureOuvertureWeekend = how;
+        if (request.HeureFermetureWeekend is not null && TimeOnly.TryParse(request.HeureFermetureWeekend, out var hfw))
+            relais.HeureFermetureWeekend = hfw;
 
         if (request.TypeCommission is not null && Enum.TryParse<TypeCommission>(request.TypeCommission, true, out var tc))
             relais.TypeCommission = tc;
@@ -238,6 +244,8 @@ public class UpdateRelaisProfilRequest
     public string? JoursOuverture { get; set; }
     public string? HeureOuverture { get; set; }
     public string? HeureFermeture { get; set; }
+    public string? HeureOuvertureWeekend { get; set; }
+    public string? HeureFermetureWeekend { get; set; }
     public string? TypeCommission { get; set; }
     public decimal? MontantCommission { get; set; }
 }
