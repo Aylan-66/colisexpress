@@ -131,6 +131,9 @@ class ApiService {
   Future<Map<String, dynamic>> marquerArrivee(String trajetId, String etapeId) async =>
       await _post('/api/trajets/$trajetId/etapes/$etapeId/arrivee', {});
 
+  Future<Map<String, dynamic>> getColisForEtape(String trajetId, String etapeId) async =>
+      await _get('/api/trajets/$trajetId/etapes/$etapeId/colis');
+
   // ============================================
   // KYC
   // ============================================

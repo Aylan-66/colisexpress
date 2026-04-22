@@ -1,0 +1,184 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/api_service.dart';
+import '../theme.dart';
+import 'colis_detail_screen.dart';
+
+class EtapeDetailScreen extends StatefulWidget {
+  final String trajetId;
+  final String etapeId;
+  final String relaisNom;
+
+  const EtapeDetailScreen({
+    super.key,
+    required this.trajetId,
+    required this.etapeId,
+    required this.relaisNom,
+  });
+
+  @override
+  State<EtapeDetailScreen> createState() => _EtapeDetailScreenState();
+}
+
+class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
+  Map<String, dynamic>? _data;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final res = await context.read<ApiService>().getColisForEtape(widget.trajetId, widget.etapeId);
+    setState(() {
+      _loading = false;
+      if (!res.containsKey('error')) _data = res;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.relaisNom)),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _data == null
+              ? const Center(child: Text('Erreur chargement'))
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // Header
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(_typeIcon, size: 32, color: _typeColor),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(_data!['relais'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                                    Text('${_data!['ville']} — ${_typeLabel}',
+                                        style: TextStyle(color: _typeColor, fontWeight: FontWeight.w600, fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // À récupérer
+                      if (_type != 'arrivee') ...[
+                        _sectionHeader('À RÉCUPÉRER', Icons.upload, AppTheme.primary, _aRecuperer.length),
+                        if (_aRecuperer.isEmpty)
+                          _emptyCard('Aucun colis à récupérer à cet arrêt')
+                        else
+                          ..._aRecuperer.map((c) => _colisCard(c, isDeposer: false)),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // À déposer
+                      if (_type != 'depart') ...[
+                        _sectionHeader('À DÉPOSER', Icons.download, AppTheme.accent, _aDeposer.length),
+                        if (_aDeposer.isEmpty)
+                          _emptyCard('Aucun colis à déposer à cet arrêt')
+                        else
+                          ..._aDeposer.map((c) => _colisCard(c, isDeposer: true)),
+                      ],
+
+                      // Si premier arrêt, montrer aussi les colis à déposer plus loin
+                      if (_type == 'depart' && _aDeposer.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _sectionHeader('COLIS DESTINATION FINALE', Icons.flag, AppTheme.success, _aDeposer.length),
+                        ..._aDeposer.map((c) => _colisCard(c, isDeposer: true)),
+                      ],
+                    ],
+                  ),
+                ),
+    );
+  }
+
+  String get _type => _data?['type']?.toString() ?? 'intermediaire';
+  List<dynamic> get _aDeposer => (_data?['aDeposer'] as List?) ?? [];
+  List<dynamic> get _aRecuperer => (_data?['aRecuperer'] as List?) ?? [];
+
+  Color get _typeColor => switch (_type) {
+        'depart' => AppTheme.primary,
+        'arrivee' => AppTheme.success,
+        _ => AppTheme.accent,
+      };
+
+  IconData get _typeIcon => switch (_type) {
+        'depart' => Icons.flight_takeoff,
+        'arrivee' => Icons.flight_land,
+        _ => Icons.swap_vert,
+      };
+
+  String get _typeLabel => switch (_type) {
+        'depart' => 'Point de départ',
+        'arrivee' => 'Destination finale',
+        _ => 'Arrêt intermédiaire',
+      };
+
+  Widget _sectionHeader(String title, IconData icon, Color color, int count) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color, letterSpacing: 1)),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+              child: Text('$count', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color)),
+            ),
+          ],
+        ),
+      );
+
+  Widget _emptyCard(String msg) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(child: Text(msg, style: const TextStyle(color: AppTheme.textMuted, fontSize: 13))),
+        ),
+      );
+
+  Widget _colisCard(Map<String, dynamic> c, {required bool isDeposer}) {
+    final code = c['codeColis']?.toString() ?? '—';
+    final dest = c['nomDestinataire']?.toString() ?? '—';
+    final ville = c['villeDestinataire']?.toString() ?? '—';
+    final poids = c['poidsDeclare']?.toString() ?? '—';
+    final color = isDeposer ? AppTheme.accent : AppTheme.primary;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code))),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        leading: Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(isDeposer ? Icons.download : Icons.upload, color: color, size: 20),
+        ),
+        title: Text(code, style: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'monospace', fontSize: 13)),
+        subtitle: Text('$dest — $ville • $poids kg', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+        trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted, size: 20),
+      ),
+    );
+  }
+}

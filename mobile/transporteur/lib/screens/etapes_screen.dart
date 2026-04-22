@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import 'etape_detail_screen.dart';
 
 class EtapesScreen extends StatefulWidget {
   final String trajetId;
@@ -232,9 +233,17 @@ class _EtapesScreenState extends State<EtapesScreen> {
                 ),
                 const SizedBox(width: 14),
 
-                // Info
+                // Info (tappable)
                 Expanded(
-                  child: Column(
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => EtapeDetailScreen(
+                        trajetId: widget.trajetId,
+                        etapeId: e['id'],
+                        relaisNom: relais['nomRelais'] ?? '—',
+                      ),
+                    )),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('${e['ordre']}. ${relais['nomRelais'] ?? '—'}',
@@ -278,6 +287,7 @@ class _EtapesScreenState extends State<EtapesScreen> {
                           ),
                         ),
                     ],
+                  ),
                   ),
                 ),
 

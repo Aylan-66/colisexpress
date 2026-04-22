@@ -159,6 +159,75 @@ public class TrajetsController : ControllerBase
         return Ok(colisTrajet);
     }
 
+    [HttpGet("{id:guid}/etapes/{etapeId:guid}/colis")]
+    public async Task<IActionResult> GetColisForEtape(Guid id, Guid etapeId, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var etape = await _db.EtapesTrajets
+            .Include(e => e.PointRelais)
+            .FirstOrDefaultAsync(e => e.Id == etapeId && e.TrajetId == id, ct);
+        if (etape?.PointRelais is null) return NotFound(new { error = "Étape introuvable." });
+
+        var allEtapes = await _db.EtapesTrajets
+            .Where(e => e.TrajetId == id)
+            .OrderBy(e => e.Ordre)
+            .ToListAsync(ct);
+
+        var isFirst = allEtapes.FirstOrDefault()?.Id == etapeId;
+        var isLast = allEtapes.LastOrDefault()?.Id == etapeId;
+
+        var commandes = await _uow.Commandes.GetByTransporteurIdAsync(transporteur.Id, ct);
+        var colisTrajet = commandes.Where(c => c.TrajetId == id && c.Colis is not null).ToList();
+
+        var villeEtape = etape.PointRelais.Ville.ToLowerInvariant();
+
+        // À déposer ici = colis dont la VilleDestinataire match cette étape
+        var aDeposer = colisTrajet
+            .Where(c => c.VilleDestinataire.ToLowerInvariant() == villeEtape)
+            .Select(c => new {
+                c.Colis!.CodeColis,
+                statut = c.Colis.Statut.ToString(),
+                c.NomDestinataire,
+                c.TelephoneDestinataire,
+                c.VilleDestinataire,
+                c.PoidsDeclare,
+                c.Total,
+                action = "deposer"
+            }).ToList();
+
+        // À récupérer ici = colis dont le trajet passe par cette ville en départ
+        // Pour la première étape: tous les colis du trajet (point de départ)
+        // Pour les intermédiaires: colis qui commencent à cette ville (via le trajet)
+        var aRecuperer = new List<object>();
+        if (isFirst)
+        {
+            aRecuperer = colisTrajet
+                .Where(c => c.VilleDestinataire.ToLowerInvariant() != villeEtape)
+                .Select(c => (object)new {
+                    c.Colis!.CodeColis,
+                    statut = c.Colis.Statut.ToString(),
+                    c.NomDestinataire,
+                    c.VilleDestinataire,
+                    c.PoidsDeclare,
+                    action = "recuperer"
+                }).ToList();
+        }
+
+        return Ok(new
+        {
+            etapeId,
+            relais = etape.PointRelais.NomRelais,
+            ville = etape.PointRelais.Ville,
+            type = isFirst ? "depart" : isLast ? "arrivee" : "intermediaire",
+            aDeposer,
+            aRecuperer,
+            totalDeposer = aDeposer.Count,
+            totalRecuperer = aRecuperer.Count
+        });
+    }
+
     // ============================================
     // ÉTAPES (FICHE DE TOURNÉE)
     // ============================================
