@@ -26,4 +26,5 @@ public class Trajet
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 
     public Transporteur? Transporteur { get; set; }
+    public ICollection<EtapeTrajet> Etapes { get; set; } = new List<EtapeTrajet>();
 }

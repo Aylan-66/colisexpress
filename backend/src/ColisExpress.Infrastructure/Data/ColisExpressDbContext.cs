@@ -18,6 +18,7 @@ public class ColisExpressDbContext : DbContext
     public DbSet<EvenementColis> EvenementsColis => Set<EvenementColis>();
     public DbSet<Paiement> Paiements => Set<Paiement>();
     public DbSet<Avis> Avis => Set<Avis>();
+    public DbSet<EtapeTrajet> EtapesTrajets => Set<EtapeTrajet>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

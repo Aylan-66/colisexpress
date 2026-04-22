@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import 'colis_detail_screen.dart';
+import 'etapes_screen.dart';
 
 class TrajetDetailScreen extends StatefulWidget {
   final Map<String, dynamic> trajet;
@@ -55,6 +56,20 @@ class _TrajetDetailScreenState extends State<TrajetDetailScreen> {
                     if (t['pointDepot'] != null) _info('Point de dépôt', t['pointDepot']),
                     if (t['prixParColis'] != null) _info('Prix/colis', '${t['prixParColis']} €'),
                     if (t['prixAuKilo'] != null) _info('Prix/kg', '${t['prixAuKilo']} €'),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.route, size: 18),
+                        label: const Text('Fiche de tournée'),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent),
+                        onPressed: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => EtapesScreen(
+                              trajetId: t['id'],
+                              trajetLabel: '${t['villeDepart']} → ${t['villeArrivee']}',
+                            ))),
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -105,6 +105,32 @@ class ApiService {
   Future<List<dynamic>> getColisForTrajet(String trajetId) async =>
       await _getList('/api/trajets/$trajetId/colis');
 
+  Future<List<dynamic>> getRelaisDisponibles({String? pays, String? ville}) async {
+    var params = <String>[];
+    if (pays != null) params.add('pays=$pays');
+    if (ville != null) params.add('ville=$ville');
+    final qs = params.isNotEmpty ? '?${params.join('&')}' : '';
+    return await _getList('/api/trajets/relais-disponibles$qs');
+  }
+
+  Future<List<dynamic>> getEtapesTrajet(String trajetId) async =>
+      await _getList('/api/trajets/$trajetId/etapes');
+
+  Future<Map<String, dynamic>> addEtape(String trajetId, String relaisId, String heureEstimee) async =>
+      await _post('/api/trajets/$trajetId/etapes', {
+        'pointRelaisId': relaisId,
+        'heureEstimeeArrivee': heureEstimee,
+      });
+
+  Future<void> removeEtape(String trajetId, String etapeId) async =>
+      await _delete('/api/trajets/$trajetId/etapes/$etapeId');
+
+  Future<Map<String, dynamic>> lancerTournee(String trajetId) async =>
+      await _post('/api/trajets/$trajetId/lancer', {});
+
+  Future<Map<String, dynamic>> marquerArrivee(String trajetId, String etapeId) async =>
+      await _post('/api/trajets/$trajetId/etapes/$etapeId/arrivee', {});
+
   // ============================================
   // KYC
   // ============================================
