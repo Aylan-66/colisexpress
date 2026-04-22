@@ -126,22 +126,87 @@ public class RelaisController : ControllerBase
         }));
     }
 
+    /// Scan intelligent : détermine l'action en fonction du statut actuel du colis
+    [HttpPost("colis/{codeColis}/scan")]
+    public async Task<IActionResult> ScanColis(string codeColis, CancellationToken ct)
+    {
+        var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
+        if (colis is null) return NotFound(new { error = "Colis introuvable." });
+
+        var commande = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commande is null) return BadRequest(new { error = "Commande introuvable." });
+
+        var ancien = colis.Statut;
+
+        switch (colis.Statut)
+        {
+            // Client dépose au relais départ
+            case StatutColis.ReservationConfirmee:
+            case StatutColis.CodeColisGenere:
+            case StatutColis.EnAttenteDepot:
+                // Vérifier paiement espèces
+                if (commande.ModeReglement == ModeReglement.Especes && commande.StatutReglement != StatutReglement.Paye)
+                    return BadRequest(new {
+                        error = "Paiement espèces non confirmé. Encaissez d'abord, puis cochez le paiement.",
+                        action = "paiement_requis",
+                        commandeId = commande.Id,
+                        montant = commande.Total
+                    });
+
+                colis.Statut = StatutColis.DeposeParClient;
+                await _uow.Colis.AddEvenementAsync(new EvenementColis
+                {
+                    ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.DeposeParClient,
+                    ActeurId = GetUserId(), Commentaire = "Colis déposé par le client au point relais"
+                }, ct);
+                await _uow.SaveChangesAsync(ct);
+                return Ok(new { statut = colis.Statut.ToString(), action = "depot_client", message = "Dépôt client confirmé." });
+
+            // Colis arrive au relais destination (transporteur a déposé)
+            case StatutColis.ArriveDansPaysDest:
+                colis.Statut = StatutColis.ReceptionneParPointRelais;
+                await _uow.Colis.AddEvenementAsync(new EvenementColis
+                {
+                    ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.ReceptionneParPointRelais,
+                    ActeurId = GetUserId(), Commentaire = "Colis réceptionné par le point relais"
+                }, ct);
+
+                colis.Statut = StatutColis.DisponibleAuRetrait;
+                await _uow.Colis.AddEvenementAsync(new EvenementColis
+                {
+                    ColisId = colis.Id, AncienStatut = StatutColis.ReceptionneParPointRelais, NouveauStatut = StatutColis.DisponibleAuRetrait,
+                    ActeurId = GetUserId(), Commentaire = "Colis disponible au retrait"
+                }, ct);
+                await _uow.SaveChangesAsync(ct);
+                return Ok(new { statut = colis.Statut.ToString(), action = "reception_relais", message = "Colis réceptionné, disponible au retrait." });
+
+            // Colis déjà disponible → rien à faire via scan (retrait = code)
+            case StatutColis.DisponibleAuRetrait:
+                return Ok(new { statut = colis.Statut.ToString(), action = "attente_retrait",
+                    message = "Ce colis est en attente de retrait par le destinataire. Utilisez le code de retrait." });
+
+            default:
+                return BadRequest(new { error = $"Action impossible pour le statut actuel : {colis.Statut}.", statut = colis.Statut.ToString() });
+        }
+    }
+
     [HttpPost("colis/{codeColis}/confirmer-depot")]
     public async Task<IActionResult> ConfirmerDepot(string codeColis, CancellationToken ct)
     {
         var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
         if (colis is null) return NotFound(new { error = "Colis introuvable." });
 
+        var commande = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commande is not null && commande.ModeReglement == ModeReglement.Especes && commande.StatutReglement != StatutReglement.Paye)
+            return BadRequest(new { error = "Paiement espèces non confirmé.", commandeId = commande.Id });
+
         var ancien = colis.Statut;
-        colis.Statut = StatutColis.ReceptionneParPointRelais;
+        colis.Statut = StatutColis.DeposeParClient;
 
         await _uow.Colis.AddEvenementAsync(new EvenementColis
         {
-            ColisId = colis.Id,
-            AncienStatut = ancien,
-            NouveauStatut = StatutColis.ReceptionneParPointRelais,
-            ActeurId = GetUserId(),
-            Commentaire = "Colis réceptionné par le point relais"
+            ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.DeposeParClient,
+            ActeurId = GetUserId(), Commentaire = "Colis déposé par le client au point relais"
         }, ct);
 
         await _uow.SaveChangesAsync(ct);
@@ -162,21 +227,15 @@ public class RelaisController : ControllerBase
 
         await _uow.Colis.AddEvenementAsync(new EvenementColis
         {
-            ColisId = colis.Id,
-            AncienStatut = ancien,
-            NouveauStatut = StatutColis.RetireParDestinataire,
-            ActeurId = GetUserId(),
-            Commentaire = "Colis retiré par le destinataire (code vérifié)"
+            ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.RetireParDestinataire,
+            ActeurId = GetUserId(), Commentaire = "Colis retiré par le destinataire (code vérifié)"
         }, ct);
 
         colis.Statut = StatutColis.LivraisonCloturee;
         await _uow.Colis.AddEvenementAsync(new EvenementColis
         {
-            ColisId = colis.Id,
-            AncienStatut = StatutColis.RetireParDestinataire,
-            NouveauStatut = StatutColis.LivraisonCloturee,
-            ActeurId = GetUserId(),
-            Commentaire = "Livraison clôturée"
+            ColisId = colis.Id, AncienStatut = StatutColis.RetireParDestinataire, NouveauStatut = StatutColis.LivraisonCloturee,
+            ActeurId = GetUserId(), Commentaire = "Livraison clôturée"
         }, ct);
 
         await _uow.SaveChangesAsync(ct);
