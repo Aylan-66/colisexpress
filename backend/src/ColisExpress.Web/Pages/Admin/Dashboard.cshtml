@@ -8,6 +8,16 @@
 <h1>Dashboard</h1>
 <p class="subtitle">Vue d'ensemble de l'activité Colis Express</p>
 
+@if (Model.Dashboard.DemandesAnnulation > 0)
+{
+    <div style="background:var(--admin-danger);border-radius:12px;padding:20px;margin-bottom:20px;color:white;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:16px;font-weight:700;">
+            &#9888;&#65039; @Model.Dashboard.DemandesAnnulation demande(s) d'annulation à traiter
+        </span>
+        <a href="/admin/commandes?filtre=annulation" style="color:white;font-weight:bold;text-decoration:underline;font-size:14px;">Voir &rarr;</a>
+    </div>
+}
+
 <div class="admin-kpi-grid">
     <div class="admin-kpi">
         <div class="admin-kpi-label">Colis ce mois</div>

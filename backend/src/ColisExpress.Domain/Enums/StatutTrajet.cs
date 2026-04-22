@@ -4,6 +4,7 @@ public enum StatutTrajet
 {
     Actif,
     Complet,
+    EnCoursAnnulation,
     Annule,
     Termine
 }

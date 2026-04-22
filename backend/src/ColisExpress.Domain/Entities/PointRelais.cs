@@ -9,6 +9,8 @@ public class PointRelais
     public string NomRelais { get; set; } = string.Empty;
     public string Adresse { get; set; } = string.Empty;
     public string Ville { get; set; } = string.Empty;
+    public string Departement { get; set; } = string.Empty;
+    public string Region { get; set; } = string.Empty;
     public string Pays { get; set; } = string.Empty;
     public string Telephone { get; set; } = string.Empty;
     public bool EstActif { get; set; } = true;

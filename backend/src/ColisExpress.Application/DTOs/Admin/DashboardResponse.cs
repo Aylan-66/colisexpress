@@ -9,6 +9,7 @@ public class DashboardResponse
     public int TransporteursActifs { get; init; }
     public int Incidents { get; init; }
     public int TransporteursEnAttenteKyc { get; init; }
+    public int DemandesAnnulation { get; init; }
     public IReadOnlyList<CommandeRecenteItem> CommandesRecentes { get; init; } = Array.Empty<CommandeRecenteItem>();
     public IReadOnlyList<TransporteurListItem> TransporteursAValider { get; init; } = Array.Empty<TransporteurListItem>();
     public IReadOnlyList<ChartDataPoint> ColisParMois { get; init; } = Array.Empty<ChartDataPoint>();

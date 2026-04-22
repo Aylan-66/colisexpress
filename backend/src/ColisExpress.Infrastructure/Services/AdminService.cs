@@ -33,6 +33,7 @@ public class AdminService : IAdminService
             c.Statut == StatutColis.Perdu ||
             c.Statut == StatutColis.Refuse, ct);
         var kycEnAttente = await _db.Transporteurs.CountAsync(t => t.StatutKyc == StatutKyc.EnAttente, ct);
+        var demandesAnnulation = await _db.Trajets.CountAsync(t => t.Statut == StatutTrajet.EnCoursAnnulation, ct);
 
         var commandesRecentes = await _db.Commandes
             .Include(c => c.Trajet)
@@ -104,6 +105,7 @@ public class AdminService : IAdminService
             TransporteursActifs = transporteursActifs,
             Incidents = incidents,
             TransporteursEnAttenteKyc = kycEnAttente,
+            DemandesAnnulation = demandesAnnulation,
             CommandesRecentes = commandesRecentes,
             TransporteursAValider = transporteursAValider,
             ColisParMois = colisChart,

@@ -8,9 +8,6 @@ namespace ColisExpress.Infrastructure.Data;
 
 public static class DbInitializer
 {
-    public const string AdminEmail = "admin@colisexpress.fr";
-    public const string AdminPassword = "Admin123!";
-
     public static async Task SeedAsync(IServiceProvider sp, CancellationToken ct = default)
     {
         using var scope = sp.CreateScope();
@@ -19,236 +16,108 @@ public static class DbInitializer
 
         await db.Database.MigrateAsync(ct);
 
-        if (!await db.Utilisateurs.AnyAsync(u => u.Role == RoleUtilisateur.Admin, ct))
+        if (await db.Utilisateurs.AnyAsync(ct)) return;
+
+        var pwd = hasher.Hash("Test1234!");
+
+        // ADMIN
+        db.Utilisateurs.Add(new Utilisateur
         {
+            Role = RoleUtilisateur.Admin, Prenom = "Super", Nom = "Admin",
+            Email = "admin@test.com", Telephone = "+33 1 00 00 00 00",
+            MotDePasseHash = hasher.Hash("Admin123!"),
+            StatutCompte = StatutCompte.Actif, EmailVerifie = true
+        });
+
+        // 5 CLIENTS
+        for (int i = 1; i <= 5; i++)
             db.Utilisateurs.Add(new Utilisateur
             {
-                Role = RoleUtilisateur.Admin,
-                Prenom = "Super",
-                Nom = "Admin",
-                Email = AdminEmail,
-                Telephone = "+33 1 00 00 00 00",
-                MotDePasseHash = hasher.Hash(AdminPassword),
-                StatutCompte = StatutCompte.Actif,
-                EmailVerifie = true
+                Role = RoleUtilisateur.Client, Prenom = $"Client{i}", Nom = $"Test{i}",
+                Email = $"client{i}@test.com", Telephone = $"+33 6 00 00 00 0{i}",
+                MotDePasseHash = pwd, StatutCompte = StatutCompte.Actif, EmailVerifie = true
             });
-            await db.SaveChangesAsync(ct);
-        }
+        await db.SaveChangesAsync(ct);
 
-        if (!await db.Transporteurs.AnyAsync(ct))
+        // 5 TRANSPORTEURS
+        var tNames = new[] { ("Karim","Benali"), ("Sofia","Moreau"), ("Yanis","Cherifi"), ("Amina","Larbi"), ("Mehdi","Bouzid") };
+        var vehic = new[] { "Fourgon 12m³", "Fourgon 8m³", "Camion 20m³", "Utilitaire 6m³", "Camion 30m³+" };
+        var corr = new[] { "FR-DZ", "FR-MA", "FR-TN", "FR-DZ,FR-MA", "FR-FR,FR-DZ" };
+        var notes = new[] { 4.9m, 4.7m, 4.8m, 4.6m, 4.5m };
+        var nbAvis = new[] { 127, 83, 205, 42, 15 };
+        var transporteurs = new List<Transporteur>();
+
+        for (int i = 0; i < 5; i++)
         {
-            var pwd = hasher.Hash("Test1234!");
-
-            var userKarim = new Utilisateur
+            var u = new Utilisateur
             {
-                Role = RoleUtilisateur.Transporteur,
-                Prenom = "Karim",
-                Nom = "Benali",
-                Email = "karim.benali@example.fr",
-                Telephone = "+33 6 12 34 56 78",
-                MotDePasseHash = pwd,
-                StatutCompte = StatutCompte.Actif,
-                EmailVerifie = true
+                Role = RoleUtilisateur.Transporteur, Prenom = tNames[i].Item1, Nom = tNames[i].Item2,
+                Email = $"transporteur{i + 1}@test.com", Telephone = $"+33 6 10 00 00 0{i + 1}",
+                MotDePasseHash = pwd, StatutCompte = StatutCompte.Actif, EmailVerifie = true
             };
-            var userSofia = new Utilisateur
-            {
-                Role = RoleUtilisateur.Transporteur,
-                Prenom = "Sofia",
-                Nom = "Moreau",
-                Email = "sofia.moreau@example.fr",
-                Telephone = "+33 6 98 76 54 32",
-                MotDePasseHash = pwd,
-                StatutCompte = StatutCompte.Actif,
-                EmailVerifie = true
-            };
-            var userYanis = new Utilisateur
-            {
-                Role = RoleUtilisateur.Transporteur,
-                Prenom = "Yanis",
-                Nom = "Cherifi",
-                Email = "yanis.cherifi@example.fr",
-                Telephone = "+33 6 55 44 33 22",
-                MotDePasseHash = pwd,
-                StatutCompte = StatutCompte.Actif,
-                EmailVerifie = true
-            };
-            var userPending = new Utilisateur
-            {
-                Role = RoleUtilisateur.Transporteur,
-                Prenom = "Mehdi",
-                Nom = "Larbi",
-                Email = "mehdi.larbi@example.fr",
-                Telephone = "+33 6 11 22 33 44",
-                MotDePasseHash = pwd,
-                StatutCompte = StatutCompte.Actif,
-                EmailVerifie = false
-            };
-            db.Utilisateurs.AddRange(userKarim, userSofia, userYanis, userPending);
+            db.Utilisateurs.Add(u);
             await db.SaveChangesAsync(ct);
-
-            var transKarim = new Transporteur
+            var t = new Transporteur
             {
-                UtilisateurId = userKarim.Id,
-                StatutKyc = StatutKyc.Valide,
-                NoteMoyenne = 4.9m,
-                NombreAvis = 127,
-                TypeVehicule = "Fourgon 12m³",
-                CorridorsActifs = "FR-DZ"
+                UtilisateurId = u.Id, StatutKyc = StatutKyc.Valide,
+                NoteMoyenne = notes[i], NombreAvis = nbAvis[i],
+                TypeVehicule = vehic[i], CorridorsActifs = corr[i]
             };
-            var transSofia = new Transporteur
-            {
-                UtilisateurId = userSofia.Id,
-                StatutKyc = StatutKyc.Valide,
-                NoteMoyenne = 4.7m,
-                NombreAvis = 83,
-                TypeVehicule = "Fourgon 8m³",
-                CorridorsActifs = "FR-MA"
-            };
-            var transYanis = new Transporteur
-            {
-                UtilisateurId = userYanis.Id,
-                StatutKyc = StatutKyc.Valide,
-                NoteMoyenne = 4.8m,
-                NombreAvis = 205,
-                TypeVehicule = "Camion 20m³",
-                CorridorsActifs = "FR-DZ,FR-TN"
-            };
-            var transPending = new Transporteur
-            {
-                UtilisateurId = userPending.Id,
-                StatutKyc = StatutKyc.EnAttente,
-                NoteMoyenne = 0,
-                NombreAvis = 0,
-                TypeVehicule = "Utilitaire 6m³",
-                CorridorsActifs = "FR-MA"
-            };
-            db.Transporteurs.AddRange(transKarim, transSofia, transYanis, transPending);
-            await db.SaveChangesAsync(ct);
-
-            var now = DateTime.UtcNow;
-            db.Trajets.AddRange(
-                new Trajet {
-                    TransporteurId = transKarim.Id,
-                    PaysDepart = "France", VilleDepart = "Paris",
-                    PaysArrivee = "Algérie", VilleArrivee = "Alger",
-                    DateDepart = now.AddDays(4), DateEstimeeArrivee = now.AddDays(7),
-                    CapaciteMaxPoids = 500, NombreMaxColis = 30, CapaciteRestante = 28,
-                    ModeTarification = ModeTarification.PrixParColis, PrixParColis = 85m,
-                    SupplementUrgent = 15m, SupplementFragile = 10m,
-                    PointDepot = "Paris 15e — 42 rue de la Convention",
-                    Statut = StatutTrajet.Actif
-                },
-                new Trajet {
-                    TransporteurId = transKarim.Id,
-                    PaysDepart = "France", VilleDepart = "Paris",
-                    PaysArrivee = "Algérie", VilleArrivee = "Oran",
-                    DateDepart = now.AddDays(8), DateEstimeeArrivee = now.AddDays(12),
-                    CapaciteMaxPoids = 500, NombreMaxColis = 30, CapaciteRestante = 30,
-                    ModeTarification = ModeTarification.PrixAuKilo, PrixAuKilo = 7m,
-                    SupplementUrgent = 20m, SupplementFragile = 12m,
-                    PointDepot = "Paris 15e — 42 rue de la Convention",
-                    Statut = StatutTrajet.Actif
-                },
-                new Trajet {
-                    TransporteurId = transSofia.Id,
-                    PaysDepart = "France", VilleDepart = "Lyon",
-                    PaysArrivee = "Maroc", VilleArrivee = "Casablanca",
-                    DateDepart = now.AddDays(5), DateEstimeeArrivee = now.AddDays(9),
-                    CapaciteMaxPoids = 300, NombreMaxColis = 20, CapaciteRestante = 17,
-                    ModeTarification = ModeTarification.PrixParColis, PrixParColis = 72m,
-                    SupplementUrgent = 18m, SupplementFragile = 8m,
-                    PointDepot = "Lyon 3e — 15 cours Lafayette",
-                    Statut = StatutTrajet.Actif
-                },
-                new Trajet {
-                    TransporteurId = transSofia.Id,
-                    PaysDepart = "France", VilleDepart = "Paris",
-                    PaysArrivee = "Maroc", VilleArrivee = "Casablanca",
-                    DateDepart = now.AddDays(6), DateEstimeeArrivee = now.AddDays(10),
-                    CapaciteMaxPoids = 300, NombreMaxColis = 20, CapaciteRestante = 20,
-                    ModeTarification = ModeTarification.PrixParColis, PrixParColis = 78m,
-                    SupplementUrgent = 18m, SupplementFragile = 8m,
-                    PointDepot = "Paris 18e — 8 rue Ordener",
-                    Statut = StatutTrajet.Actif
-                },
-                new Trajet {
-                    TransporteurId = transYanis.Id,
-                    PaysDepart = "France", VilleDepart = "Marseille",
-                    PaysArrivee = "Tunisie", VilleArrivee = "Tunis",
-                    DateDepart = now.AddDays(3), DateEstimeeArrivee = now.AddDays(6),
-                    CapaciteMaxPoids = 800, NombreMaxColis = 50, CapaciteRestante = 45,
-                    ModeTarification = ModeTarification.PrixParColis, PrixParColis = 65m,
-                    SupplementUrgent = 15m, SupplementFragile = 10m,
-                    PointDepot = "Marseille 2e — Port de Marseille",
-                    Statut = StatutTrajet.Actif
-                },
-                new Trajet {
-                    TransporteurId = transYanis.Id,
-                    PaysDepart = "France", VilleDepart = "Paris",
-                    PaysArrivee = "Algérie", VilleArrivee = "Alger",
-                    DateDepart = now.AddDays(10), DateEstimeeArrivee = now.AddDays(13),
-                    CapaciteMaxPoids = 800, NombreMaxColis = 50, CapaciteRestante = 48,
-                    ModeTarification = ModeTarification.PrixParColis, PrixParColis = 95m,
-                    SupplementUrgent = 20m, SupplementFragile = 12m,
-                    PointDepot = "Paris 19e — 12 rue Petit",
-                    Statut = StatutTrajet.Actif
-                }
-            );
-            await db.SaveChangesAsync(ct);
+            db.Transporteurs.Add(t);
+            transporteurs.Add(t);
         }
+        await db.SaveChangesAsync(ct);
 
-        if (!await db.PointsRelais.AnyAsync(ct))
+        // 10 POINTS RELAIS
+        var rData = new (string Nom, string Adr, string Ville, string Dept, string Region, string Pays, string Tel, string Jours, string HO, string HF, string? HOW, string? HFW)[]
         {
-            var pwd = hasher.Hash("Relais1234!");
+            ("Relais Paris 15e", "42 rue de la Convention", "Paris", "Paris", "Île-de-France", "France", "+33 1 45 67 89 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "19:00", "09:00", "14:00"),
+            ("Relais Lyon Part-Dieu", "15 cours Lafayette", "Lyon", "Rhône", "Auvergne-Rhône-Alpes", "France", "+33 4 72 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:30", "18:30", "09:00", "13:00"),
+            ("Relais Marseille Vieux-Port", "8 quai du Port", "Marseille", "Bouches-du-Rhône", "Provence-Alpes-Côte d'Azur", "France", "+33 4 91 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00"),
+            ("Relais Toulouse Capitole", "25 rue Alsace-Lorraine", "Toulouse", "Haute-Garonne", "Occitanie", "France", "+33 5 61 00 00 00", "Lun,Mar,Mer,Jeu,Ven", "09:00", "18:00", null, null),
+            ("Relais Lille Flandres", "3 place de la Gare", "Lille", "Nord", "Hauts-de-France", "France", "+33 3 20 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "19:00", "09:00", "14:00"),
+            ("Relais Alger Hydra", "12 rue des Frères Bouadou", "Alger", "Alger", "Alger", "Algérie", "+213 21 60 00 00", "Dim,Lun,Mar,Mer,Jeu", "08:00", "17:00", null, null),
+            ("Relais Oran Centre", "45 boulevard de la Soummam", "Oran", "Oran", "Oran", "Algérie", "+213 41 40 00 00", "Dim,Lun,Mar,Mer,Jeu", "08:30", "17:00", null, null),
+            ("Relais Casablanca Ain Diab", "45 boulevard de la Corniche", "Casablanca", "Casablanca-Settat", "Casablanca-Settat", "Maroc", "+212 522 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00"),
+            ("Relais Rabat Agdal", "22 avenue de France", "Rabat", "Rabat-Salé-Kénitra", "Rabat-Salé-Kénitra", "Maroc", "+212 537 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00"),
+            ("Relais Tunis Centre", "15 avenue Habib Bourguiba", "Tunis", "Tunis", "Tunis", "Tunisie", "+216 71 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "17:30", "09:00", "13:00"),
+        };
 
-            var userRelaisAlger = new Utilisateur
+        for (int i = 0; i < rData.Length; i++)
+        {
+            var r = rData[i];
+            var u = new Utilisateur
             {
-                Role = RoleUtilisateur.PointRelais,
-                Prenom = "Relais",
-                Nom = "Alger Centre",
-                Email = "alger.centre@colisexpress.fr",
-                Telephone = "+213 21 00 00 00",
-                MotDePasseHash = pwd,
-                StatutCompte = StatutCompte.Actif,
-                EmailVerifie = true
+                Role = RoleUtilisateur.PointRelais, Prenom = "Relais", Nom = r.Nom,
+                Email = $"relais{i + 1}@test.com", Telephone = r.Tel,
+                MotDePasseHash = pwd, StatutCompte = StatutCompte.Actif, EmailVerifie = true
             };
-            var userRelaisCasa = new Utilisateur
+            db.Utilisateurs.Add(u);
+            await db.SaveChangesAsync(ct);
+            db.PointsRelais.Add(new PointRelais
             {
-                Role = RoleUtilisateur.PointRelais,
-                Prenom = "Relais",
-                Nom = "Casablanca Ain",
-                Email = "casablanca.ain@colisexpress.fr",
-                Telephone = "+212 522 00 00 00",
-                MotDePasseHash = pwd,
-                StatutCompte = StatutCompte.Actif,
-                EmailVerifie = true
-            };
-            db.Utilisateurs.AddRange(userRelaisAlger, userRelaisCasa);
-            await db.SaveChangesAsync(ct);
-
-            db.PointsRelais.AddRange(
-                new PointRelais
-                {
-                    UtilisateurId = userRelaisAlger.Id,
-                    NomRelais = "Relais Hydra",
-                    Adresse = "12 rue des Frères Bouadou",
-                    Ville = "Alger",
-                    Pays = "Algérie",
-                    Telephone = "+213 21 00 00 00",
-                    EstActif = true
-                },
-                new PointRelais
-                {
-                    UtilisateurId = userRelaisCasa.Id,
-                    NomRelais = "Relais Ain Diab",
-                    Adresse = "45 boulevard de la Corniche",
-                    Ville = "Casablanca",
-                    Pays = "Maroc",
-                    Telephone = "+212 522 00 00 00",
-                    EstActif = true
-                }
-            );
-            await db.SaveChangesAsync(ct);
+                UtilisateurId = u.Id, NomRelais = r.Nom, Adresse = r.Adr,
+                Ville = r.Ville, Departement = r.Dept, Region = r.Region, Pays = r.Pays,
+                Telephone = r.Tel, EstActif = true, JoursOuverture = r.Jours,
+                HeureOuverture = TimeOnly.Parse(r.HO), HeureFermeture = TimeOnly.Parse(r.HF),
+                HeureOuvertureWeekend = r.HOW != null ? TimeOnly.Parse(r.HOW) : null,
+                HeureFermetureWeekend = r.HFW != null ? TimeOnly.Parse(r.HFW) : null,
+            });
         }
+        await db.SaveChangesAsync(ct);
+
+        // TRAJETS
+        var now = DateTime.UtcNow;
+        db.Trajets.AddRange(
+            new Trajet { TransporteurId = transporteurs[0].Id, PaysDepart = "France", VilleDepart = "Paris", PaysArrivee = "Algérie", VilleArrivee = "Alger", DateDepart = now.AddDays(4), DateEstimeeArrivee = now.AddDays(7), CapaciteMaxPoids = 500, NombreMaxColis = 30, CapaciteRestante = 30, ModeTarification = ModeTarification.PrixParColis, PrixParColis = 85m, SupplementUrgent = 15m, SupplementFragile = 10m, Statut = StatutTrajet.Actif },
+            new Trajet { TransporteurId = transporteurs[0].Id, PaysDepart = "France", VilleDepart = "Paris", PaysArrivee = "Algérie", VilleArrivee = "Oran", DateDepart = now.AddDays(8), DateEstimeeArrivee = now.AddDays(12), CapaciteMaxPoids = 500, NombreMaxColis = 30, CapaciteRestante = 30, ModeTarification = ModeTarification.PrixAuKilo, PrixAuKilo = 7m, SupplementUrgent = 20m, SupplementFragile = 12m, Statut = StatutTrajet.Actif },
+            new Trajet { TransporteurId = transporteurs[1].Id, PaysDepart = "France", VilleDepart = "Lyon", PaysArrivee = "Maroc", VilleArrivee = "Casablanca", DateDepart = now.AddDays(5), DateEstimeeArrivee = now.AddDays(9), CapaciteMaxPoids = 300, NombreMaxColis = 20, CapaciteRestante = 20, ModeTarification = ModeTarification.PrixParColis, PrixParColis = 72m, SupplementUrgent = 18m, SupplementFragile = 8m, Statut = StatutTrajet.Actif },
+            new Trajet { TransporteurId = transporteurs[1].Id, PaysDepart = "France", VilleDepart = "Paris", PaysArrivee = "Maroc", VilleArrivee = "Casablanca", DateDepart = now.AddDays(6), DateEstimeeArrivee = now.AddDays(10), CapaciteMaxPoids = 300, NombreMaxColis = 20, CapaciteRestante = 20, ModeTarification = ModeTarification.PrixParColis, PrixParColis = 78m, SupplementUrgent = 18m, SupplementFragile = 8m, Statut = StatutTrajet.Actif },
+            new Trajet { TransporteurId = transporteurs[2].Id, PaysDepart = "France", VilleDepart = "Marseille", PaysArrivee = "Tunisie", VilleArrivee = "Tunis", DateDepart = now.AddDays(3), DateEstimeeArrivee = now.AddDays(6), CapaciteMaxPoids = 800, NombreMaxColis = 50, CapaciteRestante = 50, ModeTarification = ModeTarification.PrixParColis, PrixParColis = 65m, SupplementUrgent = 15m, SupplementFragile = 10m, Statut = StatutTrajet.Actif },
+            new Trajet { TransporteurId = transporteurs[2].Id, PaysDepart = "France", VilleDepart = "Paris", PaysArrivee = "Algérie", VilleArrivee = "Alger", DateDepart = now.AddDays(10), DateEstimeeArrivee = now.AddDays(13), CapaciteMaxPoids = 800, NombreMaxColis = 50, CapaciteRestante = 50, ModeTarification = ModeTarification.PrixParColis, PrixParColis = 95m, SupplementUrgent = 20m, SupplementFragile = 12m, Statut = StatutTrajet.Actif },
+            new Trajet { TransporteurId = transporteurs[3].Id, PaysDepart = "France", VilleDepart = "Paris", PaysArrivee = "France", VilleArrivee = "Lyon", DateDepart = now.AddDays(2), DateEstimeeArrivee = now.AddDays(2), CapaciteMaxPoids = 200, NombreMaxColis = 15, CapaciteRestante = 15, ModeTarification = ModeTarification.PrixParColis, PrixParColis = 35m, SupplementUrgent = 10m, SupplementFragile = 5m, Statut = StatutTrajet.Actif },
+            new Trajet { TransporteurId = transporteurs[4].Id, PaysDepart = "France", VilleDepart = "Paris", PaysArrivee = "France", VilleArrivee = "Marseille", DateDepart = now.AddDays(3), DateEstimeeArrivee = now.AddDays(3), CapaciteMaxPoids = 400, NombreMaxColis = 25, CapaciteRestante = 25, ModeTarification = ModeTarification.PrixParColis, PrixParColis = 45m, SupplementUrgent = 12m, SupplementFragile = 8m, Statut = StatutTrajet.Actif }
+        );
+        await db.SaveChangesAsync(ct);
     }
 }

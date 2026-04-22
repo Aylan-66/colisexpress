@@ -233,13 +233,22 @@ public class TrajetsController : ControllerBase
     // ============================================
 
     [HttpGet("relais-disponibles")]
-    public async Task<IActionResult> GetRelaisDisponibles([FromQuery] string? pays, [FromQuery] string? ville, CancellationToken ct)
+    public async Task<IActionResult> GetRelaisDisponibles(
+        [FromQuery] string? pays,
+        [FromQuery] string? ville,
+        [FromQuery] string? departement,
+        [FromQuery] string? region,
+        CancellationToken ct)
     {
         var query = _db.PointsRelais.Where(p => p.EstActif);
         if (!string.IsNullOrWhiteSpace(pays))
             query = query.Where(p => p.Pays.ToLower() == pays.ToLower());
         if (!string.IsNullOrWhiteSpace(ville))
             query = query.Where(p => p.Ville.ToLower().Contains(ville.ToLower()));
+        if (!string.IsNullOrWhiteSpace(departement))
+            query = query.Where(p => p.Departement.ToLower().Contains(departement.ToLower()));
+        if (!string.IsNullOrWhiteSpace(region))
+            query = query.Where(p => p.Region.ToLower().Contains(region.ToLower()));
 
         var relais = await query.OrderBy(p => p.Pays).ThenBy(p => p.Ville).Select(p => new
         {
@@ -247,6 +256,8 @@ public class TrajetsController : ControllerBase
             p.NomRelais,
             p.Adresse,
             p.Ville,
+            p.Departement,
+            p.Region,
             p.Pays,
             p.Telephone,
             joursOuverture = p.JoursOuverture ?? "",
@@ -431,6 +442,102 @@ public class TrajetsController : ControllerBase
         });
     }
 
+    [HttpPut("{id:guid}/etapes/{etapeId:guid}")]
+    public async Task<IActionResult> UpdateEtape(Guid id, Guid etapeId, [FromBody] UpdateEtapeRequest request, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var etape = await _db.EtapesTrajets
+            .Include(e => e.PointRelais)
+            .FirstOrDefaultAsync(e => e.Id == etapeId && e.TrajetId == id, ct);
+        if (etape is null) return NotFound(new { error = "Etape introuvable." });
+
+        var trajet = await _uow.Trajets.GetByIdAsync(id, ct);
+        if (trajet is null || trajet.TransporteurId != transporteur.Id)
+            return NotFound(new { error = "Trajet introuvable." });
+
+        var heureArrivee = DateTime.SpecifyKind(request.HeureEstimeeArrivee, DateTimeKind.Utc);
+        etape.HeureEstimeeArrivee = heureArrivee;
+
+        // Re-check if relay is open at the new time
+        var ouvert = true;
+        if (etape.PointRelais is not null)
+        {
+            var jour = heureArrivee.DayOfWeek;
+            var heure = TimeOnly.FromDateTime(heureArrivee);
+            ouvert = etape.PointRelais.EstOuvert(jour, heure);
+        }
+        etape.RelaisOuvertALArrivee = ouvert;
+
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            etape.Id,
+            etape.HeureEstimeeArrivee,
+            relaisOuvert = ouvert,
+            relaisNom = etape.PointRelais?.NomRelais,
+            warning = ouvert ? null : $"Attention : {etape.PointRelais?.NomRelais} sera ferme a cette heure."
+        });
+    }
+
+    [HttpPost("{id:guid}/demander-annulation")]
+    public async Task<IActionResult> DemanderAnnulation(Guid id, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var trajet = await _uow.Trajets.GetByIdAsync(id, ct);
+        if (trajet is null || trajet.TransporteurId != transporteur.Id)
+            return NotFound(new { error = "Trajet introuvable." });
+
+        if (trajet.Statut == StatutTrajet.Annule)
+            return BadRequest(new { error = "Ce trajet est deja annule." });
+        if (trajet.Statut == StatutTrajet.EnCoursAnnulation)
+            return BadRequest(new { error = "Une demande d'annulation est deja en cours." });
+
+        trajet.Statut = StatutTrajet.EnCoursAnnulation;
+        await _uow.SaveChangesAsync(ct);
+
+        // Find commandes that need refunding (paid via Stripe with a session ID)
+        var commandes = await _db.Commandes
+            .Include(c => c.Colis)
+            .Include(c => c.Client)
+            .Where(c => c.TrajetId == id)
+            .ToListAsync(ct);
+
+        var commandeIds = commandes.Select(c => c.Id).ToList();
+        var paiements = await _db.Paiements
+            .Where(p => commandeIds.Contains(p.CommandeId)
+                && p.Mode == ModeReglement.Carte
+                && p.ReferenceExterne != null
+                && p.ReferenceExterne != ""
+                && p.Statut != StatutReglement.Rembourse)
+            .ToListAsync(ct);
+
+        var commandesARefund = paiements.Select(p =>
+        {
+            var cmd = commandes.First(c => c.Id == p.CommandeId);
+            return new
+            {
+                commandeId = cmd.Id,
+                codeColis = cmd.Colis?.CodeColis ?? "—",
+                clientNom = cmd.Client is null ? "—" : $"{cmd.Client.Prenom} {cmd.Client.Nom}",
+                clientEmail = cmd.Client?.Email ?? "—",
+                montant = p.Montant,
+                stripeSessionId = p.ReferenceExterne
+            };
+        }).ToList();
+
+        return Ok(new
+        {
+            message = "Demande d'annulation enregistree. Un admin doit confirmer.",
+            trajetId = id,
+            commandesARefund
+        });
+    }
+
     private async Task<Transporteur?> GetTransporteurAsync(CancellationToken ct)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -440,7 +547,7 @@ public class TrajetsController : ControllerBase
 
 public class CreateTrajetApiRequest
 {
-    public string PaysDepart { get; set; } = "France";
+    public string PaysDepart { get; set; } = string.Empty;
     public string VilleDepart { get; set; } = string.Empty;
     public string PaysArrivee { get; set; } = string.Empty;
     public string VilleArrivee { get; set; } = string.Empty;
@@ -460,5 +567,10 @@ public class CreateTrajetApiRequest
 public class AddEtapeRequest
 {
     public Guid PointRelaisId { get; set; }
+    public DateTime HeureEstimeeArrivee { get; set; }
+}
+
+public class UpdateEtapeRequest
+{
     public DateTime HeureEstimeeArrivee { get; set; }
 }
