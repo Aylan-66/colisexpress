@@ -424,6 +424,20 @@ class _SelectRelaisSheetState extends State<_SelectRelaisSheet> {
   Map<String, dynamic>? _selected;
   TimeOfDay _heure = const TimeOfDay(hour: 10, minute: 0);
   DateTime _date = DateTime.now().add(const Duration(days: 3));
+  String _search = '';
+
+  List<dynamic> get _filtered {
+    if (_search.isEmpty) return widget.relaisList;
+    final q = _search.toLowerCase();
+    return widget.relaisList.where((r) {
+      final nom = (r['nomRelais'] ?? '').toString().toLowerCase();
+      final ville = (r['ville'] ?? '').toString().toLowerCase();
+      final dept = (r['departement'] ?? '').toString().toLowerCase();
+      final region = (r['region'] ?? '').toString().toLowerCase();
+      final pays = (r['pays'] ?? '').toString().toLowerCase();
+      return nom.contains(q) || ville.contains(q) || dept.contains(q) || region.contains(q) || pays.contains(q);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -461,10 +475,8 @@ class _SelectRelaisSheetState extends State<_SelectRelaisSheet> {
                       label: Text('${_date.day}/${_date.month}/${_date.year}'),
                       onPressed: () async {
                         final d = await showDatePicker(
-                          context: context,
-                          initialDate: _date,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          context: context, initialDate: _date,
+                          firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
                         if (d != null) setState(() => _date = d);
                       },
@@ -485,21 +497,29 @@ class _SelectRelaisSheetState extends State<_SelectRelaisSheet> {
               ),
             ),
 
-            const SizedBox(height: 12),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Sélectionnez un point relais', style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+            const SizedBox(height: 10),
+
+            // Recherche
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                decoration: const InputDecoration(
+                  labelText: 'RECHERCHER', hintText: 'Ville, département, région...',
+                  prefixIcon: Icon(Icons.search, size: 20),
+                ),
+                onChanged: (v) => setState(() => _search = v),
+              ),
             ),
             const SizedBox(height: 8),
 
-            // Liste des relais
+            // Liste des relais filtrée
             Expanded(
               child: ListView.builder(
                 controller: scrollCtrl,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: widget.relaisList.length,
+                itemCount: _filtered.length,
                 itemBuilder: (ctx, i) {
-                  final r = widget.relaisList[i] as Map<String, dynamic>;
+                  final r = _filtered[i] as Map<String, dynamic>;
                   final isSelected = _selected?['id'] == r['id'];
                   final horaires = r['heureOuverture'] != null
                       ? '${r['heureOuverture']} — ${r['heureFermeture']}'
@@ -524,7 +544,7 @@ class _SelectRelaisSheetState extends State<_SelectRelaisSheet> {
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${r['ville']}, ${r['pays']}',
+                          Text('${r['ville']}, ${r['departement'] ?? ''} — ${r['pays']}',
                               style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
                           Text(horaires,
                               style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
