@@ -172,13 +172,7 @@ class _ColisScreenState extends State<ColisScreen> {
                           itemCount: _filtered.length,
                           itemBuilder: (ctx, i) {
                             final colis = _filtered[i] as Map<String, dynamic>;
-                            return _ColisCard(
-                              colis: colis,
-                              onConfirmerDepot: () => _confirmerDepot(
-                                  colis['codeColis']?.toString() ?? ''),
-                              onConfirmerRetrait: () => _confirmerRetrait(
-                                  colis['codeColis']?.toString() ?? ''),
-                            );
+                            return _ColisCard(colis: colis);
                           },
                         ),
                       ),
@@ -191,14 +185,8 @@ class _ColisScreenState extends State<ColisScreen> {
 
 class _ColisCard extends StatelessWidget {
   final Map<String, dynamic> colis;
-  final VoidCallback onConfirmerDepot;
-  final VoidCallback onConfirmerRetrait;
 
-  const _ColisCard({
-    required this.colis,
-    required this.onConfirmerDepot,
-    required this.onConfirmerRetrait,
-  });
+  const _ColisCard({required this.colis});
 
   @override
   Widget build(BuildContext context) {
@@ -208,12 +196,6 @@ class _ColisCard extends StatelessWidget {
     final trajet = colis['trajet']?.toString() ?? '';
 
     final (Color statusColor, String statusLabel) = _statusInfo(statut);
-
-    final bool showDepot = statut == 'EnAttenteDepot' ||
-        statut == 'DeposeParClient' ||
-        statut == 'ArriveDansPaysDest';
-    final bool showRetrait = statut == 'ReceptionneParPointRelais' ||
-        statut == 'DisponibleAuRetrait';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -283,41 +265,9 @@ class _ColisCard extends StatelessWidget {
               ],
             ),
 
-            // Actions
-            if (showDepot || showRetrait) ...[
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  if (showDepot)
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.archive, size: 16),
-                        label: const Text('Confirmer reception',
-                            style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        onPressed: onConfirmerDepot,
-                      ),
-                    ),
-                  if (showDepot && showRetrait) const SizedBox(width: 8),
-                  if (showRetrait)
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.how_to_reg, size: 16),
-                        label: const Text('Confirmer retrait',
-                            style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.success,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        onPressed: onConfirmerRetrait,
-                      ),
-                    ),
-                ],
-              ),
-            ],
+            const SizedBox(height: 8),
+            Text('Utilisez l\'onglet Scanner pour changer le statut',
+                style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontStyle: FontStyle.italic)),
           ],
         ),
       ),
