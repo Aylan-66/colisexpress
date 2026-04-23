@@ -25,34 +25,65 @@ public class TrajetRepository : ITrajetRepository
         decimal poidsKg,
         CancellationToken ct = default)
     {
+        var dep = villeDepart.ToLower();
+        var arr = villeArrivee.ToLower();
+
         return await _db.Trajets
             .Include(t => t.Transporteur)
                 .ThenInclude(tr => tr!.Utilisateur)
+            .Include(t => t.Etapes)
+                .ThenInclude(e => e.PointRelais)
             .Where(t => t.Statut == StatutTrajet.Actif
-                && t.VilleDepart.ToLower() == villeDepart.ToLower()
-                && t.VilleArrivee.ToLower() == villeArrivee.ToLower()
                 && t.DateDepart >= dateMin
                 && t.CapaciteMaxPoids >= poidsKg
-                && t.CapaciteRestante > 0)
+                && t.CapaciteRestante > 0
+                && (
+                    // Match direct : VilleDepart → VilleArrivee
+                    (t.VilleDepart.ToLower() == dep && t.VilleArrivee.ToLower() == arr)
+                    ||
+                    // Match via étapes : départ dans une étape + arrivée dans une étape suivante
+                    (
+                        (t.VilleDepart.ToLower() == dep || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == dep))
+                        && (t.VilleArrivee.ToLower() == arr || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == arr))
+                    )
+                ))
             .OrderBy(t => t.DateDepart)
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<string>> GetVillesDepartAsync(CancellationToken ct = default) =>
-        await _db.Trajets
+    public async Task<IReadOnlyList<string>> GetVillesDepartAsync(CancellationToken ct = default)
+    {
+        var villesTrajet = await _db.Trajets
             .Where(t => t.Statut == StatutTrajet.Actif && t.CapaciteRestante > 0)
             .Select(t => t.VilleDepart)
-            .Distinct()
-            .OrderBy(v => v)
             .ToListAsync(ct);
 
-    public async Task<IReadOnlyList<string>> GetVillesArriveeAsync(CancellationToken ct = default) =>
-        await _db.Trajets
+        var villesEtapes = await _db.EtapesTrajets
+            .Include(e => e.PointRelais)
+            .Include(e => e.Trajet)
+            .Where(e => e.Trajet!.Statut == StatutTrajet.Actif && e.Trajet.CapaciteRestante > 0)
+            .Select(e => e.PointRelais!.Ville)
+            .ToListAsync(ct);
+
+        return villesTrajet.Union(villesEtapes).Distinct().OrderBy(v => v).ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> GetVillesArriveeAsync(CancellationToken ct = default)
+    {
+        var villesTrajet = await _db.Trajets
             .Where(t => t.Statut == StatutTrajet.Actif && t.CapaciteRestante > 0)
             .Select(t => t.VilleArrivee)
-            .Distinct()
-            .OrderBy(v => v)
             .ToListAsync(ct);
+
+        var villesEtapes = await _db.EtapesTrajets
+            .Include(e => e.PointRelais)
+            .Include(e => e.Trajet)
+            .Where(e => e.Trajet!.Statut == StatutTrajet.Actif && e.Trajet.CapaciteRestante > 0)
+            .Select(e => e.PointRelais!.Ville)
+            .ToListAsync(ct);
+
+        return villesTrajet.Union(villesEtapes).Distinct().OrderBy(v => v).ToList();
+    }
 
     public async Task AddAsync(Trajet trajet, CancellationToken ct = default) =>
         await _db.Trajets.AddAsync(trajet, ct);
