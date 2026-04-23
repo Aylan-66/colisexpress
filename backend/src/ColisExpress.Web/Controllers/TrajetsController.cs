@@ -197,23 +197,20 @@ public class TrajetsController : ControllerBase
                 action = "deposer"
             }).ToList();
 
-        // À récupérer ici = colis dont le trajet passe par cette ville en départ
-        // Pour la première étape: tous les colis du trajet (point de départ)
-        // Pour les intermédiaires: colis qui commencent à cette ville (via le trajet)
-        var aRecuperer = new List<object>();
-        if (isFirst)
-        {
-            aRecuperer = colisTrajet
-                .Where(c => (!string.IsNullOrEmpty(c.SegmentArrivee) ? c.SegmentArrivee : c.VilleDestinataire).ToLowerInvariant() != villeEtape)
-                .Select(c => (object)new {
-                    c.Colis!.CodeColis,
-                    statut = c.Colis.Statut.ToString(),
-                    c.NomDestinataire,
-                    c.VilleDestinataire,
-                    c.PoidsDeclare,
-                    action = "recuperer"
-                }).ToList();
-        }
+        // À récupérer ici = colis dont le SegmentDepart match cette étape
+        var aRecuperer = colisTrajet
+            .Where(c => {
+                var segDep = !string.IsNullOrEmpty(c.SegmentDepart) ? c.SegmentDepart : trajet?.VilleDepart ?? "";
+                return segDep.ToLowerInvariant() == villeEtape;
+            })
+            .Select(c => (object)new {
+                c.Colis!.CodeColis,
+                statut = c.Colis.Statut.ToString(),
+                c.NomDestinataire,
+                c.VilleDestinataire,
+                c.PoidsDeclare,
+                action = "recuperer"
+            }).ToList();
 
         return Ok(new
         {
