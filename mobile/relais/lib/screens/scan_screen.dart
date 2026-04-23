@@ -202,9 +202,47 @@ class _ScanScreenState extends State<ScanScreen> {
                     ),
             ),
           ),
+          // Bouton saisie manuelle
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.keyboard, size: 18),
+                label: const Text('Saisir le code manuellement'),
+                onPressed: _saisieManuelle,
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _saisieManuelle() async {
+    final codeCtrl = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Code colis'),
+        content: TextField(
+          controller: codeCtrl,
+          decoration: const InputDecoration(labelText: 'CODE COLIS', hintText: 'COL-2026-0001'),
+          textCapitalization: TextCapitalization.characters,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, codeCtrl.text.trim()),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+    if (code == null || code.isEmpty || !mounted) return;
+    setState(() { _scannedCode = code; _error = null; _result = null; });
+    _processScan(code);
   }
 
   Widget _buildResult() {

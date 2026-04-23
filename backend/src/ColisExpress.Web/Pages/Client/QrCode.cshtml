@@ -1,0 +1,64 @@
+@page "/qrcode/{codeColis}"
+@model ColisExpress.Web.Pages.Client.QrCodeModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <title>QR Code — @Model.CodeColis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: white; display: flex; justify-content: center; padding: 40px 20px; }
+        .ticket { width: 400px; border: 2px solid #1B4965; border-radius: 16px; overflow: hidden; }
+        .ticket-header { background: #1B4965; color: white; padding: 20px; text-align: center; }
+        .ticket-header h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+        .ticket-header p { font-size: 12px; opacity: 0.8; }
+        .ticket-body { padding: 24px; text-align: center; }
+        .qr-img { width: 220px; height: 220px; margin: 16px auto; }
+        .code { font-family: 'Courier New', monospace; font-size: 22px; font-weight: 800; color: #1B4965; letter-spacing: 2px; margin: 12px 0; }
+        .retrait { font-size: 36px; font-weight: 800; color: #F4A261; letter-spacing: 10px; margin: 8px 0; }
+        .retrait-label { font-size: 11px; text-transform: uppercase; color: #78716C; font-weight: 700; letter-spacing: 1px; }
+        .info { margin-top: 16px; text-align: left; font-size: 13px; color: #44403C; }
+        .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #E8E6E3; }
+        .info-label { color: #78716C; }
+        .info-value { font-weight: 700; }
+        .ticket-footer { background: #F7F5F2; padding: 14px; text-align: center; font-size: 11px; color: #78716C; }
+        .print-btn { display: block; margin: 20px auto 0; padding: 12px 32px; background: #1B4965; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+        @@media print { .print-btn { display: none; } body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="ticket">
+            <div class="ticket-header">
+                <h1>📦 Colis Express</h1>
+                <p>Bon de dépôt — Présentez ce document au point relais</p>
+            </div>
+            <div class="ticket-body">
+                @if (Model.QrCodeBase64 is not null)
+                {
+                    <img src="@Model.QrCodeBase64" alt="QR @Model.CodeColis" class="qr-img" />
+                }
+                <div class="code">@Model.CodeColis</div>
+
+                <div class="retrait-label">Code de retrait</div>
+                <div class="retrait">@Model.Colis?.CodeRetrait</div>
+                <div style="font-size:11px;color:#78716C;">À communiquer au destinataire</div>
+
+                <div class="info">
+                    <div class="info-row"><span class="info-label">Trajet</span><span class="info-value">@Model.Colis?.VilleDepart → @Model.Colis?.VilleArrivee</span></div>
+                    <div class="info-row"><span class="info-label">Transporteur</span><span class="info-value">@Model.Colis?.NomTransporteur</span></div>
+                    <div class="info-row"><span class="info-label">Destinataire</span><span class="info-value">@Model.Colis?.NomDestinataire</span></div>
+                    <div class="info-row"><span class="info-label">Poids</span><span class="info-value">@Model.Colis?.PoidsDeclare kg</span></div>
+                </div>
+            </div>
+            <div class="ticket-footer">
+                Conservez ce document. Le QR code et le code de retrait sont nécessaires pour le dépôt et le retrait.
+            </div>
+        </div>
+        <button class="print-btn" onclick="window.print()">🖨️ Imprimer / PDF</button>
+    </div>
+</body>
+</html>

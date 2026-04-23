@@ -13,6 +13,8 @@ class ColisScreen extends StatefulWidget {
 class _ColisScreenState extends State<ColisScreen> {
   List<dynamic> _colisList = [];
   bool _loading = true;
+  final _searchCtrl = TextEditingController();
+  String _search = '';
 
   @override
   void initState() {
@@ -24,6 +26,17 @@ class _ColisScreenState extends State<ColisScreen> {
     setState(() => _loading = true);
     _colisList = await context.read<ApiService>().getColisList();
     if (mounted) setState(() => _loading = false);
+  }
+
+  List<dynamic> get _filtered {
+    if (_search.isEmpty) return _colisList;
+    final q = _search.toLowerCase();
+    return _colisList.where((c) {
+      final code = (c['codeColis'] ?? '').toString().toLowerCase();
+      final dest = (c['nomDestinataire'] ?? '').toString().toLowerCase();
+      final statut = (c['statut'] ?? '').toString().toLowerCase();
+      return code.contains(q) || dest.contains(q) || statut.contains(q);
+    }).toList();
   }
 
   Future<void> _confirmerDepot(String codeColis) async {
@@ -123,46 +136,55 @@ class _ColisScreenState extends State<ColisScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Colis au relais')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _colisList.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inventory_2_outlined,
-                          size: 64, color: AppTheme.textMuted.withValues(alpha: 0.4)),
-                      const SizedBox(height: 16),
-                      const Text('Aucun colis pour le moment',
-                          style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      const Text(
-                          'Les colis assignes a votre relais apparaitront ici.',
-                          style: TextStyle(
-                              color: AppTheme.textMuted, fontSize: 13)),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _colisList.length,
-                    itemBuilder: (ctx, i) {
-                      final colis = _colisList[i] as Map<String, dynamic>;
-                      return _ColisCard(
-                        colis: colis,
-                        onConfirmerDepot: () => _confirmerDepot(
-                            colis['codeColis']?.toString() ?? ''),
-                        onConfirmerRetrait: () => _confirmerRetrait(
-                            colis['codeColis']?.toString() ?? ''),
-                      );
-                    },
-                  ),
-                ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: const InputDecoration(
+                labelText: 'RECHERCHER', hintText: 'Code colis, destinataire...',
+                prefixIcon: Icon(Icons.search, size: 20),
+              ),
+              onChanged: (v) => setState(() => _search = v),
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _filtered.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.inventory_2_outlined,
+                                size: 64, color: AppTheme.textMuted.withValues(alpha: 0.4)),
+                            const SizedBox(height: 16),
+                            Text(_search.isEmpty ? 'Aucun colis pour le moment' : 'Aucun résultat',
+                                style: const TextStyle(color: AppTheme.textMuted, fontSize: 15, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filtered.length,
+                          itemBuilder: (ctx, i) {
+                            final colis = _filtered[i] as Map<String, dynamic>;
+                            return _ColisCard(
+                              colis: colis,
+                              onConfirmerDepot: () => _confirmerDepot(
+                                  colis['codeColis']?.toString() ?? ''),
+                              onConfirmerRetrait: () => _confirmerRetrait(
+                                  colis['codeColis']?.toString() ?? ''),
+                            );
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }
