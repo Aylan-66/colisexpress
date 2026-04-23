@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
@@ -154,9 +155,13 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
         ),
       );
 
-  Future<void> _updateStatut(String codeColis, String statut, String commentaire) async {
+  Future<void> _scanEtValider(String codeAttendu, String statut, String commentaire) async {
+    final scanned = await Navigator.push<String>(context,
+        MaterialPageRoute(builder: (_) => _ScanVerifScreen(codeAttendu: codeAttendu)));
+    if (scanned == null || !mounted) return;
+
     final api = context.read<ApiService>();
-    final res = await api.updateStatutColis(codeColis, statut, commentaire);
+    final res = await api.updateStatutColis(scanned, statut, commentaire);
     if (!mounted) return;
     if (res.containsKey('error')) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -164,7 +169,7 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$codeColis → $statut'), backgroundColor: Colors.green),
+        SnackBar(content: Text('$scanned → $commentaire'), backgroundColor: Colors.green),
       );
       _load();
     }
@@ -235,7 +240,7 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
                           icon: const Icon(Icons.qr_code_scanner, size: 18),
                           label: const Text('Prendre en charge'),
                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, padding: const EdgeInsets.symmetric(vertical: 10)),
-                          onPressed: () => _updateStatut(code, 'ReceptionneParTransporteur', 'Pris en charge par le transporteur'),
+                          onPressed: () => _scanEtValider(code, 'ReceptionneParTransporteur', 'Pris en charge par le transporteur'),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -254,7 +259,7 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
                           icon: const Icon(Icons.download_done, size: 18),
                           label: const Text('Déposer au relais'),
                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, padding: const EdgeInsets.symmetric(vertical: 10)),
-                          onPressed: () => _updateStatut(code, 'ArriveDansPaysDest', 'Colis déposé au point relais par le transporteur'),
+                          onPressed: () => _scanEtValider(code, 'ArriveDansPaysDest', 'Colis déposé au point relais par le transporteur'),
                         ),
                       ),
                   ],
@@ -262,6 +267,74 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ScanVerifScreen extends StatefulWidget {
+  final String codeAttendu;
+  const _ScanVerifScreen({required this.codeAttendu});
+
+  @override
+  State<_ScanVerifScreen> createState() => _ScanVerifScreenState();
+}
+
+class _ScanVerifScreenState extends State<_ScanVerifScreen> {
+  final MobileScannerController _ctrl = MobileScannerController();
+  bool _done = false;
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_done) return;
+    final code = capture.barcodes.firstOrNull?.rawValue;
+    if (code == null) return;
+
+    _done = true;
+    _ctrl.stop();
+
+    if (code == widget.codeAttendu) {
+      Navigator.pop(context, code);
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Mauvais colis'),
+          content: Text('Code scanné : $code\nAttendu : ${widget.codeAttendu}\n\nScannez le bon QR code.'),
+          actions: [
+            TextButton(onPressed: () { Navigator.pop(ctx); setState(() => _done = false); _ctrl.start(); }, child: const Text('Réessayer')),
+            TextButton(onPressed: () { Navigator.pop(ctx); Navigator.pop(context); }, child: const Text('Annuler')),
+          ],
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Scanner ${widget.codeAttendu}')),
+      body: Column(
+        children: [
+          Expanded(
+            flex: 3,
+            child: MobileScanner(controller: _ctrl, onDetect: _onDetect),
+          ),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Scannez le QR du colis', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text(widget.codeAttendu, style: const TextStyle(fontFamily: 'monospace', fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.primary)),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
