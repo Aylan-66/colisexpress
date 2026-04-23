@@ -45,7 +45,7 @@ public class AdminService : IAdminService
             {
                 Id = c.Id,
                 CodeColis = c.Colis == null ? "—" : c.Colis.CodeColis,
-                Trajet = (c.Trajet == null ? "—" : c.Trajet.VilleDepart + " → " + c.Trajet.VilleArrivee),
+                Trajet = (string.IsNullOrEmpty(c.SegmentDepart) ? (c.Trajet == null ? "—" : c.Trajet.VilleDepart + " → " + c.Trajet.VilleArrivee) : c.SegmentDepart + " → " + c.SegmentArrivee),
                 Client = c.Client == null ? "—" : c.Client.Prenom + " " + c.Client.Nom,
                 Statut = c.Colis == null ? StatutColis.Brouillon : c.Colis.Statut,
                 Total = c.Total,
@@ -308,7 +308,7 @@ public class AdminService : IAdminService
             {
                 Id = c.Id,
                 CodeColis = c.Colis == null ? "—" : c.Colis.CodeColis,
-                Trajet = (c.Trajet == null ? "—" : c.Trajet.VilleDepart + " → " + c.Trajet.VilleArrivee),
+                Trajet = (string.IsNullOrEmpty(c.SegmentDepart) ? (c.Trajet == null ? "—" : c.Trajet.VilleDepart + " → " + c.Trajet.VilleArrivee) : c.SegmentDepart + " → " + c.SegmentArrivee),
                 Client = c.Client == null ? "—" : c.Client.Prenom + " " + c.Client.Nom,
                 Transporteur = (c.Transporteur == null || c.Transporteur.Utilisateur == null)
                     ? "—"
@@ -345,7 +345,7 @@ public class AdminService : IAdminService
             Client = c.Client is null ? "—" : $"{c.Client.Prenom} {c.Client.Nom}",
             EmailClient = c.Client?.Email ?? "—",
             Transporteur = nomT,
-            Trajet = c.Trajet is null ? "—" : $"{c.Trajet.VilleDepart} → {c.Trajet.VilleArrivee}",
+            Trajet = string.IsNullOrEmpty(c.SegmentDepart) ? (c.Trajet is null ? "—" : $"{c.Trajet.VilleDepart} → {c.Trajet.VilleArrivee}") : $"{c.SegmentDepart} → {c.SegmentArrivee}",
             DateDepart = c.Trajet?.DateDepart ?? DateTime.UtcNow,
             NomDestinataire = c.NomDestinataire,
             TelephoneDestinataire = c.TelephoneDestinataire,

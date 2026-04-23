@@ -46,11 +46,16 @@ public class CommandeService : ICommandeService
         if (request.Fragile) supplements += trajet.SupplementFragile ?? 0;
         var total = prixTransport + fraisService;
 
+        var segDep = string.IsNullOrWhiteSpace(request.SegmentDepart) ? trajet.VilleDepart : request.SegmentDepart.Trim();
+        var segArr = string.IsNullOrWhiteSpace(request.SegmentArrivee) ? trajet.VilleArrivee : request.SegmentArrivee.Trim();
+
         var commande = new Commande
         {
             ClientId = request.ClientId,
             TransporteurId = trajet.TransporteurId,
             TrajetId = trajet.Id,
+            SegmentDepart = segDep,
+            SegmentArrivee = segArr,
             NomDestinataire = request.NomDestinataire.Trim(),
             TelephoneDestinataire = request.TelephoneDestinataire.Trim(),
             VilleDestinataire = request.VilleDestinataire.Trim(),
@@ -136,7 +141,7 @@ public class CommandeService : ICommandeService
             {
                 Id = c.Id,
                 CodeColis = c.Colis?.CodeColis ?? "",
-                Trajet = $"{c.Trajet?.VilleDepart} → {c.Trajet?.VilleArrivee}",
+                Trajet = $"{(string.IsNullOrEmpty(c.SegmentDepart) ? c.Trajet?.VilleDepart : c.SegmentDepart)} → {(string.IsNullOrEmpty(c.SegmentArrivee) ? c.Trajet?.VilleArrivee : c.SegmentArrivee)}",
                 NomTransporteur = nomT,
                 StatutColis = c.Colis?.Statut ?? StatutColis.Brouillon,
                 Total = c.Total,
@@ -167,8 +172,8 @@ public class CommandeService : ICommandeService
             StatutColis = statutColis,
             StatutReglement = commande.StatutReglement,
             EstAnnulable = Domain.RulesMetier.Annulation.EstAnnulable(statutColis),
-            VilleDepart = commande.Trajet?.VilleDepart ?? "",
-            VilleArrivee = commande.Trajet?.VilleArrivee ?? "",
+            VilleDepart = string.IsNullOrEmpty(commande.SegmentDepart) ? commande.Trajet?.VilleDepart ?? "" : commande.SegmentDepart,
+            VilleArrivee = string.IsNullOrEmpty(commande.SegmentArrivee) ? commande.Trajet?.VilleArrivee ?? "" : commande.SegmentArrivee,
             DateDepart = commande.Trajet?.DateDepart ?? DateTime.UtcNow,
             DateEstimeeArrivee = commande.Trajet?.DateEstimeeArrivee ?? DateTime.UtcNow,
             NomTransporteur = $"{prenom} {nom}".Trim(),
@@ -298,7 +303,7 @@ public class CommandeService : ICommandeService
             {
                 Id = c.Id,
                 CodeColis = c.Colis?.CodeColis ?? "",
-                Trajet = $"{c.Trajet?.VilleDepart} → {c.Trajet?.VilleArrivee}",
+                Trajet = $"{(string.IsNullOrEmpty(c.SegmentDepart) ? c.Trajet?.VilleDepart : c.SegmentDepart)} → {(string.IsNullOrEmpty(c.SegmentArrivee) ? c.Trajet?.VilleArrivee : c.SegmentArrivee)}",
                 NomTransporteur = nomClient,
                 StatutColis = c.Colis?.Statut ?? StatutColis.Brouillon,
                 Total = c.Total,
@@ -341,8 +346,8 @@ public class CommandeService : ICommandeService
             Total = commande.Total,
             StatutColis = commande.Colis?.Statut ?? StatutColis.Brouillon,
             StatutReglement = commande.StatutReglement,
-            VilleDepart = commande.Trajet?.VilleDepart ?? "",
-            VilleArrivee = commande.Trajet?.VilleArrivee ?? "",
+            VilleDepart = string.IsNullOrEmpty(commande.SegmentDepart) ? commande.Trajet?.VilleDepart ?? "" : commande.SegmentDepart,
+            VilleArrivee = string.IsNullOrEmpty(commande.SegmentArrivee) ? commande.Trajet?.VilleArrivee ?? "" : commande.SegmentArrivee,
             DateDepart = commande.Trajet?.DateDepart ?? DateTime.UtcNow,
             NomTransporteur = nomT,
             DateCreation = commande.DateCreation

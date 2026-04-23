@@ -84,7 +84,9 @@
                        asp-route-trajetId="@offre.TrajetId"
                        asp-route-poids="@Model.Poids"
                        asp-route-fragile="@Model.Fragile"
-                       asp-route-urgent="@Model.Urgent">Réserver →</a>
+                       asp-route-urgent="@Model.Urgent"
+                       asp-route-segDepart="@offre.VilleDepart"
+                       asp-route-segArrivee="@offre.VilleArrivee">Réserver →</a>
                 </div>
             </div>
         }

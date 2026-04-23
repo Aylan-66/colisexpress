@@ -24,6 +24,8 @@ public class ReservationModel : PageModel
     [BindProperty(SupportsGet = true)] public decimal Poids { get; set; }
     [BindProperty(SupportsGet = true)] public bool Fragile { get; set; }
     [BindProperty(SupportsGet = true)] public bool Urgent { get; set; }
+    [BindProperty(SupportsGet = true)] public string? SegDepart { get; set; }
+    [BindProperty(SupportsGet = true)] public string? SegArrivee { get; set; }
 
     [BindProperty] public CreateCommandeRequest Input { get; set; } = new();
 
@@ -53,6 +55,9 @@ public class ReservationModel : PageModel
         Input.ClientId = clientId;
         Input.TrajetId = TrajetId;
         Input.ModeReglement = ModeReglement.Carte;
+
+        Input.SegmentDepart = SegDepart ?? "";
+        Input.SegmentArrivee = SegArrivee ?? "";
 
         try
         {

@@ -183,9 +183,9 @@ public class TrajetsController : ControllerBase
 
         var villeEtape = etape.PointRelais.Ville.ToLowerInvariant();
 
-        // À déposer ici = colis dont la VilleDestinataire match cette étape
+        // À déposer ici = colis dont le SegmentArrivee match cette étape
         var aDeposer = colisTrajet
-            .Where(c => c.VilleDestinataire.ToLowerInvariant() == villeEtape)
+            .Where(c => (!string.IsNullOrEmpty(c.SegmentArrivee) ? c.SegmentArrivee : c.VilleDestinataire).ToLowerInvariant() == villeEtape)
             .Select(c => new {
                 c.Colis!.CodeColis,
                 statut = c.Colis.Statut.ToString(),
@@ -204,7 +204,7 @@ public class TrajetsController : ControllerBase
         if (isFirst)
         {
             aRecuperer = colisTrajet
-                .Where(c => c.VilleDestinataire.ToLowerInvariant() != villeEtape)
+                .Where(c => (!string.IsNullOrEmpty(c.SegmentArrivee) ? c.SegmentArrivee : c.VilleDestinataire).ToLowerInvariant() != villeEtape)
                 .Select(c => (object)new {
                     c.Colis!.CodeColis,
                     statut = c.Colis.Statut.ToString(),

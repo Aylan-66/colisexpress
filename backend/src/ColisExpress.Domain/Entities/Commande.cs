@@ -11,6 +11,10 @@ public class Commande
     public Guid? RelaisDepartId { get; set; }
     public Guid? RelaisArriveeId { get; set; }
 
+    // Segment réservé (peut différer du trajet complet)
+    public string SegmentDepart { get; set; } = string.Empty;
+    public string SegmentArrivee { get; set; } = string.Empty;
+
     public string NomDestinataire { get; set; } = string.Empty;
     public string TelephoneDestinataire { get; set; } = string.Empty;
     public string VilleDestinataire { get; set; } = string.Empty;

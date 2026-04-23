@@ -7,6 +7,10 @@ public class CreateCommandeRequest
     public Guid ClientId { get; set; }
     public Guid TrajetId { get; set; }
 
+    // Segment réservé (villes du segment, pas du trajet complet)
+    public string SegmentDepart { get; set; } = string.Empty;
+    public string SegmentArrivee { get; set; } = string.Empty;
+
     public string NomDestinataire { get; set; } = string.Empty;
     public string TelephoneDestinataire { get; set; } = string.Empty;
     public string VilleDestinataire { get; set; } = string.Empty;
