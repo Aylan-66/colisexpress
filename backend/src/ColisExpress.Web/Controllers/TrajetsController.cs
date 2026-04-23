@@ -198,19 +198,20 @@ public class TrajetsController : ControllerBase
             }).ToList();
 
         // À récupérer ici = colis dont le SegmentDepart match cette étape
+        var villeTrajetDepart = colisTrajet.FirstOrDefault()?.Trajet?.VilleDepart?.ToLowerInvariant() ?? "";
         var aRecuperer = colisTrajet
             .Where(c => {
-                var segDep = !string.IsNullOrEmpty(c.SegmentDepart) ? c.SegmentDepart : trajet?.VilleDepart ?? "";
-                return segDep.ToLowerInvariant() == villeEtape;
+                var segDep = !string.IsNullOrEmpty(c.SegmentDepart) ? c.SegmentDepart.ToLowerInvariant() : villeTrajetDepart;
+                return segDep == villeEtape;
             })
-            .Select(c => (object)new {
+            .Select(c => new {
                 c.Colis!.CodeColis,
                 statut = c.Colis.Statut.ToString(),
                 c.NomDestinataire,
                 c.VilleDestinataire,
                 c.PoidsDeclare,
                 action = "recuperer"
-            }).ToList();
+            }).ToList<object>();
 
         return Ok(new
         {
