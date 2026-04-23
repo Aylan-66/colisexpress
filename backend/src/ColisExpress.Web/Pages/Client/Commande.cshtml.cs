@@ -10,16 +10,19 @@ public class CommandeModel : PageModel
 {
     private readonly ICommandeService _commande;
     private readonly IAvisService _avis;
+    private readonly IQrCodeService _qr;
 
-    public CommandeModel(ICommandeService commande, IAvisService avis)
+    public CommandeModel(ICommandeService commande, IAvisService avis, IQrCodeService qr)
     {
         _commande = commande;
         _avis = avis;
+        _qr = qr;
     }
 
     [BindProperty(SupportsGet = true)] public Guid Id { get; set; }
 
     public CommandeDetailResponse? Commande { get; private set; }
+    public string? QrCodeBase64 { get; private set; }
     public AvisResponse? AvisExistant { get; private set; }
     public bool PeutLaisserAvis { get; private set; }
     [BindProperty] public int NoteAvis { get; set; }
@@ -72,6 +75,8 @@ public class CommandeModel : PageModel
     private async Task LoadAsync(Guid clientId, CancellationToken ct)
     {
         Commande = await _commande.GetDetailAsync(Id, clientId, ct);
+        if (Commande is not null && !string.IsNullOrEmpty(Commande.CodeColis))
+            QrCodeBase64 = _qr.GenerateBase64Png(Commande.CodeColis);
         AvisExistant = await _avis.GetByCommandeIdAsync(Id, ct);
         PeutLaisserAvis = AvisExistant is null && Commande is not null &&
             (Commande.StatutColis == ColisExpress.Domain.Enums.StatutColis.LivraisonCloturee ||

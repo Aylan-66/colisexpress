@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = res['error']);
     } else if (res['role'] != 'PointRelais') {
       await api.logout();
-      setState(() => _error = 'Ce compte n\'est pas un point relais.');
+      setState(() => _error = 'Identifiants incorrects.');
     } else {
       widget.onLogin();
     }

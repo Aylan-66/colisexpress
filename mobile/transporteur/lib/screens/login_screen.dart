@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = res['error']);
     } else if (res['role'] != 'Transporteur') {
       await api.logout();
-      setState(() => _error = 'Ce compte n\'est pas un transporteur.');
+      setState(() => _error = 'Identifiants incorrects.');
     } else {
       widget.onLogin();
     }

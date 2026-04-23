@@ -86,28 +86,20 @@ public class RelaisController : ControllerBase
         var relais = await GetRelaisAsync(ct);
         if (relais is null) return NotFound(new { error = "Profil point relais introuvable." });
 
-        var commandes = await _db.Commandes
+        var ville = relais.Ville.ToLower();
+
+        // Tous les colis qui passent par ce relais (départ ou arrivée)
+        var allCommandes = await _db.Commandes
             .Include(c => c.Colis)
             .Include(c => c.Trajet)
             .Include(c => c.Client)
-            .Where(c => c.RelaisArriveeId == relais.Id || c.RelaisDepartId == relais.Id)
+            .Where(c => c.Colis != null && (
+                c.SegmentDepart.ToLower() == ville ||
+                c.SegmentArrivee.ToLower() == ville ||
+                c.VilleDestinataire.ToLower() == ville
+            ))
             .OrderByDescending(c => c.DateCreation)
             .ToListAsync(ct);
-
-        // Aussi inclure les colis en statut "ArriveDansPaysDest" sur des trajets allant vers la ville du relais
-        var colisEnRoute = await _db.Commandes
-            .Include(c => c.Colis)
-            .Include(c => c.Trajet)
-            .Include(c => c.Client)
-            .Where(c => c.Colis != null &&
-                (c.Colis.Statut == StatutColis.ArriveDansPaysDest ||
-                 c.Colis.Statut == StatutColis.ReceptionneParPointRelais ||
-                 c.Colis.Statut == StatutColis.DisponibleAuRetrait) &&
-                c.VilleDestinataire.ToLower() == relais.Ville.ToLower())
-            .OrderByDescending(c => c.DateCreation)
-            .ToListAsync(ct);
-
-        var allCommandes = commandes.Union(colisEnRoute).DistinctBy(c => c.Id).ToList();
 
         return Ok(allCommandes.Where(c => c.Colis is not null).Select(c => new
         {

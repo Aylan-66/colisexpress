@@ -153,6 +153,12 @@ else
 
                 <div class="web-card">
                     <h3>Suivi & QR code</h3>
+                    @if (Model.QrCodeBase64 is not null && commande.StatutColis != ColisExpress.Domain.Enums.StatutColis.Annulee)
+                    {
+                        <div class="text-center mb-4">
+                            <img src="@Model.QrCodeBase64" alt="QR @commande.CodeColis" style="width:160px;height:160px;border-radius:8px;" />
+                        </div>
+                    }
                     <a class="web-btn outline full mb-2" asp-page="/Client/Suivi" asp-route-codeColis="@commande.CodeColis">Voir la timeline</a>
                     @if (!string.IsNullOrEmpty(commande.CodeRetrait) && commande.StatutColis != ColisExpress.Domain.Enums.StatutColis.Annulee)
                     {
