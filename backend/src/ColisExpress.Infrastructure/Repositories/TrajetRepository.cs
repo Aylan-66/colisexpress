@@ -34,17 +34,20 @@ public class TrajetRepository : ITrajetRepository
             .Include(t => t.Etapes)
                 .ThenInclude(e => e.PointRelais)
             .Where(t => t.Statut == StatutTrajet.Actif
-                && t.DateDepart >= dateMin
                 && t.CapaciteMaxPoids >= poidsKg
                 && t.CapaciteRestante > 0
                 && (
-                    // Match direct : VilleDepart → VilleArrivee
-                    (t.VilleDepart.ToLower() == dep && t.VilleArrivee.ToLower() == arr)
+                    // Match direct : VilleDepart → VilleArrivee avec date trajet
+                    (t.VilleDepart.ToLower() == dep && t.VilleArrivee.ToLower() == arr && t.DateDepart >= dateMin)
                     ||
-                    // Match via étapes : départ dans une étape + arrivée dans une étape suivante
+                    // Match via étapes : vérifie la date de l'étape de départ (pas du trajet)
                     (
                         (t.VilleDepart.ToLower() == dep || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == dep))
                         && (t.VilleArrivee.ToLower() == arr || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == arr))
+                        && (
+                            t.DateDepart >= dateMin
+                            || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == dep && e.HeureEstimeeArrivee >= dateMin)
+                        )
                     )
                 ))
             .OrderBy(t => t.DateDepart)
