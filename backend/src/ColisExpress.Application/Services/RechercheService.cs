@@ -24,7 +24,7 @@ public class RechercheService : IRechercheService
             request.Poids,
             ct);
 
-        var offres = trajets.Select(t => ToOffre(t, request.Poids, request.Urgent, request.Fragile));
+        var offres = trajets.Select(t => ToOffre(t, request.Poids, request.Urgent, request.Fragile, request.VilleDepart, request.VilleArrivee));
         offres = request.Tri switch
         {
             TriOffres.Prix => offres.OrderBy(o => o.Prix),
@@ -49,7 +49,8 @@ public class RechercheService : IRechercheService
         return (depart, arrivee);
     }
 
-    private static OffreResponse ToOffre(Trajet t, decimal poids, bool urgent, bool fragile)
+    private static OffreResponse ToOffre(Trajet t, decimal poids, bool urgent, bool fragile,
+        string? rechercheDepart = null, string? rechercheArrivee = null)
     {
         var transporteur = t.Transporteur;
         var utilisateur = transporteur?.Utilisateur;
@@ -59,6 +60,41 @@ public class RechercheService : IRechercheService
 
         var prix = CalculerPrix(t, poids, urgent, fragile);
 
+        // Dates : utiliser les étapes si le match est via étapes intermédiaires
+        var dateDepart = t.DateDepart;
+        var dateArrivee = t.DateEstimeeArrivee;
+        var villeDepart = t.VilleDepart;
+        var villeArrivee = t.VilleArrivee;
+
+        if (rechercheDepart is not null && rechercheArrivee is not null && t.Etapes?.Count > 0)
+        {
+            var dep = rechercheDepart.ToLowerInvariant();
+            var arr = rechercheArrivee.ToLowerInvariant();
+            var etapesOrdonnees = t.Etapes.OrderBy(e => e.Ordre).ToList();
+
+            // Trouver l'étape de départ
+            if (t.VilleDepart.ToLowerInvariant() != dep)
+            {
+                var etapeDep = etapesOrdonnees.FirstOrDefault(e => e.PointRelais?.Ville.ToLowerInvariant() == dep);
+                if (etapeDep is not null)
+                {
+                    dateDepart = etapeDep.HeureEstimeeArrivee;
+                    villeDepart = etapeDep.PointRelais?.Ville ?? villeDepart;
+                }
+            }
+
+            // Trouver l'étape d'arrivée
+            if (t.VilleArrivee.ToLowerInvariant() != arr)
+            {
+                var etapeArr = etapesOrdonnees.FirstOrDefault(e => e.PointRelais?.Ville.ToLowerInvariant() == arr);
+                if (etapeArr is not null)
+                {
+                    dateArrivee = etapeArr.HeureEstimeeArrivee;
+                    villeArrivee = etapeArr.PointRelais?.Ville ?? villeArrivee;
+                }
+            }
+        }
+
         return new OffreResponse
         {
             TrajetId = t.Id,
@@ -67,10 +103,10 @@ public class RechercheService : IRechercheService
             Initiales = initiales.ToUpperInvariant(),
             NoteMoyenne = transporteur?.NoteMoyenne ?? 0,
             NombreAvis = transporteur?.NombreAvis ?? 0,
-            VilleDepart = t.VilleDepart,
-            VilleArrivee = t.VilleArrivee,
-            DateDepart = t.DateDepart,
-            DateEstimeeArrivee = t.DateEstimeeArrivee,
+            VilleDepart = villeDepart,
+            VilleArrivee = villeArrivee,
+            DateDepart = dateDepart,
+            DateEstimeeArrivee = dateArrivee,
             CapaciteRestante = t.CapaciteRestante,
             CapaciteMaxPoids = t.CapaciteMaxPoids,
             TypeVehicule = transporteur?.TypeVehicule ?? "Non spécifié",
