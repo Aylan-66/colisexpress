@@ -159,25 +159,95 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
     final dest = c['nomDestinataire']?.toString() ?? '—';
     final ville = c['villeDestinataire']?.toString() ?? '—';
     final poids = c['poidsDeclare']?.toString() ?? '—';
-    final color = isDeposer ? AppTheme.accent : AppTheme.primary;
+    final statut = c['statut']?.toString() ?? '';
+
+    // Déterminer si le colis est actionnable
+    final bool isActionnable;
+    final String statutLabel;
+    final Color statutColor;
+
+    if (isDeposer) {
+      // À déposer : actionnable si le transporteur l'a (ReceptionneParTransporteur, EnTransit, etc.)
+      isActionnable = statut == 'ReceptionneParTransporteur' || statut == 'PhotoPriseEnChargeEnregistree' || statut == 'EnTransit';
+      if (isActionnable) { statutLabel = 'Prêt à déposer'; statutColor = AppTheme.accent; }
+      else { statutLabel = statut; statutColor = AppTheme.textMuted; }
+    } else {
+      // À récupérer : actionnable si le client l'a déposé (DeposeParClient)
+      isActionnable = statut == 'DeposeParClient';
+      if (statut == 'DeposeParClient') { statutLabel = 'Déposé — prêt'; statutColor = AppTheme.success; }
+      else if (statut == 'EnAttenteDepot' || statut == 'EnAttenteReglement') { statutLabel = 'En attente de dépôt'; statutColor = AppTheme.textMuted; }
+      else if (statut == 'ReceptionneParTransporteur') { statutLabel = 'Déjà récupéré'; statutColor = AppTheme.success; }
+      else { statutLabel = statut; statutColor = AppTheme.textMuted; }
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        onTap: () => Navigator.push(context,
-            MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code))),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        leading: Container(
-          width: 42, height: 42,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(isDeposer ? Icons.download : Icons.upload, color: color, size: 20),
+      child: Opacity(
+        opacity: isActionnable ? 1.0 : 0.5,
+        child: Column(
+          children: [
+            ListTile(
+              onTap: isActionnable ? () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code))) : null,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              leading: Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(
+                  color: (isActionnable ? (isDeposer ? AppTheme.accent : AppTheme.primary) : AppTheme.textMuted).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(isDeposer ? Icons.download : Icons.upload,
+                    color: isActionnable ? (isDeposer ? AppTheme.accent : AppTheme.primary) : AppTheme.textMuted, size: 20),
+              ),
+              title: Text(code, style: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'monospace', fontSize: 13)),
+              subtitle: Text('$dest — $ville • $poids kg', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: statutColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+                child: Text(statutLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statutColor)),
+              ),
+            ),
+            if (isActionnable)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                child: Row(
+                  children: [
+                    if (!isDeposer) ...[
+                      // Récupérer = Scanner
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.qr_code_scanner, size: 18),
+                          label: const Text('Scanner'),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, padding: const EdgeInsets.symmetric(vertical: 10)),
+                          onPressed: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code))),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.block, size: 18, color: AppTheme.danger),
+                          label: const Text('Refuser', style: TextStyle(color: AppTheme.danger)),
+                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
+                          onPressed: null, // À implémenter plus tard
+                        ),
+                      ),
+                    ],
+                    if (isDeposer)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.download_done, size: 18),
+                          label: const Text('Déposer'),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, padding: const EdgeInsets.symmetric(vertical: 10)),
+                          onPressed: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code))),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
         ),
-        title: Text(code, style: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'monospace', fontSize: 13)),
-        subtitle: Text('$dest — $ville • $poids kg', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-        trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted, size: 20),
       ),
     );
   }

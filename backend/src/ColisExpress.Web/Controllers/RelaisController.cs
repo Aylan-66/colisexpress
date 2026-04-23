@@ -140,19 +140,30 @@ public class RelaisController : ControllerBase
 
         switch (colis.Statut)
         {
-            // Client dépose au relais départ
-            case StatutColis.ReservationConfirmee:
-            case StatutColis.CodeColisGenere:
-            case StatutColis.EnAttenteDepot:
-                // Vérifier paiement espèces
+            // Espèces non payées → bloquer
+            case StatutColis.EnAttenteReglement:
                 if (commande.ModeReglement == ModeReglement.Especes && commande.StatutReglement != StatutReglement.Paye)
                     return BadRequest(new {
-                        error = "Paiement espèces non confirmé. Encaissez d'abord, puis cochez le paiement.",
+                        error = "Paiement espèces non confirmé. Encaissez d'abord.",
                         action = "paiement_requis",
                         commandeId = commande.Id,
                         montant = commande.Total
                     });
+                // Si payé entre temps, passer en dépôt
+                colis.Statut = StatutColis.DeposeParClient;
+                await _uow.Colis.AddEvenementAsync(new EvenementColis
+                {
+                    ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.DeposeParClient,
+                    ActeurId = GetUserId(), Commentaire = "Paiement espèces encaissé + colis déposé"
+                }, ct);
+                await _uow.SaveChangesAsync(ct);
+                return Ok(new { statut = colis.Statut.ToString(), action = "depot_client", message = "Paiement encaissé, dépôt confirmé." });
 
+            // Client dépose au relais départ (déjà payé)
+            case StatutColis.DemandeCreee:
+            case StatutColis.ReservationConfirmee:
+            case StatutColis.CodeColisGenere:
+            case StatutColis.EnAttenteDepot:
                 colis.Statut = StatutColis.DeposeParClient;
                 await _uow.Colis.AddEvenementAsync(new EvenementColis
                 {
@@ -162,28 +173,22 @@ public class RelaisController : ControllerBase
                 await _uow.SaveChangesAsync(ct);
                 return Ok(new { statut = colis.Statut.ToString(), action = "depot_client", message = "Dépôt client confirmé." });
 
-            // Colis arrive au relais destination (transporteur a déposé)
+            // Transporteur a déposé au relais destination
             case StatutColis.ArriveDansPaysDest:
-                colis.Statut = StatutColis.ReceptionneParPointRelais;
-                await _uow.Colis.AddEvenementAsync(new EvenementColis
-                {
-                    ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.ReceptionneParPointRelais,
-                    ActeurId = GetUserId(), Commentaire = "Colis réceptionné par le point relais"
-                }, ct);
-
                 colis.Statut = StatutColis.DisponibleAuRetrait;
                 await _uow.Colis.AddEvenementAsync(new EvenementColis
                 {
-                    ColisId = colis.Id, AncienStatut = StatutColis.ReceptionneParPointRelais, NouveauStatut = StatutColis.DisponibleAuRetrait,
-                    ActeurId = GetUserId(), Commentaire = "Colis disponible au retrait"
+                    ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.DisponibleAuRetrait,
+                    ActeurId = GetUserId(), Commentaire = "Colis réceptionné par le point relais, disponible au retrait"
                 }, ct);
                 await _uow.SaveChangesAsync(ct);
                 return Ok(new { statut = colis.Statut.ToString(), action = "reception_relais", message = "Colis réceptionné, disponible au retrait." });
 
-            // Colis déjà disponible → rien à faire via scan (retrait = code)
+            // Retrait par le destinataire (scan final)
             case StatutColis.DisponibleAuRetrait:
-                return Ok(new { statut = colis.Statut.ToString(), action = "attente_retrait",
-                    message = "Ce colis est en attente de retrait par le destinataire. Utilisez le code de retrait." });
+                return Ok(new { statut = colis.Statut.ToString(), action = "retrait_requis",
+                    message = "Demandez le code de retrait (4 chiffres) au destinataire.",
+                    codeRetraitRequis = true });
 
             default:
                 return BadRequest(new { error = $"Action impossible pour le statut actuel : {colis.Statut}.", statut = colis.Statut.ToString() });

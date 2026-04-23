@@ -70,13 +70,17 @@ public class CommandeService : ICommandeService
         var codeColis = await GenerateCodeColisAsync(ct);
         var codeRetrait = Random.Shared.Next(1000, 10000).ToString();
 
+        var statutInitial = request.ModeReglement == ModeReglement.Especes
+            ? StatutColis.EnAttenteReglement
+            : StatutColis.DemandeCreee;
+
         var colis = new Colis
         {
             CommandeId = commande.Id,
             CodeColis = codeColis,
             CodeRetrait = codeRetrait,
             QrCodeData = codeColis,
-            Statut = StatutColis.DemandeCreee
+            Statut = statutInitial
         };
 
         var evenement = new EvenementColis
@@ -264,15 +268,15 @@ public class CommandeService : ICommandeService
         if (commande.Colis is not null)
         {
             var ancien = commande.Colis.Statut;
-            commande.Colis.Statut = StatutColis.ReservationConfirmee;
+            commande.Colis.Statut = StatutColis.EnAttenteDepot;
 
             await _uow.Colis.AddEvenementAsync(new EvenementColis
             {
                 ColisId = commande.Colis.Id,
                 AncienStatut = ancien,
-                NouveauStatut = StatutColis.ReservationConfirmee,
+                NouveauStatut = StatutColis.EnAttenteDepot,
                 ActeurId = clientId,
-                Commentaire = "Paiement confirmé"
+                Commentaire = "Paiement confirmé — en attente de dépôt au point relais"
             }, ct);
         }
 

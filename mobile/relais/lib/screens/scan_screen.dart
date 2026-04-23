@@ -36,18 +36,23 @@ class _ScanScreenState extends State<ScanScreen> {
     final res = await api.scanColis(code);
 
     if (!mounted) return;
-    setState(() {
-      _processing = false;
-      if (res.containsKey('error')) {
-        _error = res['error'];
-        final action = res['action']?.toString();
-        if (action == 'paiement_requis') {
-          _showPaiementDialog(res);
-        }
+    setState(() => _processing = false);
+
+    if (res.containsKey('error')) {
+      final action = res['action']?.toString();
+      if (action == 'paiement_requis') {
+        _showPaiementDialog(res);
       } else {
-        _result = res;
+        setState(() => _error = res['error']);
       }
-    });
+    } else {
+      final action = res['action']?.toString();
+      if (action == 'retrait_requis') {
+        _showRetraitDialog(code);
+      } else {
+        setState(() => _result = res);
+      }
+    }
   }
 
   Future<void> _showPaiementDialog(Map<String, dynamic> res) async {
@@ -90,6 +95,52 @@ class _ScanScreenState extends State<ScanScreen> {
       await api.validerPaiementEspeces(commandeId);
       // Re-scanner maintenant que c'est payé
       _processScan(_scannedCode!);
+    }
+  }
+
+  Future<void> _showRetraitDialog(String code) async {
+    final codeCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Code de retrait'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Demandez le code 4 chiffres au destinataire.', style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeCtrl,
+              decoration: const InputDecoration(labelText: 'CODE DE RETRAIT', hintText: '1234'),
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 8),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+            child: const Text('Valider le retrait'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final api = context.read<ApiService>();
+    final res = await api.confirmerRetrait(code, codeCtrl.text.trim());
+    if (!mounted) return;
+
+    if (res.containsKey('error')) {
+      setState(() => _error = res['error']);
+    } else {
+      setState(() => _result = res);
     }
   }
 
