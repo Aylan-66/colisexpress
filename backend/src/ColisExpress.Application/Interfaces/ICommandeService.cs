@@ -18,5 +18,6 @@ public interface ICommandeService
     Task<IReadOnlyList<CommandeListItem>> GetCommandesClientAsync(Guid clientId, FiltreCommandes filtre = FiltreCommandes.Toutes, CancellationToken ct = default);
     Task ConfirmerPaiementAsync(Guid commandeId, Guid clientId, string? referenceExterne = null, CancellationToken ct = default);
     Task<OperationResult> AnnulerAsync(Guid commandeId, Guid clientId, CancellationToken ct = default);
+    Task SetModeReglementAsync(Guid commandeId, Guid clientId, string mode, CancellationToken ct = default);
     Task<IReadOnlyList<CommandeListItem>> GetCommandesTransporteurAsync(Guid utilisateurId, CancellationToken ct = default);
 }

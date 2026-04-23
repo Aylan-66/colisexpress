@@ -154,6 +154,22 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
         ),
       );
 
+  Future<void> _updateStatut(String codeColis, String statut, String commentaire) async {
+    final api = context.read<ApiService>();
+    final res = await api.updateStatutColis(codeColis, statut, commentaire);
+    if (!mounted) return;
+    if (res.containsKey('error')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res['error']), backgroundColor: Colors.red),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$codeColis → $statut'), backgroundColor: Colors.green),
+      );
+      _load();
+    }
+  }
+
   Widget _colisCard(Map<String, dynamic> c, {required bool isDeposer}) {
     final code = c['codeColis']?.toString() ?? '—';
     final dest = c['nomDestinataire']?.toString() ?? '—';
@@ -213,14 +229,13 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
                 child: Row(
                   children: [
                     if (!isDeposer) ...[
-                      // Récupérer = Scanner
+                      // Récupérer = change le statut à ReceptionneParTransporteur
                       Expanded(
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.qr_code_scanner, size: 18),
-                          label: const Text('Scanner'),
+                          label: const Text('Prendre en charge'),
                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, padding: const EdgeInsets.symmetric(vertical: 10)),
-                          onPressed: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code))),
+                          onPressed: () => _updateStatut(code, 'ReceptionneParTransporteur', 'Pris en charge par le transporteur'),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -229,7 +244,7 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
                           icon: const Icon(Icons.block, size: 18, color: AppTheme.danger),
                           label: const Text('Refuser', style: TextStyle(color: AppTheme.danger)),
                           style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
-                          onPressed: null, // À implémenter plus tard
+                          onPressed: null,
                         ),
                       ),
                     ],
@@ -237,10 +252,9 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
                       Expanded(
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.download_done, size: 18),
-                          label: const Text('Déposer'),
+                          label: const Text('Déposer au relais'),
                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, padding: const EdgeInsets.symmetric(vertical: 10)),
-                          onPressed: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code))),
+                          onPressed: () => _updateStatut(code, 'ArriveDansPaysDest', 'Colis déposé au point relais par le transporteur'),
                         ),
                       ),
                   ],

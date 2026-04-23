@@ -75,9 +75,11 @@ public class PaiementModel : PageModel
             }
         }
 
+        // Espèces ou Chèque → ne PAS confirmer le paiement, juste noter le mode
+        // Le relais confirmera le paiement au scan
         try
         {
-            await _commande.ConfirmerPaiementAsync(CommandeId, clientId.Value, ct: ct);
+            await _commande.SetModeReglementAsync(CommandeId, clientId.Value, mode, ct);
         }
         catch (Exception ex)
         {

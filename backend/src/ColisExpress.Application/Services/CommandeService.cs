@@ -247,6 +247,34 @@ public class CommandeService : ICommandeService
         return OperationResult.Ok();
     }
 
+    public async Task SetModeReglementAsync(Guid commandeId, Guid clientId, string mode, CancellationToken ct = default)
+    {
+        var commande = await _uow.Commandes.GetByIdAsync(commandeId, ct)
+            ?? throw new DomainException("Commande introuvable.");
+        if (commande.ClientId != clientId)
+            throw new DomainException("Accès refusé.");
+
+        if (Enum.TryParse<ModeReglement>(mode, true, out var modeEnum))
+            commande.ModeReglement = modeEnum;
+
+        // Si espèces/chèque → colis en attente de règlement
+        if (modeEnum != ModeReglement.Carte && commande.Colis is not null)
+        {
+            var ancien = commande.Colis.Statut;
+            commande.Colis.Statut = StatutColis.EnAttenteReglement;
+            await _uow.Colis.AddEvenementAsync(new EvenementColis
+            {
+                ColisId = commande.Colis.Id,
+                AncienStatut = ancien,
+                NouveauStatut = StatutColis.EnAttenteReglement,
+                ActeurId = clientId,
+                Commentaire = $"Mode de paiement : {mode} — en attente de règlement au point relais"
+            }, ct);
+        }
+
+        await _uow.SaveChangesAsync(ct);
+    }
+
     public async Task ConfirmerPaiementAsync(Guid commandeId, Guid clientId, string? referenceExterne = null, CancellationToken ct = default)
     {
         var commande = await _uow.Commandes.GetByIdAsync(commandeId, ct)
