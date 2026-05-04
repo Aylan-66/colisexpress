@@ -56,24 +56,26 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Refuser le colis'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-                'Le colis sera marqué comme refusé. L\'administration sera notifiée pour traiter le remboursement du client.',
-                style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: motifCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'MOTIF DU REFUS',
-                hintText: 'Ex : produit interdit, colis endommagé, poids dépassé...',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                  'Le colis sera marqué comme refusé. L\'administration sera notifiée pour traiter le remboursement du client.',
+                  style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: motifCtrl,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'MOTIF DU REFUS',
+                  hintText: 'Ex : produit interdit, colis endommagé...',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),

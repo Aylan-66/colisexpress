@@ -402,7 +402,7 @@ class _ScanScreenState extends State<ScanScreen> {
             onPressed: _backToModePicker,
             child: const Text('Changer de mode'),
           ),
-          if (_scannedCode != null)
+          if (_canShowRefuser())
             TextButton.icon(
               icon: const Icon(Icons.block, size: 16, color: AppTheme.danger),
               label: const Text('Refuser ce colis', style: TextStyle(color: AppTheme.danger)),
@@ -413,37 +413,60 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
+  /// Le bouton "Refuser" n'a de sens que si le colis a été trouvé et appartient à mon parcours.
+  /// Si le scan a renvoyé une erreur (déjà refusé, déjà livré, ne passe pas par mon relais, etc.),
+  /// on cache le bouton.
+  bool _canShowRefuser() {
+    if (_scannedCode == null) return false;
+    if (_result != null && _result!['action']?.toString() == 'refus') return false;
+    if (_error != null) {
+      final err = _error!.toLowerCase();
+      const motsBloquants = [
+        'introuvable',
+        'déjà refusé',
+        'deja refuse',
+        'déjà livré',
+        'deja livre',
+        'ne passe pas par votre',
+      ];
+      if (motsBloquants.any(err.contains)) return false;
+    }
+    return true;
+  }
+
   Future<void> _refuserColis(String code) async {
     final motifCtrl = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Refuser le colis'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-                'Le colis sera marqué comme refusé. L\'administration sera notifiée pour traiter le remboursement du client.',
-                style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: motifCtrl,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'MOTIF DU REFUS',
-                hintText: 'Ex : produit interdit, colis endommagé, poids dépassé...',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                  'Le colis sera marqué comme refusé. L\'administration sera notifiée pour traiter le remboursement du client.',
+                  style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: motifCtrl,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'MOTIF DU REFUS',
+                  hintText: 'Ex : produit interdit, colis endommagé...',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
-            child: const Text('Confirmer le refus'),
+            child: const Text('Confirmer'),
           ),
         ],
       ),
