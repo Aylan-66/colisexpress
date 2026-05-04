@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'colis_screen.dart';
 import 'scan_screen.dart';
+import 'stats_screen.dart';
 import 'profil_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,13 +19,14 @@ class _HomeScreenState extends State<HomeScreen> {
   final _screens = const [
     ColisScreen(),
     ScanScreen(),
+    StatsScreen(),
     ProfilScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
-    _index = widget.showProfilFirst ? 2 : 0;
+    _index = widget.showProfilFirst ? 3 : 0;
   }
 
   @override
@@ -46,6 +48,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.qr_code_scanner_outlined),
             selectedIcon: Icon(Icons.qr_code_scanner, color: AppTheme.primary),
             label: 'Scanner',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart, color: AppTheme.primary),
+            label: 'Stats',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

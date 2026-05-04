@@ -25,6 +25,7 @@
         </a>
         <div class="web-nav-links">
             <a class="@NavClass("/recherche")" asp-page="/Client/Recherche">Rechercher</a>
+            <a class="@NavClass("/relais-carte")" asp-page="/Client/RelaisCarte">Points relais</a>
             @if (isAuth)
             {
                 <a class="@NavClass("/mes-commandes")" asp-page="/Client/MesCommandes">Mes commandes</a>

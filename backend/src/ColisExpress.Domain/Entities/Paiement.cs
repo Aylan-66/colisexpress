@@ -14,5 +14,10 @@ public class Paiement
     public Guid? ValidePar { get; set; }
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 
+    // Espèces encaissées par un point relais — suivi du solde dû à la plateforme
+    public Guid? RelaisEncaisseurId { get; set; }
+    public bool EstReverseAdmin { get; set; } = false;
+    public DateTime? DateReversement { get; set; }
+
     public Commande? Commande { get; set; }
 }

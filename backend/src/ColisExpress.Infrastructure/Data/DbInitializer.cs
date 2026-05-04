@@ -16,6 +16,9 @@ public static class DbInitializer
 
         await db.Database.MigrateAsync(ct);
 
+        // Backfill coordonnées GPS sur points relais existants (idempotent)
+        await BackfillCoordonneesAsync(db, ct);
+
         if (await db.Utilisateurs.AnyAsync(ct)) return;
 
         var pwd = hasher.Hash("Test1234!");
@@ -69,18 +72,18 @@ public static class DbInitializer
         await db.SaveChangesAsync(ct);
 
         // 10 POINTS RELAIS
-        var rData = new (string Nom, string Adr, string Ville, string Dept, string Region, string Pays, string Tel, string Jours, string HO, string HF, string? HOW, string? HFW)[]
+        var rData = new (string Nom, string Adr, string Ville, string Dept, string Region, string Pays, string Tel, string Jours, string HO, string HF, string? HOW, string? HFW, double Lat, double Lng)[]
         {
-            ("Relais Paris 15e", "42 rue de la Convention", "Paris", "Paris", "Île-de-France", "France", "+33 1 45 67 89 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "19:00", "09:00", "14:00"),
-            ("Relais Lyon Part-Dieu", "15 cours Lafayette", "Lyon", "Rhône", "Auvergne-Rhône-Alpes", "France", "+33 4 72 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:30", "18:30", "09:00", "13:00"),
-            ("Relais Marseille Vieux-Port", "8 quai du Port", "Marseille", "Bouches-du-Rhône", "Provence-Alpes-Côte d'Azur", "France", "+33 4 91 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00"),
-            ("Relais Toulouse Capitole", "25 rue Alsace-Lorraine", "Toulouse", "Haute-Garonne", "Occitanie", "France", "+33 5 61 00 00 00", "Lun,Mar,Mer,Jeu,Ven", "09:00", "18:00", null, null),
-            ("Relais Lille Flandres", "3 place de la Gare", "Lille", "Nord", "Hauts-de-France", "France", "+33 3 20 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "19:00", "09:00", "14:00"),
-            ("Relais Alger Hydra", "12 rue des Frères Bouadou", "Alger", "Alger", "Alger", "Algérie", "+213 21 60 00 00", "Dim,Lun,Mar,Mer,Jeu", "08:00", "17:00", null, null),
-            ("Relais Oran Centre", "45 boulevard de la Soummam", "Oran", "Oran", "Oran", "Algérie", "+213 41 40 00 00", "Dim,Lun,Mar,Mer,Jeu", "08:30", "17:00", null, null),
-            ("Relais Casablanca Ain Diab", "45 boulevard de la Corniche", "Casablanca", "Casablanca-Settat", "Casablanca-Settat", "Maroc", "+212 522 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00"),
-            ("Relais Rabat Agdal", "22 avenue de France", "Rabat", "Rabat-Salé-Kénitra", "Rabat-Salé-Kénitra", "Maroc", "+212 537 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00"),
-            ("Relais Tunis Centre", "15 avenue Habib Bourguiba", "Tunis", "Tunis", "Tunis", "Tunisie", "+216 71 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "17:30", "09:00", "13:00"),
+            ("Relais Paris 15e", "42 rue de la Convention", "Paris", "Paris", "Île-de-France", "France", "+33 1 45 67 89 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "19:00", "09:00", "14:00", 48.8417, 2.2916),
+            ("Relais Lyon Part-Dieu", "15 cours Lafayette", "Lyon", "Rhône", "Auvergne-Rhône-Alpes", "France", "+33 4 72 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:30", "18:30", "09:00", "13:00", 45.7605, 4.8590),
+            ("Relais Marseille Vieux-Port", "8 quai du Port", "Marseille", "Bouches-du-Rhône", "Provence-Alpes-Côte d'Azur", "France", "+33 4 91 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00", 43.2965, 5.3683),
+            ("Relais Toulouse Capitole", "25 rue Alsace-Lorraine", "Toulouse", "Haute-Garonne", "Occitanie", "France", "+33 5 61 00 00 00", "Lun,Mar,Mer,Jeu,Ven", "09:00", "18:00", null, null, 43.6047, 1.4442),
+            ("Relais Lille Flandres", "3 place de la Gare", "Lille", "Nord", "Hauts-de-France", "France", "+33 3 20 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "19:00", "09:00", "14:00", 50.6365, 3.0707),
+            ("Relais Alger Hydra", "12 rue des Frères Bouadou", "Alger", "Alger", "Alger", "Algérie", "+213 21 60 00 00", "Dim,Lun,Mar,Mer,Jeu", "08:00", "17:00", null, null, 36.7437, 3.0431),
+            ("Relais Oran Centre", "45 boulevard de la Soummam", "Oran", "Oran", "Oran", "Algérie", "+213 41 40 00 00", "Dim,Lun,Mar,Mer,Jeu", "08:30", "17:00", null, null, 35.6976, -0.6337),
+            ("Relais Casablanca Ain Diab", "45 boulevard de la Corniche", "Casablanca", "Casablanca-Settat", "Casablanca-Settat", "Maroc", "+212 522 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00", 33.5731, -7.5898),
+            ("Relais Rabat Agdal", "22 avenue de France", "Rabat", "Rabat-Salé-Kénitra", "Rabat-Salé-Kénitra", "Maroc", "+212 537 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "18:00", "09:00", "13:00", 34.0209, -6.8416),
+            ("Relais Tunis Centre", "15 avenue Habib Bourguiba", "Tunis", "Tunis", "Tunis", "Tunisie", "+216 71 00 00 00", "Lun,Mar,Mer,Jeu,Ven,Sam", "08:00", "17:30", "09:00", "13:00", 36.8008, 10.1815),
         };
 
         for (int i = 0; i < rData.Length; i++)
@@ -102,6 +105,7 @@ public static class DbInitializer
                 HeureOuverture = TimeOnly.Parse(r.HO), HeureFermeture = TimeOnly.Parse(r.HF),
                 HeureOuvertureWeekend = r.HOW != null ? TimeOnly.Parse(r.HOW) : null,
                 HeureFermetureWeekend = r.HFW != null ? TimeOnly.Parse(r.HFW) : null,
+                Latitude = r.Lat, Longitude = r.Lng,
             });
         }
         await db.SaveChangesAsync(ct);
@@ -119,5 +123,48 @@ public static class DbInitializer
             new Trajet { TransporteurId = transporteurs[4].Id, PaysDepart = "France", VilleDepart = "Paris", PaysArrivee = "France", VilleArrivee = "Marseille", DateDepart = now.AddDays(3), DateEstimeeArrivee = now.AddDays(3), CapaciteMaxPoids = 400, NombreMaxColis = 25, CapaciteRestante = 25, ModeTarification = ModeTarification.PrixParColis, PrixParColis = 45m, SupplementUrgent = 12m, SupplementFragile = 8m, Statut = StatutTrajet.Actif }
         );
         await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task BackfillCoordonneesAsync(ColisExpressDbContext db, CancellationToken ct)
+    {
+        var coords = new Dictionary<string, (double Lat, double Lng)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Paris"] = (48.8566, 2.3522),
+            ["Lyon"] = (45.7640, 4.8357),
+            ["Marseille"] = (43.2965, 5.3698),
+            ["Toulouse"] = (43.6047, 1.4442),
+            ["Lille"] = (50.6292, 3.0573),
+            ["Bordeaux"] = (44.8378, -0.5792),
+            ["Nice"] = (43.7102, 7.2620),
+            ["Strasbourg"] = (48.5734, 7.7521),
+            ["Nantes"] = (47.2184, -1.5536),
+            ["Alger"] = (36.7538, 3.0588),
+            ["Oran"] = (35.6976, -0.6337),
+            ["Constantine"] = (36.3650, 6.6147),
+            ["Annaba"] = (36.9000, 7.7667),
+            ["Casablanca"] = (33.5731, -7.5898),
+            ["Rabat"] = (34.0209, -6.8416),
+            ["Marrakech"] = (31.6295, -7.9811),
+            ["Tunis"] = (36.8065, 10.1815),
+            ["Sfax"] = (34.7406, 10.7603),
+        };
+
+        var relais = await db.PointsRelais
+            .Where(r => r.Latitude == null || r.Longitude == null)
+            .ToListAsync(ct);
+
+        if (relais.Count == 0) return;
+
+        var changed = false;
+        foreach (var r in relais)
+        {
+            if (coords.TryGetValue(r.Ville, out var c))
+            {
+                r.Latitude = c.Lat;
+                r.Longitude = c.Lng;
+                changed = true;
+            }
+        }
+        if (changed) await db.SaveChangesAsync(ct);
     }
 }

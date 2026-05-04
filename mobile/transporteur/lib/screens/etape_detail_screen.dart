@@ -259,7 +259,7 @@ class _EtapeDetailScreenState extends State<EtapeDetailScreen> {
                           icon: const Icon(Icons.download_done, size: 18),
                           label: const Text('Déposer au relais'),
                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, padding: const EdgeInsets.symmetric(vertical: 10)),
-                          onPressed: () => _scanEtValider(code, 'ArriveDansPaysDest', 'Colis déposé au point relais par le transporteur'),
+                          onPressed: () => _scanEtValider(code, 'ArriveDansPaysDest', 'Colis déposé en point relais par le transporteur'),
                         ),
                       ),
                   ],

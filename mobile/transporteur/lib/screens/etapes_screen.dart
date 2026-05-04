@@ -181,8 +181,49 @@ class _EtapesScreenState extends State<EtapesScreen> {
   }
 
   Future<void> _marquerArrivee(String etapeId) async {
+    // Vérifier que tous les colis ont été traités
+    final api = context.read<ApiService>();
+    final colisData = await api.getColisForEtape(widget.trajetId, etapeId);
+
+    if (!mounted) return;
+
+    final aRecup = (colisData['aRecuperer'] as List?) ?? [];
+    final aDepo = (colisData['aDeposer'] as List?) ?? [];
+    final nonTraites = [
+      ...aRecup.where((c) => c['statut'] == 'DeposeParClient'),
+      ...aDepo.where((c) => c['statut'] == 'ReceptionneParTransporteur' || c['statut'] == 'EnTransit' || c['statut'] == 'PhotoPriseEnChargeEnregistree'),
+    ];
+
+    if (nonTraites.isNotEmpty) {
+      final continuer = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Colis non traités'),
+          content: Text('${nonTraites.length} colis n\'ont pas encore été scannés à cette étape. Confirmer l\'arrivée quand même ?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer')),
+          ],
+        ),
+      );
+      if (continuer != true || !mounted) return;
+    } else {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirmer l\'arrivée ?'),
+          content: const Text('Tous les colis ont été traités. Confirmer l\'arrivée à cette étape ?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success), child: const Text('Confirmer')),
+          ],
+        ),
+      );
+      if (confirm != true || !mounted) return;
+    }
+
     setState(() { _loading = true; _error = null; });
-    final res = await context.read<ApiService>().marquerArrivee(widget.trajetId, etapeId);
+    final res = await api.marquerArrivee(widget.trajetId, etapeId);
     if (res.containsKey('error')) {
       setState(() { _error = res['error']; _loading = false; });
     } else {

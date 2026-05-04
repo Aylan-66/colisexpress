@@ -15,6 +15,10 @@ public class PointRelais
     public string Telephone { get; set; } = string.Empty;
     public bool EstActif { get; set; } = true;
 
+    // Coordonnées géographiques (carte côté client)
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
     // Horaires d'ouverture semaine
     public string? JoursOuverture { get; set; }       // ex: "Lun,Mar,Mer,Jeu,Ven,Sam"
     public TimeOnly? HeureOuverture { get; set; }      // ex: 08:00

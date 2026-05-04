@@ -1,0 +1,117 @@
+@page "/admin/especes-relais"
+@model ColisExpress.Web.Pages.Admin.EspecesRelaisModel
+@{
+    ViewData["Title"] = "Espèces relais";
+}
+
+<h1>Espèces collectées par les points relais</h1>
+<p class="subtitle">Suivi du solde dû par chaque relais à la plateforme</p>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="admin-card" style="padding:14px 18px;margin-bottom:16px;border-left:4px solid #16a34a;color:#166534;">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="admin-card" style="padding:14px 18px;margin-bottom:16px;border-left:4px solid #dc2626;color:#991b1b;">@Model.Error</div>
+}
+
+<div class="admin-card" style="padding:22px;margin-bottom:24px;display:flex;align-items:center;gap:24px;">
+    <div>
+        <div style="font-size:13px;color:var(--admin-text-muted);text-transform:uppercase;letter-spacing:.5px;">Total dû par l'ensemble des relais</div>
+        <div style="font-size:32px;font-weight:800;color:#dc2626;margin-top:6px;">@Model.TotalDuPlateforme.ToString("0.00") €</div>
+    </div>
+    <div style="margin-left:auto;font-size:13px;color:var(--admin-text-muted);">@Model.Soldes.Count relais avec solde non nul</div>
+</div>
+
+<h2 style="margin:24px 0 12px;">Solde par relais</h2>
+<div class="admin-card">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Point relais</th>
+                <th>Ville</th>
+                <th>Solde dû</th>
+                <th>Total encaissé</th>
+                <th>Encaissements en attente</th>
+                <th>Dernier encaissement</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Soldes)
+            {
+                <tr>
+                    <td><strong>@s.NomRelais</strong></td>
+                    <td>@s.Ville</td>
+                    <td><strong style="color:@(s.SoldeDu > 0 ? "#dc2626" : "#16a34a");">@s.SoldeDu.ToString("0.00") €</strong></td>
+                    <td>@s.TotalEncaisse.ToString("0.00") €</td>
+                    <td>@s.NbEncaissementsDus</td>
+                    <td>@(s.DernierEncaissement?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                    <td>
+                        @if (s.SoldeDu > 0)
+                        {
+                            <form method="post" asp-page-handler="MarquerToutReverse" asp-route-relaisId="@s.RelaisId" style="display:inline;">
+                                <button type="submit" class="admin-btn sm" onclick="return confirm('Marquer toutes les espèces de ce relais comme reversées ?');">Tout reverser</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Soldes.Any())
+            {
+                <tr><td colspan="7" style="text-align:center;color:var(--admin-text-muted);padding:24px;">Aucune espèce encaissée par un point relais pour le moment.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<h2 style="margin:32px 0 12px;">Historique des encaissements (100 derniers)</h2>
+<div class="admin-card">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Point relais</th>
+                <th>Code colis</th>
+                <th>Montant</th>
+                <th>Statut</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var e in Model.Encaissements)
+            {
+                <tr>
+                    <td>@(e.DateEncaissement?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                    <td>@e.NomRelais</td>
+                    <td><span class="admin-code">@e.CodeColis</span></td>
+                    <td><strong>@e.Montant.ToString("0.00") €</strong></td>
+                    <td>
+                        @if (e.EstReverse)
+                        {
+                            <span style="color:#16a34a;font-weight:600;">Reversé</span>
+                            @if (e.DateReversement.HasValue) { <span style="color:var(--admin-text-muted);font-size:12px;"> @e.DateReversement.Value.ToString("dd/MM")</span> }
+                        }
+                        else
+                        {
+                            <span style="color:#dc2626;font-weight:600;">À reverser</span>
+                        }
+                    </td>
+                    <td>
+                        @if (!e.EstReverse)
+                        {
+                            <form method="post" asp-page-handler="MarquerReverse" asp-route-paiementId="@e.PaiementId" style="display:inline;">
+                                <button type="submit" class="admin-btn sm outline">Marquer reversé</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Encaissements.Any())
+            {
+                <tr><td colspan="6" style="text-align:center;color:var(--admin-text-muted);padding:24px;">Aucun encaissement.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

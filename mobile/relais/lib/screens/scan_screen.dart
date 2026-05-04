@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 
+enum ScanMode { depot, retrait }
+
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
 
@@ -13,13 +15,24 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   final MobileScannerController _controller = MobileScannerController();
+  ScanMode? _mode;
   bool _processing = false;
   Map<String, dynamic>? _result;
   String? _error;
   String? _scannedCode;
 
+  void _selectMode(ScanMode m) {
+    setState(() {
+      _mode = m;
+      _result = null;
+      _error = null;
+      _scannedCode = null;
+    });
+    _controller.start();
+  }
+
   void _onDetect(BarcodeCapture capture) {
-    if (_processing) return;
+    if (_processing || _mode == null) return;
     final barcode = capture.barcodes.firstOrNull;
     if (barcode == null || barcode.rawValue == null) return;
 
@@ -33,7 +46,8 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _processScan(String code) async {
     final api = context.read<ApiService>();
-    final res = await api.scanColis(code);
+    final modeStr = _mode == ScanMode.retrait ? 'retrait' : 'depot';
+    final res = await api.scanColis(code, mode: modeStr);
 
     if (!mounted) return;
     setState(() => _processing = false);
@@ -71,7 +85,7 @@ class _ScanScreenState extends State<ScanScreen> {
             Text('Montant à encaisser : $montant €',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
-            const Text('Confirmez que vous avez reçu le paiement en espèces avant de scanner le colis.',
+            const Text('Confirmez que vous avez reçu le paiement en espèces avant de scanner le colis. Ce montant sera ajouté à votre solde dû à la plateforme.',
                 style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
           ],
         ),
@@ -83,7 +97,7 @@ class _ScanScreenState extends State<ScanScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
-            child: const Text('Paiement reçu ✓'),
+            child: const Text('Paiement reçu'),
           ),
         ],
       ),
@@ -91,9 +105,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
     if (confirmed == true && commandeId != null && mounted) {
       final api = context.read<ApiService>();
-      // Valider le paiement
       await api.validerPaiementEspeces(commandeId);
-      // Re-scanner maintenant que c'est payé
       _processScan(_scannedCode!);
     }
   }
@@ -149,6 +161,11 @@ class _ScanScreenState extends State<ScanScreen> {
     _controller.start();
   }
 
+  void _backToModePicker() {
+    _controller.stop();
+    setState(() { _mode = null; _result = null; _error = null; _scannedCode = null; });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -157,11 +174,70 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_mode == null) {
+      return _buildModePicker();
+    }
+    return _buildScanner();
+  }
+
+  Widget _buildModePicker() {
     return Scaffold(
       appBar: AppBar(title: const Text('Scanner un colis')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 12),
+            const Text('Que faites-vous ?',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            const Text('Choisissez l\'action avant de scanner le colis.',
+                style: TextStyle(fontSize: 14, color: AppTheme.textMuted)),
+            const SizedBox(height: 28),
+            _ModeCard(
+              icon: Icons.download_done,
+              color: AppTheme.success,
+              title: 'Dépôt',
+              subtitle: 'Un client dépose un colis chez moi (envoi)\nou un transporteur livre un colis (réception)',
+              onTap: () => _selectMode(ScanMode.depot),
+            ),
+            const SizedBox(height: 16),
+            _ModeCard(
+              icon: Icons.upload_outlined,
+              color: AppTheme.accent,
+              title: 'Récupération',
+              subtitle: 'Un destinataire vient retirer son colis\n(code 4 chiffres demandé)',
+              onTap: () => _selectMode(ScanMode.retrait),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanner() {
+    final modeLabel = _mode == ScanMode.retrait ? 'Mode : Récupération' : 'Mode : Dépôt';
+    final modeColor = _mode == ScanMode.retrait ? AppTheme.accent : AppTheme.success;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Scanner un colis'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _backToModePicker,
+        ),
+      ),
       body: Column(
         children: [
-          // Caméra
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            color: modeColor.withValues(alpha: 0.12),
+            child: Text(modeLabel,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w700, color: modeColor)),
+          ),
           Expanded(
             flex: 3,
             child: (_result != null || _error != null)
@@ -174,8 +250,6 @@ class _ScanScreenState extends State<ScanScreen> {
                     ),
                   ),
           ),
-
-          // Instructions
           Expanded(
             flex: 1,
             child: Center(
@@ -190,19 +264,18 @@ class _ScanScreenState extends State<ScanScreen> {
                     )
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                      children: const [
                         Icon(Icons.qr_code_scanner, size: 40, color: AppTheme.textMuted),
-                        const SizedBox(height: 8),
-                        const Text('Scannez le QR code du colis',
+                        SizedBox(height: 8),
+                        Text('Scannez le QR code du colis',
                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 4),
-                        const Text('Le statut sera mis à jour automatiquement',
+                        SizedBox(height: 4),
+                        Text('Le statut sera mis à jour automatiquement',
                             style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
                       ],
                     ),
             ),
           ),
-          // Bouton saisie manuelle
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: SizedBox(
@@ -241,7 +314,7 @@ class _ScanScreenState extends State<ScanScreen> {
       ),
     );
     if (code == null || code.isEmpty || !mounted) return;
-    setState(() { _scannedCode = code; _error = null; _result = null; });
+    setState(() { _scannedCode = code; _error = null; _result = null; _processing = true; });
     _processScan(code);
   }
 
@@ -258,7 +331,7 @@ class _ScanScreenState extends State<ScanScreen> {
     if (isSuccess) {
       switch (action) {
         case 'depot_client':
-          title = 'Dépôt client confirmé';
+          title = 'Dépôt confirmé';
           icon = Icons.download_done;
           color = AppTheme.success;
           break;
@@ -319,7 +392,71 @@ class _ScanScreenState extends State<ScanScreen> {
             label: const Text('Scanner un autre colis'),
             onPressed: _resetScan,
           ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _backToModePicker,
+            child: const Text('Changer de mode'),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ModeCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ModeCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 30),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
+                  const SizedBox(height: 4),
+                  Text(subtitle,
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textMuted, height: 1.4)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: color),
+          ],
+        ),
       ),
     );
   }

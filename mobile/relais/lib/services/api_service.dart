@@ -124,8 +124,14 @@ class ApiService {
   Future<List<dynamic>> getColisList() async =>
       await _getList('/api/relais/colis');
 
-  Future<Map<String, dynamic>> scanColis(String codeColis) async =>
-      await _post('/api/relais/colis/$codeColis/scan', {});
+  Future<Map<String, dynamic>> scanColis(String codeColis, {String mode = 'auto'}) async =>
+      await _post('/api/relais/colis/$codeColis/scan', {'mode': mode});
+
+  Future<Map<String, dynamic>> getStats() async =>
+      await _get('/api/relais/stats');
+
+  Future<List<dynamic>> getHistoriqueEspeces() async =>
+      await _getList('/api/relais/especes/historique');
 
   Future<Map<String, dynamic>> validerPaiementEspeces(String commandeId) async =>
       await _post('/api/relais/paiement/$commandeId/valider-especes', {});
