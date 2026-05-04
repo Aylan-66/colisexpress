@@ -22,7 +22,10 @@ public static class DbInitializer
         // Backfill RelaisDepartId sur trajets existants (idempotent)
         await BackfillRelaisDepartAsync(db, ct);
 
-        // Données de démo massives pour tests (idempotent, marqueur "[BIGSEED-V3]")
+        // Crée des points relais additionnels si manquants (Paris Gare du Nord, etc.)
+        await EnsureExtraRelaisAsync(db, ct);
+
+        // Données de démo massives pour tests (idempotent, marqueur "[BIGSEED-V4]")
         await GenerateMassiveTestDataAsync(db, ct);
 
         if (await db.Utilisateurs.AnyAsync(ct)) return;
@@ -174,6 +177,57 @@ public static class DbInitializer
         if (changed) await db.SaveChangesAsync(ct);
     }
 
+    private static async Task EnsureExtraRelaisAsync(ColisExpressDbContext db, CancellationToken ct)
+    {
+        // Crée idempotemment des points relais additionnels nécessaires aux gros seeds
+        var hasher = new BcryptHasher();
+        var pwd = hasher.Hash("Test1234!");
+        var extras = new (string Email, string Prenom, string Nom, string NomRelais, string Adresse, string Ville, string Pays, string Tel, double Lat, double Lng)[]
+        {
+            ("relais11@test.com", "Relais", "Relais Paris Gare du Nord", "Relais Paris Gare du Nord",
+                "112 rue de Maubeuge", "Paris", "France", "+33 1 42 80 00 00", 48.8809, 2.3553),
+            ("relais12@test.com", "Relais", "Relais Paris La Défense", "Relais Paris La Défense",
+                "1 parvis de la Défense", "Paris", "France", "+33 1 47 76 00 00", 48.8924, 2.2390),
+        };
+
+        foreach (var r in extras)
+        {
+            var u = await db.Utilisateurs.FirstOrDefaultAsync(x => x.Email == r.Email, ct);
+            if (u is null)
+            {
+                u = new Utilisateur
+                {
+                    Role = RoleUtilisateur.PointRelais,
+                    Prenom = r.Prenom, Nom = r.Nom, Email = r.Email, Telephone = r.Tel,
+                    MotDePasseHash = pwd, StatutCompte = StatutCompte.Actif, EmailVerifie = true
+                };
+                db.Utilisateurs.Add(u);
+                await db.SaveChangesAsync(ct);
+            }
+            var existing = await db.PointsRelais.FirstOrDefaultAsync(x => x.UtilisateurId == u.Id, ct);
+            if (existing is null)
+            {
+                db.PointsRelais.Add(new PointRelais
+                {
+                    UtilisateurId = u.Id, NomRelais = r.NomRelais, Adresse = r.Adresse,
+                    Ville = r.Ville, Departement = "Paris", Region = "Île-de-France", Pays = r.Pays,
+                    Telephone = r.Tel, EstActif = true,
+                    JoursOuverture = "Lun,Mar,Mer,Jeu,Ven,Sam",
+                    HeureOuverture = TimeOnly.Parse("08:00"),
+                    HeureFermeture = TimeOnly.Parse("19:00"),
+                    Latitude = r.Lat, Longitude = r.Lng,
+                });
+                await db.SaveChangesAsync(ct);
+            }
+        }
+    }
+
+    // Petit helper pour le hashing dans EnsureExtraRelais (évite la dépendance au IPasswordHasher)
+    private class BcryptHasher
+    {
+        public string Hash(string pwd) => BCrypt.Net.BCrypt.HashPassword(pwd, 12);
+    }
+
     private static async Task BackfillRelaisDepartAsync(ColisExpressDbContext db, CancellationToken ct)
     {
         var trajets = await db.Trajets.Where(t => t.RelaisDepartId == null).ToListAsync(ct);
@@ -200,10 +254,11 @@ public static class DbInitializer
     /// Idempotent : marqueur "[BIGSEED-V1]" dans Trajet.Conditions.
     private static async Task GenerateMassiveTestDataAsync(ColisExpressDbContext db, CancellationToken ct)
     {
-        const string MARKER = "[BIGSEED-V3]";
+        const string MARKER = "[BIGSEED-V4]";
         // Cleanup éventuel des versions précédentes
         await CleanupOldSeedAsync(db, "[BIGSEED-V1]", ct);
         await CleanupOldSeedAsync(db, "[BIGSEED-V2]", ct);
+        await CleanupOldSeedAsync(db, "[BIGSEED-V3]", ct);
         if (await db.Trajets.AnyAsync(t => t.Conditions == MARKER, ct)) return;
 
         var transporteurUser = await db.Utilisateurs.FirstOrDefaultAsync(u => u.Email == "transporteur1@test.com", ct);
@@ -386,6 +441,121 @@ public static class DbInitializer
                     });
                 }
                 await db.SaveChangesAsync(ct);
+            }
+        }
+
+        // === Trajets transporteur 2 (Sofia) — Paris → Oran via Lyon, partant d'un relais Paris différent ===
+        var transporteur2User = await db.Utilisateurs.FirstOrDefaultAsync(u => u.Email == "transporteur2@test.com", ct);
+        var transporteur2 = transporteur2User != null
+            ? await db.Transporteurs.FirstOrDefaultAsync(t => t.UtilisateurId == transporteur2User.Id, ct)
+            : null;
+        var relaisParisGdN = await db.PointsRelais.FirstOrDefaultAsync(r => r.NomRelais == "Relais Paris Gare du Nord", ct);
+        var relaisOran = await db.PointsRelais.FirstOrDefaultAsync(r => r.Ville == "Oran", ct);
+
+        if (transporteur2 != null && relaisParisGdN != null && relaisOran != null)
+        {
+            for (int w = 0; w <= 8; w++)
+            {
+                var jeudiDepart = thisMonday.AddDays(w * 7 + 3).AddHours(8); // jeudi 8h
+                var dimancheArrivee = thisMonday.AddDays(w * 7 + 6).AddHours(20); // dimanche 20h
+
+                var trajet = new Trajet
+                {
+                    TransporteurId = transporteur2.Id,
+                    PaysDepart = "France",
+                    VilleDepart = "Paris",
+                    PaysArrivee = "Algérie",
+                    VilleArrivee = "Oran",
+                    DateDepart = jeudiDepart,
+                    DateEstimeeArrivee = dimancheArrivee,
+                    CapaciteMaxPoids = 350,
+                    NombreMaxColis = 20,
+                    CapaciteRestante = 18, // 2 commandes test seront ajoutées
+                    ModeTarification = ModeTarification.PrixParColis,
+                    PrixParColis = 95m,
+                    SupplementUrgent = 18m,
+                    SupplementFragile = 12m,
+                    Statut = StatutTrajet.Actif,
+                    PointDepot = "Relais Paris Gare du Nord",
+                    RelaisDepartId = relaisParisGdN.Id,
+                    Conditions = MARKER,
+                    DateCreation = jeudiDepart.AddDays(-10)
+                };
+                db.Trajets.Add(trajet);
+                await db.SaveChangesAsync(ct);
+
+                // Étape Lyon (vendredi)
+                db.EtapesTrajets.Add(new EtapeTrajet
+                {
+                    TrajetId = trajet.Id, PointRelaisId = relaisLyon.Id, Ordre = 1,
+                    HeureEstimeeArrivee = jeudiDepart.AddDays(1).AddHours(4),
+                    RelaisOuvertALArrivee = true,
+                    Statut = StatutEtape.Planifiee
+                });
+                await db.SaveChangesAsync(ct);
+
+                // 2 commandes client1 sur ce trajet (Paris→Oran, Lyon→Oran)
+                var sofaSegments = new[]
+                {
+                    ("Paris", "Oran", relaisParisGdN.Id, relaisOran.Id, "Oran", 95m),
+                    ("Lyon", "Oran", relaisLyon.Id, relaisOran.Id, "Oran", 75m),
+                };
+                for (int s = 0; s < sofaSegments.Length; s++)
+                {
+                    var (depart, arrivee, relaisDep, relaisArr, villeDest, prix) = sofaSegments[s];
+                    compteurColis++;
+                    var codeColis = $"COL-{anneeCode}-{compteurColis:D4}";
+                    var commande = new Commande
+                    {
+                        ClientId = clientUser.Id,
+                        TransporteurId = transporteur2.Id,
+                        TrajetId = trajet.Id,
+                        RelaisDepartId = relaisDep,
+                        RelaisArriveeId = relaisArr,
+                        SegmentDepart = depart,
+                        SegmentArrivee = arrivee,
+                        NomDestinataire = "Yacine Bouzid",
+                        TelephoneDestinataire = "+213 5 41 22 33 44",
+                        VilleDestinataire = villeDest,
+                        DescriptionContenu = "Vêtements + cadeaux",
+                        PoidsDeclare = 4m,
+                        Dimensions = "35x30x25",
+                        ValeurDeclaree = 200,
+                        PrixTransport = prix,
+                        FraisService = 5m,
+                        SupplementsTotal = 0m,
+                        Total = prix + 5m,
+                        ModeReglement = ModeReglement.Carte,
+                        StatutReglement = StatutReglement.Paye,
+                        DateCreation = jeudiDepart.AddDays(-5)
+                    };
+                    db.Commandes.Add(commande);
+                    await db.SaveChangesAsync(ct);
+
+                    var colis = new Colis
+                    {
+                        CommandeId = commande.Id,
+                        CodeColis = codeColis,
+                        QrCodeData = codeColis,
+                        CodeRetrait = rng.Next(1000, 9999).ToString(),
+                        Statut = w == 0 ? StatutColis.EnTransit : StatutColis.ReservationConfirmee,
+                        DateCreation = commande.DateCreation
+                    };
+                    db.Colis.Add(colis);
+                    await db.SaveChangesAsync(ct);
+
+                    AjouterEvenements(db, colis, jeudiDepart, colis.Statut, transporteur2User!.Id, clientUser.Id);
+                    db.Paiements.Add(new Paiement
+                    {
+                        CommandeId = commande.Id,
+                        Mode = ModeReglement.Carte,
+                        Montant = commande.Total,
+                        Statut = StatutReglement.Paye,
+                        DateEncaissement = commande.DateCreation,
+                        ReferenceExterne = $"cs_test_{Guid.NewGuid():N}"
+                    });
+                    await db.SaveChangesAsync(ct);
+                }
             }
         }
     }

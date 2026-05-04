@@ -155,12 +155,13 @@
     <script>
         const reso = (function () {
             const villeDepart = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.VilleDepart));
-            const params = new URLSearchParams(window.location.search);
             const cards = Array.from(document.querySelectorAll('.relais-card'));
             const map = L.map('reso-map').setView([46.5, 2.5], 5);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
             const markers = {};
-            const userPos = { lat: null, lng: null };
+            // Centre de référence pour le calcul des distances et le filtre rayon.
+            // Par défaut : centre géocodé de la ville saisie. Si l'user active la géoloc, on bascule sur sa position.
+            const center = { lat: null, lng: null, label: null };
 
             // Crée les marqueurs
             const bounds = [];
@@ -204,17 +205,17 @@
                 const list = document.getElementById('reso-list');
                 const empty = document.getElementById('reso-empty-msg');
 
-                // Calculer distances et filtrer
+                // Calculer distances depuis le centre de référence
                 const items = cards.map(c => {
                     const lat = parseFloat(c.dataset.lat), lng = parseFloat(c.dataset.lng);
                     let dist = null;
-                    if (userPos.lat !== null) dist = haversine(userPos.lat, userPos.lng, lat, lng);
+                    if (center.lat !== null) dist = haversine(center.lat, center.lng, lat, lng);
                     return { card: c, lat, lng, dist, prix: parseFloat(c.dataset.prix), note: parseFloat(c.dataset.note), dureeH: parseFloat(c.dataset.dureeH) };
                 });
 
-                // Filtrer par rayon (uniquement si géoloc activée et rayon > 0)
+                // Filtrer par rayon si centre défini et rayon > 0
                 let visibles = items;
-                if (userPos.lat !== null && radius > 0) {
+                if (center.lat !== null && radius > 0) {
                     visibles = items.filter(i => i.dist !== null && i.dist <= radius);
                 }
 
@@ -228,19 +229,47 @@
                 visibles.forEach(v => { v.card.style.display = ''; list.insertBefore(v.card, empty); });
 
                 // Mise à jour distances affichées
+                const labelCentre = center.label || (center.lat !== null ? 'centre' : '');
                 items.forEach(i => {
                     const slot = i.card.querySelector('[data-distance-slot]');
                     if (!slot) return;
-                    if (i.dist !== null) slot.textContent = `≈ ${i.dist.toFixed(1)} km de votre position`;
+                    if (i.dist !== null) slot.textContent = `≈ ${i.dist.toFixed(1)} km${labelCentre ? ' de ' + labelCentre : ''}`;
                     else slot.textContent = '';
                 });
 
                 empty.style.display = visibles.length === 0 ? 'block' : 'none';
             }
 
-            // Géoloc
             const btn = document.getElementById('reso-geoloc');
             const status = document.getElementById('reso-geoloc-status');
+            let centerMarker = null;
+
+            function setCenter(lat, lng, label) {
+                center.lat = lat; center.lng = lng; center.label = label;
+                if (centerMarker) map.removeLayer(centerMarker);
+                centerMarker = L.circleMarker([lat, lng], {
+                    radius: 8, color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.7, weight: 2
+                }).addTo(map).bindPopup(`<strong>${label}</strong>`);
+                applyFiltersAndSort();
+            }
+
+            // Géocode la ville saisie via Nominatim (OpenStreetMap, gratuit)
+            async function geocodeVille(ville) {
+                if (!ville) return;
+                try {
+                    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ville + ', France')}&format=json&limit=1`, { headers: { 'Accept-Language': 'fr' } });
+                    const data = await r.json();
+                    if (data && data.length > 0) {
+                        const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
+                        setCenter(lat, lng, ville);
+                        status.textContent = `Centre : ${ville} (filtre par rayon actif)`;
+                    } else {
+                        status.textContent = `Ville "${ville}" non géocodée — affichage sans filtre rayon.`;
+                    }
+                } catch (e) {
+                    status.textContent = 'Géocodage indisponible — pas de filtre rayon.';
+                }
+            }
 
             function tryGeoloc(silent) {
                 if (!('geolocation' in navigator)) {
@@ -249,15 +278,10 @@
                 }
                 status.textContent = 'Recherche de votre position…';
                 navigator.geolocation.getCurrentPosition(pos => {
-                    userPos.lat = pos.coords.latitude;
-                    userPos.lng = pos.coords.longitude;
-                    L.marker([userPos.lat, userPos.lng], { title: 'Vous êtes ici' })
-                        .addTo(map)
-                        .bindPopup('<strong>Vous êtes ici</strong>');
-                    status.textContent = 'Position détectée ✓';
-                    applyFiltersAndSort();
+                    setCenter(pos.coords.latitude, pos.coords.longitude, 'Vous');
+                    status.textContent = 'Centre : votre position ✓';
                 }, err => {
-                    status.textContent = silent ? '' : 'Position refusée — affichage de tous les relais.';
+                    if (!silent) status.textContent = 'Position refusée — centre = ville saisie.';
                 }, { timeout: 8000 });
             }
 
@@ -265,12 +289,14 @@
             document.getElementById('reso-tri').addEventListener('change', applyFiltersAndSort);
             btn.addEventListener('click', () => tryGeoloc(false));
 
-            // Tentative auto silencieuse au chargement (sans demande explicite si l'user a déjà autorisé)
-            if ('permissions' in navigator) {
-                navigator.permissions.query({ name: 'geolocation' }).then(p => {
-                    if (p.state === 'granted') tryGeoloc(true);
-                }).catch(() => {});
-            }
+            // Au chargement : géocode la ville saisie (centre par défaut), puis tente la géoloc en silencieux
+            geocodeVille(villeDepart).then(() => {
+                if ('permissions' in navigator) {
+                    navigator.permissions.query({ name: 'geolocation' }).then(p => {
+                        if (p.state === 'granted') tryGeoloc(true);
+                    }).catch(() => {});
+                }
+            });
 
             applyFiltersAndSort();
 

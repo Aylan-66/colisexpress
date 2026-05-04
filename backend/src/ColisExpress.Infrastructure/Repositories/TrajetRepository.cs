@@ -25,9 +25,11 @@ public class TrajetRepository : ITrajetRepository
         decimal poidsKg,
         CancellationToken ct = default)
     {
-        var dep = villeDepart.ToLower();
         var arr = villeArrivee.ToLower();
 
+        // On retourne tous les trajets dont la destination match (en arrivée ou via étape)
+        // — le filtrage par ville de départ se fait côté client via la distance au centre de recherche.
+        // Cela permet à un user de Chelles de voir les relais de Paris (proches géographiquement).
         return await _db.Trajets
             .Include(t => t.Transporteur)
                 .ThenInclude(tr => tr!.Utilisateur)
@@ -37,19 +39,10 @@ public class TrajetRepository : ITrajetRepository
             .Where(t => t.Statut == StatutTrajet.Actif
                 && t.CapaciteMaxPoids >= poidsKg
                 && t.CapaciteRestante > 0
+                && t.DateDepart >= dateMin
                 && (
-                    // Match direct : VilleDepart → VilleArrivee avec date trajet
-                    (t.VilleDepart.ToLower() == dep && t.VilleArrivee.ToLower() == arr && t.DateDepart >= dateMin)
-                    ||
-                    // Match via étapes : vérifie la date de l'étape de départ (pas du trajet)
-                    (
-                        (t.VilleDepart.ToLower() == dep || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == dep))
-                        && (t.VilleArrivee.ToLower() == arr || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == arr))
-                        && (
-                            t.DateDepart >= dateMin
-                            || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == dep && e.HeureEstimeeArrivee >= dateMin)
-                        )
-                    )
+                    t.VilleArrivee.ToLower() == arr
+                    || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == arr)
                 ))
             .OrderBy(t => t.DateDepart)
             .ToListAsync(ct);
