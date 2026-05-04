@@ -47,10 +47,11 @@
             <span style="margin:0 8px;color:#d1d5db;">|</span>
 
             <label>Trier :</label>
-            <select id="reso-tri" onchange="reso.changeTri(this.value)">
-                <option value="Prix" selected="@(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Prix)">Prix croissant</option>
-                <option value="Note" selected="@(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Note)">Meilleure note</option>
-                <option value="Rapidite" selected="@(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Rapidite)">Plus rapide</option>
+            <select id="reso-tri">
+                <option value="Distance" selected>Distance (plus proche)</option>
+                <option value="Prix">Prix croissant</option>
+                <option value="Note">Meilleure note</option>
+                <option value="Rapidite">Plus rapide</option>
             </select>
 
             <span style="margin:0 8px;color:#d1d5db;">|</span>
@@ -153,38 +154,38 @@
 @section Scripts {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        const reso = (function () {
+        (function () {
             const villeDepart = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.VilleDepart));
             const cards = Array.from(document.querySelectorAll('.relais-card'));
             const map = L.map('reso-map').setView([46.5, 2.5], 5);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
             const markers = {};
-            // Centre de référence pour le calcul des distances et le filtre rayon.
-            // Par défaut : centre géocodé de la ville saisie. Si l'user active la géoloc, on bascule sur sa position.
             const center = { lat: null, lng: null, label: null };
+            let centerMarker = null;
+            let radiusCircle = null;
+            const status = document.getElementById('reso-geoloc-status');
+            const btn = document.getElementById('reso-geoloc');
 
-            // Crée les marqueurs
-            const bounds = [];
+            // Création des markers (cachés par défaut, on les ajoute/enlève selon le filtre)
             cards.forEach(c => {
                 const lat = parseFloat(c.dataset.lat), lng = parseFloat(c.dataset.lng);
-                const id = c.dataset.id;
-                const m = L.marker([lat, lng]).addTo(map);
+                const id = c.dataset.trajetId;
                 const titre = c.querySelector('div[style*="font-weight:800"]')?.textContent || 'Relais';
-                const adresse = c.querySelectorAll('div[style*="color:#6b7280"]')[0]?.textContent || '';
-                const transp = c.querySelector('div[style*="font-weight:700"]')?.parentElement?.querySelector('div[style*="font-weight:700"]:not([style*="text-transform"])')?.textContent || '';
+                const ligneAdr = c.querySelectorAll('div[style*="color:#6b7280"]')[0]?.textContent || '';
+                const transp = c.querySelector('div[style*="background:#F7F5F2"] div[style*="font-weight:700"]')?.textContent || '';
                 const prix = c.dataset.prix;
-                m.bindPopup(`<strong>${titre}</strong><br>${adresse}<br><span style="color:#6b7280;font-size:12px;">Transporteur : ${transp}</span><br><strong style="color:#1B4965;">${prix} €</strong>`);
+                const m = L.marker([lat, lng]);
+                m.bindPopup(`<strong>${titre}</strong><br>${ligneAdr}<br><span style="color:#6b7280;font-size:12px;">Transporteur : ${transp}</span><br><strong style="color:#1B4965;">${prix} €</strong>`);
                 markers[id] = m;
-                bounds.push([lat, lng]);
             });
-            if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
 
+            // Click sur une card → centrer la carte sur ce relais (et seulement dans ce cas)
             cards.forEach(c => {
                 c.addEventListener('click', e => {
                     if (e.target.closest('a')) return;
                     document.querySelectorAll('.relais-card.active').forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
-                    const id = c.dataset.id;
+                    const id = c.dataset.trajetId;
                     const lat = parseFloat(c.dataset.lat), lng = parseFloat(c.dataset.lng);
                     map.setView([lat, lng], 13, { animate: true });
                     if (markers[id]) markers[id].openPopup();
@@ -199,37 +200,58 @@
                 return 2 * R * Math.asin(Math.sqrt(a));
             }
 
+            function zoomForRadius(km) {
+                if (!km || km <= 0) return 5;
+                if (km <= 10) return 11;
+                if (km <= 25) return 10;
+                if (km <= 50) return 9;
+                if (km <= 100) return 8;
+                if (km <= 200) return 7;
+                return 6;
+            }
+
+            function recenterMap() {
+                if (center.lat === null) return;
+                const radius = parseFloat(document.getElementById('reso-radius').value);
+                map.setView([center.lat, center.lng], zoomForRadius(radius), { animate: true });
+            }
+
+            function drawRadiusCircle() {
+                if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
+                const radius = parseFloat(document.getElementById('reso-radius').value);
+                if (center.lat === null || !radius || radius <= 0) return;
+                radiusCircle = L.circle([center.lat, center.lng], {
+                    radius: radius * 1000, color: '#1B4965', fillColor: '#1B4965', fillOpacity: 0.05, weight: 1, dashArray: '4 4'
+                }).addTo(map);
+            }
+
             function applyFiltersAndSort() {
                 const radius = parseFloat(document.getElementById('reso-radius').value);
                 const tri = document.getElementById('reso-tri').value;
                 const list = document.getElementById('reso-list');
                 const empty = document.getElementById('reso-empty-msg');
 
-                // Calculer distances depuis le centre de référence
                 const items = cards.map(c => {
                     const lat = parseFloat(c.dataset.lat), lng = parseFloat(c.dataset.lng);
                     let dist = null;
                     if (center.lat !== null) dist = haversine(center.lat, center.lng, lat, lng);
-                    return { card: c, lat, lng, dist, prix: parseFloat(c.dataset.prix), note: parseFloat(c.dataset.note), dureeH: parseFloat(c.dataset.dureeH) };
+                    return { card: c, lat, lng, dist, prix: parseFloat(c.dataset.prix), note: parseFloat(c.dataset.note), dureeH: parseFloat(c.dataset.dureeH), trajetId: c.dataset.trajetId };
                 });
 
-                // Filtrer par rayon si centre défini et rayon > 0
                 let visibles = items;
                 if (center.lat !== null && radius > 0) {
                     visibles = items.filter(i => i.dist !== null && i.dist <= radius);
                 }
 
-                // Tri
                 if (tri === 'Prix') visibles.sort((a, b) => a.prix - b.prix);
                 else if (tri === 'Note') visibles.sort((a, b) => b.note - a.note);
                 else if (tri === 'Rapidite') visibles.sort((a, b) => a.dureeH - b.dureeH);
+                else visibles.sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
 
-                // Cacher tout puis remettre dans l'ordre
                 cards.forEach(c => c.style.display = 'none');
                 visibles.forEach(v => { v.card.style.display = ''; list.insertBefore(v.card, empty); });
 
-                // Mise à jour distances affichées
-                const labelCentre = center.label || (center.lat !== null ? 'centre' : '');
+                const labelCentre = center.label || '';
                 items.forEach(i => {
                     const slot = i.card.querySelector('[data-distance-slot]');
                     if (!slot) return;
@@ -237,34 +259,41 @@
                     else slot.textContent = '';
                 });
 
+                // Synchroniser markers visibles sur la carte
+                Object.keys(markers).forEach(id => map.removeLayer(markers[id]));
+                visibles.forEach(v => { if (markers[v.trajetId]) markers[v.trajetId].addTo(map); });
+
+                drawRadiusCircle();
                 empty.style.display = visibles.length === 0 ? 'block' : 'none';
             }
 
-            const btn = document.getElementById('reso-geoloc');
-            const status = document.getElementById('reso-geoloc-status');
-            let centerMarker = null;
-
-            function setCenter(lat, lng, label) {
+            function setCenter(lat, lng, label, recenter) {
                 center.lat = lat; center.lng = lng; center.label = label;
                 if (centerMarker) map.removeLayer(centerMarker);
                 centerMarker = L.circleMarker([lat, lng], {
-                    radius: 8, color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.7, weight: 2
+                    radius: 8, color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.85, weight: 2
                 }).addTo(map).bindPopup(`<strong>${label}</strong>`);
                 applyFiltersAndSort();
+                if (recenter !== false) recenterMap();
             }
 
-            // Géocode la ville saisie via Nominatim (OpenStreetMap, gratuit)
+            // Géocode robuste : countrycodes=fr, addressdetails pour pouvoir filtrer si besoin
             async function geocodeVille(ville) {
                 if (!ville) return;
+                status.textContent = `Géolocalisation de "${ville}"…`;
                 try {
-                    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ville + ', France')}&format=json&limit=1`, { headers: { 'Accept-Language': 'fr' } });
+                    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ville)}&format=json&countrycodes=fr&addressdetails=1&limit=5&accept-language=fr`;
+                    const r = await fetch(url);
                     const data = await r.json();
                     if (data && data.length > 0) {
-                        const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
-                        setCenter(lat, lng, ville);
-                        status.textContent = `Centre : ${ville} (filtre par rayon actif)`;
+                        // Préférer une commune ou ville (place_rank ≤ 18 = ville/commune en général)
+                        const best = data.find(d => parseInt(d.place_rank ?? 30) <= 18) || data[0];
+                        const lat = parseFloat(best.lat), lng = parseFloat(best.lon);
+                        const label = best.address?.city || best.address?.town || best.address?.village || best.display_name?.split(',')[0] || ville;
+                        setCenter(lat, lng, label, true);
+                        status.textContent = `Centre : ${label}`;
                     } else {
-                        status.textContent = `Ville "${ville}" non géocodée — affichage sans filtre rayon.`;
+                        status.textContent = `Ville "${ville}" introuvable — pas de filtre rayon.`;
                     }
                 } catch (e) {
                     status.textContent = 'Géocodage indisponible — pas de filtre rayon.';
@@ -278,18 +307,20 @@
                 }
                 status.textContent = 'Recherche de votre position…';
                 navigator.geolocation.getCurrentPosition(pos => {
-                    setCenter(pos.coords.latitude, pos.coords.longitude, 'Vous');
-                    status.textContent = 'Centre : votre position ✓';
-                }, err => {
+                    setCenter(pos.coords.latitude, pos.coords.longitude, 'Votre position', true);
+                    status.textContent = 'Centre : votre position';
+                }, () => {
                     if (!silent) status.textContent = 'Position refusée — centre = ville saisie.';
                 }, { timeout: 8000 });
             }
 
-            document.getElementById('reso-radius').addEventListener('change', applyFiltersAndSort);
+            document.getElementById('reso-radius').addEventListener('change', () => {
+                applyFiltersAndSort();
+                recenterMap();
+            });
             document.getElementById('reso-tri').addEventListener('change', applyFiltersAndSort);
             btn.addEventListener('click', () => tryGeoloc(false));
 
-            // Au chargement : géocode la ville saisie (centre par défaut), puis tente la géoloc en silencieux
             geocodeVille(villeDepart).then(() => {
                 if ('permissions' in navigator) {
                     navigator.permissions.query({ name: 'geolocation' }).then(p => {
@@ -299,13 +330,6 @@
             });
 
             applyFiltersAndSort();
-
-            return {
-                changeTri: function (v) {
-                    document.getElementById('reso-tri').value = v;
-                    applyFiltersAndSort();
-                }
-            };
         })();
     </script>
 }
