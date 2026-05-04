@@ -1,0 +1,82 @@
+@model (ColisExpress.Web.Pages.Admin.RefusModel.RefusItem r, bool aInspecter)
+@{
+    var r = Model.r;
+    var aInspecter = Model.aInspecter;
+    var bgColor = aInspecter ? "#fef2f2" : "#f0fdf4";
+    var borderColor = aInspecter ? "#dc2626" : "#16a34a";
+}
+
+<div class="admin-card" style="padding:20px;margin-bottom:16px;border-left:4px solid @borderColor;background:@bgColor;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div>
+            <span class="admin-code" style="font-size:15px;">@r.CodeColis</span>
+            <span style="margin-left:12px;font-size:13px;color:var(--admin-text-muted);">@r.Trajet</span>
+            <br>
+            <span style="font-size:12px;color:var(--admin-text-muted);">Segment réservé : <strong>@r.Segment</strong></span>
+        </div>
+        <div style="text-align:right;font-size:12px;color:var(--admin-text-muted);">
+            Refusé le @r.DateRefus.ToString("dd/MM/yyyy HH:mm")<br>
+            <strong>@r.RefuseParRole</strong>@(r.RefuseParNom is null ? "" : " — " + r.RefuseParNom)
+        </div>
+    </div>
+
+    <div style="background:white;padding:12px 14px;border-radius:8px;margin-bottom:14px;border:1px solid #e5e7eb;">
+        <div style="font-size:11px;color:var(--admin-text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Motif du refus</div>
+        <div style="margin-top:4px;font-size:14px;">@r.MotifRefus</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div style="background:white;padding:12px 14px;border-radius:8px;border:1px solid #e5e7eb;">
+            <div style="font-size:11px;color:var(--admin-text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Client</div>
+            <div style="margin-top:4px;font-weight:700;">@r.Client</div>
+            <div style="font-size:12px;color:var(--admin-text-muted);">@r.ClientEmail</div>
+        </div>
+        <div style="background:white;padding:12px 14px;border-radius:8px;border:1px solid #e5e7eb;">
+            <div style="font-size:11px;color:var(--admin-text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Paiement à rembourser</div>
+            <div style="margin-top:4px;font-weight:700;font-size:18px;color:#1B4965;">@r.Montant.ToString("0.00") €</div>
+            <div style="font-size:12px;color:var(--admin-text-muted);">Mode : <strong>@r.ModePaiement</strong> — Statut : @r.StatutPaiement</div>
+
+            @if (r.ModePaiement == "Carte" && r.StripeSessionId is not null)
+            {
+                <div style="margin-top:6px;font-family:monospace;font-size:11px;color:#6b7280;background:#f3f4f6;padding:4px 6px;border-radius:4px;word-break:break-all;">Stripe : @r.StripeSessionId</div>
+                <a href="https://dashboard.stripe.com/test/payments?query=@r.StripeSessionId" target="_blank" style="font-size:12px;color:#1B4965;text-decoration:underline;display:inline-block;margin-top:4px;">Ouvrir dans Stripe →</a>
+            }
+            else if (r.ModePaiement == "Especes" && r.RelaisEncaisseurNom is not null)
+            {
+                <div style="margin-top:6px;font-size:12px;color:#6b7280;">Encaissé par : <strong>@r.RelaisEncaisseurNom</strong></div>
+                <div style="margin-top:4px;font-size:12px;color:#dc2626;">⚠ Remboursement à effectuer en main propre au client</div>
+            }
+        </div>
+    </div>
+
+    @if (aInspecter)
+    {
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <form method="post" asp-page="/Admin/Refus" asp-page-handler="MarquerInspecte" asp-route-colisId="@r.ColisId" style="margin:0;">
+                <button type="submit" class="admin-btn sm" style="background:#1B4965;">Marquer inspecté</button>
+            </form>
+            @if (!r.RemboursementEffectue)
+            {
+                <form method="post" asp-page="/Admin/Refus" asp-page-handler="MarquerRembourse" asp-route-commandeId="@r.CommandeId" style="margin:0;" onsubmit="return confirm('Confirmer le remboursement effectué pour cette commande ?');">
+                    <button type="submit" class="admin-btn sm outline">Marquer remboursé</button>
+                </form>
+            }
+            else
+            {
+                <span style="color:#16a34a;font-weight:600;font-size:13px;align-self:center;">✓ Remboursé</span>
+            }
+        </div>
+    }
+    else
+    {
+        <div style="font-size:12px;color:#16a34a;">
+            Inspecté le @(r.DateInspection?.ToString("dd/MM/yyyy HH:mm") ?? "—")@(r.RemboursementEffectue ? " — Remboursé ✓" : "")
+        </div>
+        @if (!r.RemboursementEffectue)
+        {
+            <form method="post" asp-page="/Admin/Refus" asp-page-handler="MarquerRembourse" asp-route-commandeId="@r.CommandeId" style="margin:8px 0 0;" onsubmit="return confirm('Confirmer le remboursement effectué pour cette commande ?');">
+                <button type="submit" class="admin-btn sm outline">Marquer remboursé</button>
+            </form>
+        }
+    }
+</div>

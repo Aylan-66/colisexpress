@@ -22,6 +22,10 @@ body.admin-body {
   display: flex;
 }
 
+body.admin-body, body.admin-body *, body.admin-body *::before, body.admin-body *::after {
+  box-sizing: border-box;
+}
+
 body.admin-body h1, body.admin-body h2, body.admin-body h3, body.admin-body h4 {
   color: var(--admin-text);
 }
