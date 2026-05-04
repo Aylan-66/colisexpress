@@ -177,7 +177,9 @@ public static class DbInitializer
     /// Idempotent : marqueur "[BIGSEED-V1]" dans Trajet.Conditions.
     private static async Task GenerateMassiveTestDataAsync(ColisExpressDbContext db, CancellationToken ct)
     {
-        const string MARKER = "[BIGSEED-V1]";
+        const string MARKER = "[BIGSEED-V2]";
+        // Cleanup éventuel de la V1 (chèques, etc.)
+        await CleanupOldSeedAsync(db, "[BIGSEED-V1]", ct);
         if (await db.Trajets.AnyAsync(t => t.Conditions == MARKER, ct)) return;
 
         var transporteurUser = await db.Utilisateurs.FirstOrDefaultAsync(u => u.Email == "transporteur1@test.com", ct);
@@ -279,9 +281,8 @@ public static class DbInitializer
                 var poids = 2m + (decimal)rng.NextDouble() * 8m;
                 poids = Math.Round(poids, 1);
 
-                // Mode de règlement varié : Carte (50%), Espèces (35%), Chèque (15%)
-                var modeRng = rng.Next(100);
-                var mode = modeRng < 50 ? ModeReglement.Carte : modeRng < 85 ? ModeReglement.Especes : ModeReglement.Cheque;
+                // Mode de règlement : Carte (60%) ou Espèces (40%) — pas de chèque
+                var mode = rng.Next(100) < 60 ? ModeReglement.Carte : ModeReglement.Especes;
 
                 // Statut + paiement déterminés par la position du trajet dans le temps
                 var (statutColis, statutPaiement) = DeriveStatuts(w, s, mode, rng);
@@ -364,6 +365,22 @@ public static class DbInitializer
         }
     }
 
+    private static async Task CleanupOldSeedAsync(ColisExpressDbContext db, string oldMarker, CancellationToken ct)
+    {
+        var trajets = await db.Trajets.Where(t => t.Conditions == oldMarker).Select(t => t.Id).ToListAsync(ct);
+        if (trajets.Count == 0) return;
+
+        var commandes = await db.Commandes.Where(c => trajets.Contains(c.TrajetId)).Select(c => c.Id).ToListAsync(ct);
+        var colisIds = await db.Colis.Where(c => commandes.Contains(c.CommandeId)).Select(c => c.Id).ToListAsync(ct);
+
+        await db.EvenementsColis.Where(e => colisIds.Contains(e.ColisId)).ExecuteDeleteAsync(ct);
+        await db.Paiements.Where(p => commandes.Contains(p.CommandeId)).ExecuteDeleteAsync(ct);
+        await db.Colis.Where(c => commandes.Contains(c.CommandeId)).ExecuteDeleteAsync(ct);
+        await db.Commandes.Where(c => trajets.Contains(c.TrajetId)).ExecuteDeleteAsync(ct);
+        await db.EtapesTrajets.Where(e => trajets.Contains(e.TrajetId)).ExecuteDeleteAsync(ct);
+        await db.Trajets.Where(t => t.Conditions == oldMarker).ExecuteDeleteAsync(ct);
+    }
+
     private static (StatutColis statut, StatutReglement paiement) DeriveStatuts(int weekOffset, int segmentIndex, ModeReglement mode, Random rng)
     {
         // Trajets passés (>1 semaine en arrière) : tous livrés et payés
@@ -410,7 +427,7 @@ public static class DbInitializer
         if (segmentIndex == 3 && mode == ModeReglement.Especes)
             return (StatutColis.EnAttenteReglement, StatutReglement.EnAttente);
 
-        if (mode == ModeReglement.Carte || mode == ModeReglement.Cheque)
+        if (mode == ModeReglement.Carte)
             return (StatutColis.ReservationConfirmee, StatutReglement.Paye);
 
         // Espèces sur trajets futurs : paiement non encore effectué

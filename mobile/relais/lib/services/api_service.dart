@@ -145,6 +145,9 @@ class ApiService {
         'codeRetrait': codeRetrait,
       });
 
+  Future<Map<String, dynamic>> refuserColis(String codeColis, String motif) async =>
+      await _post('/api/relais/colis/$codeColis/refuser', {'motif': motif});
+
   // ============================================
   // HELPERS
   // ============================================

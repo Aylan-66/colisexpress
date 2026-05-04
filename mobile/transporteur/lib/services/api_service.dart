@@ -183,6 +183,9 @@ class ApiService {
     });
   }
 
+  Future<Map<String, dynamic>> refuserColis(String code, String motif) async =>
+      await _post('/api/colis/$code/refuser', {'motif': motif});
+
   Future<Map<String, dynamic>> uploadPhotoColis(
       String code, File photo) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/colis/$code/photo');

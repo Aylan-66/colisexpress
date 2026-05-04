@@ -3,9 +3,11 @@ using ColisExpress.Application.Interfaces;
 using ColisExpress.Domain.Entities;
 using ColisExpress.Domain.Enums;
 using ColisExpress.Domain.Interfaces;
+using ColisExpress.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ColisExpress.Web.Controllers;
 
@@ -15,11 +17,13 @@ public class ColisController : ControllerBase
 {
     private readonly IColisService _colis;
     private readonly IUnitOfWork _uow;
+    private readonly ColisExpressDbContext _db;
 
-    public ColisController(IColisService colis, IUnitOfWork uow)
+    public ColisController(IColisService colis, IUnitOfWork uow, ColisExpressDbContext db)
     {
         _colis = colis;
         _uow = uow;
+        _db = db;
     }
 
     [HttpGet("{codeColis}")]
@@ -96,6 +100,54 @@ public class ColisController : ControllerBase
         await _uow.SaveChangesAsync(ct);
         return Ok(new { statut = colis.Statut.ToString(), message = "Photo enregistrée." });
     }
+
+    [HttpPost("{codeColis}/refuser")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public async Task<IActionResult> RefuserColis(string codeColis, [FromBody] RefuserColisApiRequest body, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(body?.Motif) || body.Motif.Trim().Length < 5)
+            return BadRequest(new { error = "Le motif du refus est obligatoire (minimum 5 caractères)." });
+
+        var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
+        if (colis is null) return NotFound(new { error = "Colis introuvable." });
+
+        var commande = await _db.Commandes.Include(c => c.Trajet).FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commande is null) return BadRequest(new { error = "Commande introuvable." });
+
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        // Sécurité : seul le transporteur du trajet peut refuser via cet endpoint
+        var transporteur = await _db.Transporteurs.FirstOrDefaultAsync(t => t.UtilisateurId == userId, ct);
+        if (transporteur is null || commande.TransporteurId != transporteur.Id)
+            return Forbid();
+
+        if (colis.Statut == StatutColis.Refuse)
+            return BadRequest(new { error = "Ce colis a déjà été refusé." });
+        if (colis.Statut == StatutColis.LivraisonCloturee || colis.Statut == StatutColis.RetireParDestinataire)
+            return BadRequest(new { error = "Impossible de refuser un colis déjà livré." });
+
+        var ancien = colis.Statut;
+        colis.Statut = StatutColis.Refuse;
+        colis.MotifRefus = body.Motif.Trim();
+        colis.DateRefus = DateTime.UtcNow;
+        colis.RefusParUtilisateurId = userId;
+        colis.RefusParRole = "Transporteur";
+        colis.RefusInspecteAdmin = false;
+
+        await _uow.Colis.AddEvenementAsync(new EvenementColis
+        {
+            ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.Refuse,
+            ActeurId = userId, Commentaire = $"Refus transporteur : {body.Motif.Trim()}"
+        }, ct);
+
+        await _uow.SaveChangesAsync(ct);
+        return Ok(new { message = "Colis refusé. L'administration sera notifiée pour traitement du remboursement.", statut = colis.Statut.ToString() });
+    }
+}
+
+public class RefuserColisApiRequest
+{
+    public string? Motif { get; set; }
 }
 
 public class UpdateStatutApiRequest

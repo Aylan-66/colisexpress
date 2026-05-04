@@ -50,6 +50,66 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
     }
   }
 
+  Future<void> _refuserColis() async {
+    final motifCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Refuser le colis'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Le colis sera marqué comme refusé. L\'administration sera notifiée pour traiter le remboursement du client.',
+                style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motifCtrl,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'MOTIF DU REFUS',
+                hintText: 'Ex : produit interdit, colis endommagé, poids dépassé...',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Confirmer le refus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final motif = motifCtrl.text.trim();
+    if (motif.length < 5) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Motif trop court (5 caractères minimum).')),
+        );
+      }
+      return;
+    }
+
+    setState(() { _loading = true; _success = null; _error = null; });
+    final api = context.read<ApiService>();
+    final res = await api.refuserColis(widget.codeColis, motif);
+    if (!mounted) return;
+
+    if (res.containsKey('error')) {
+      setState(() { _error = res['error']; _loading = false; });
+    } else {
+      setState(() => _success = res['message']?.toString() ?? 'Colis refusé');
+      await _load();
+    }
+  }
+
   Future<void> _takePhoto() async {
     final picker = ImagePicker();
     final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 1200, imageQuality: 80);
@@ -164,6 +224,7 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
                     _actionButton('Au point relais', 'ReceptionneParPointRelais', Icons.store, AppTheme.success),
                     _actionButton('Disponible retrait', 'DisponibleAuRetrait', Icons.check_circle, AppTheme.success),
                     _actionButton('Signaler incident', 'Incident', Icons.warning, AppTheme.danger),
+                    _actionButton('Refuser le colis', null, Icons.block, AppTheme.danger, onTap: _refuserColis),
                   ],
                 ),
               ],

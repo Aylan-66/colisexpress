@@ -345,6 +345,11 @@ class _ScanScreenState extends State<ScanScreen> {
           icon = Icons.hourglass_top;
           color = AppTheme.accent;
           break;
+        case 'refus':
+          title = 'Colis refusé';
+          icon = Icons.block;
+          color = AppTheme.danger;
+          break;
         default:
           title = 'Action effectuée';
           icon = Icons.check;
@@ -397,9 +402,74 @@ class _ScanScreenState extends State<ScanScreen> {
             onPressed: _backToModePicker,
             child: const Text('Changer de mode'),
           ),
+          if (_scannedCode != null)
+            TextButton.icon(
+              icon: const Icon(Icons.block, size: 16, color: AppTheme.danger),
+              label: const Text('Refuser ce colis', style: TextStyle(color: AppTheme.danger)),
+              onPressed: () => _refuserColis(_scannedCode!),
+            ),
         ],
       ),
     );
+  }
+
+  Future<void> _refuserColis(String code) async {
+    final motifCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Refuser le colis'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Le colis sera marqué comme refusé. L\'administration sera notifiée pour traiter le remboursement du client.',
+                style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motifCtrl,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'MOTIF DU REFUS',
+                hintText: 'Ex : produit interdit, colis endommagé, poids dépassé...',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Confirmer le refus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final motif = motifCtrl.text.trim();
+    if (motif.length < 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Motif trop court (5 caractères minimum).')),
+      );
+      return;
+    }
+
+    final api = context.read<ApiService>();
+    final res = await api.refuserColis(code, motif);
+    if (!mounted) return;
+
+    if (res.containsKey('error')) {
+      setState(() => _error = res['error']);
+    } else {
+      setState(() {
+        _result = {'action': 'refus', 'message': res['message'] ?? 'Colis refusé', 'statut': 'Refuse'};
+        _error = null;
+      });
+    }
   }
 }
 

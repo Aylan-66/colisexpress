@@ -13,6 +13,15 @@ public class Colis
     public StatutColis Statut { get; set; } = StatutColis.Brouillon;
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 
+    // Refus du colis (par relais ou transporteur)
+    public string? MotifRefus { get; set; }
+    public DateTime? DateRefus { get; set; }
+    public Guid? RefusParUtilisateurId { get; set; }
+    public string? RefusParRole { get; set; }      // "Transporteur" ou "PointRelais"
+    public bool RefusInspecteAdmin { get; set; } = false;
+    public DateTime? RefusInspectionDate { get; set; }
+    public Guid? RefusInspectePar { get; set; }
+
     public Commande? Commande { get; set; }
     public ICollection<EvenementColis> Evenements { get; set; } = new List<EvenementColis>();
 }

@@ -321,6 +321,52 @@ public class RelaisController : ControllerBase
         return Ok(new { message = "Paiement espèces validé." });
     }
 
+    [HttpPost("colis/{codeColis}/refuser")]
+    public async Task<IActionResult> RefuserColis(string codeColis, [FromBody] RefuserColisRequest body, CancellationToken ct)
+    {
+        var relais = await GetRelaisAsync(ct);
+        if (relais is null) return NotFound(new { error = "Profil point relais introuvable." });
+
+        if (string.IsNullOrWhiteSpace(body?.Motif) || body.Motif.Trim().Length < 5)
+            return BadRequest(new { error = "Le motif du refus est obligatoire (minimum 5 caractères)." });
+
+        var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
+        if (colis is null) return NotFound(new { error = "Colis introuvable." });
+
+        var commande = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commande is null) return BadRequest(new { error = "Commande introuvable." });
+
+        // Sécurité : ce relais doit être sur le parcours du colis
+        var villeRelais = relais.Ville.ToLower();
+        var concerne = (commande.SegmentDepart?.ToLower() == villeRelais)
+                    || (commande.SegmentArrivee?.ToLower() == villeRelais)
+                    || (commande.VilleDestinataire?.ToLower() == villeRelais);
+        if (!concerne)
+            return BadRequest(new { error = "Ce colis ne passe pas par votre point relais." });
+
+        if (colis.Statut == StatutColis.Refuse)
+            return BadRequest(new { error = "Ce colis a déjà été refusé." });
+        if (colis.Statut == StatutColis.LivraisonCloturee || colis.Statut == StatutColis.RetireParDestinataire)
+            return BadRequest(new { error = "Impossible de refuser un colis déjà livré." });
+
+        var ancien = colis.Statut;
+        colis.Statut = StatutColis.Refuse;
+        colis.MotifRefus = body.Motif.Trim();
+        colis.DateRefus = DateTime.UtcNow;
+        colis.RefusParUtilisateurId = GetUserId();
+        colis.RefusParRole = "PointRelais";
+        colis.RefusInspecteAdmin = false;
+
+        await _uow.Colis.AddEvenementAsync(new EvenementColis
+        {
+            ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.Refuse,
+            ActeurId = GetUserId(), Commentaire = $"Refus point relais : {body.Motif.Trim()}"
+        }, ct);
+
+        await _uow.SaveChangesAsync(ct);
+        return Ok(new { message = "Colis refusé. L'administration sera notifiée pour traitement du remboursement.", statut = colis.Statut.ToString() });
+    }
+
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats(CancellationToken ct)
     {
@@ -430,4 +476,9 @@ public class ConfirmerRetraitRequest
 public class ScanRequest
 {
     public string? Mode { get; set; }  // "depot" ou "retrait"
+}
+
+public class RefuserColisRequest
+{
+    public string? Motif { get; set; }
 }

@@ -18,6 +18,16 @@
     </div>
 }
 
+@if (Model.RefusANontInspecter > 0)
+{
+    <div style="background:#dc2626;border-radius:12px;padding:20px;margin-bottom:20px;color:white;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:16px;font-weight:700;">
+            🚫 @Model.RefusANontInspecter refus de colis à inspecter (remboursement à traiter)
+        </span>
+        <a href="/admin/refus" style="color:white;font-weight:bold;text-decoration:underline;font-size:14px;">Voir &rarr;</a>
+    </div>
+}
+
 <div class="admin-kpi-grid">
     <div class="admin-kpi">
         <div class="admin-kpi-label">Colis ce mois</div>
