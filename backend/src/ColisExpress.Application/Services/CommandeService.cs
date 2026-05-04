@@ -69,7 +69,8 @@ public class CommandeService : ICommandeService
             Total = total,
             ModeReglement = request.ModeReglement,
             StatutReglement = StatutReglement.EnAttente,
-            InstructionsParticulieres = request.InstructionsParticulieres
+            InstructionsParticulieres = request.InstructionsParticulieres,
+            RelaisDepartId = request.RelaisDepartId ?? trajet.RelaisDepartId
         };
 
         var codeColis = await GenerateCodeColisAsync(ct);

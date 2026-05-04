@@ -26,6 +26,7 @@ public class ReservationModel : PageModel
     [BindProperty(SupportsGet = true)] public bool Urgent { get; set; }
     [BindProperty(SupportsGet = true)] public string? SegDepart { get; set; }
     [BindProperty(SupportsGet = true)] public string? SegArrivee { get; set; }
+    [BindProperty(SupportsGet = true)] public Guid? RelaisDepartId { get; set; }
 
     [BindProperty] public CreateCommandeRequest Input { get; set; } = new();
 
@@ -58,6 +59,7 @@ public class ReservationModel : PageModel
 
         Input.SegmentDepart = SegDepart ?? "";
         Input.SegmentArrivee = SegArrivee ?? "";
+        if (RelaisDepartId.HasValue) Input.RelaisDepartId = RelaisDepartId;
 
         try
         {

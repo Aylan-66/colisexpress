@@ -25,4 +25,7 @@ public class CreateCommandeRequest
     public string? InstructionsParticulieres { get; set; }
 
     public ModeReglement ModeReglement { get; set; } = ModeReglement.Carte;
+
+    // Relais de départ sélectionné par le client (depuis la page Résultats)
+    public Guid? RelaisDepartId { get; set; }
 }

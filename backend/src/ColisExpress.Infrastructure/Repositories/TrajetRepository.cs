@@ -31,6 +31,7 @@ public class TrajetRepository : ITrajetRepository
         return await _db.Trajets
             .Include(t => t.Transporteur)
                 .ThenInclude(tr => tr!.Utilisateur)
+            .Include(t => t.RelaisDepart)
             .Include(t => t.Etapes)
                 .ThenInclude(e => e.PointRelais)
             .Where(t => t.Statut == StatutTrajet.Actif

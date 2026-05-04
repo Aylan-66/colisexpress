@@ -19,7 +19,10 @@ public static class DbInitializer
         // Backfill coordonnées GPS sur points relais existants (idempotent)
         await BackfillCoordonneesAsync(db, ct);
 
-        // Données de démo massives pour tests (idempotent, marqueur "[BIGSEED-V1]")
+        // Backfill RelaisDepartId sur trajets existants (idempotent)
+        await BackfillRelaisDepartAsync(db, ct);
+
+        // Données de démo massives pour tests (idempotent, marqueur "[BIGSEED-V3]")
         await GenerateMassiveTestDataAsync(db, ct);
 
         if (await db.Utilisateurs.AnyAsync(ct)) return;
@@ -171,15 +174,36 @@ public static class DbInitializer
         if (changed) await db.SaveChangesAsync(ct);
     }
 
+    private static async Task BackfillRelaisDepartAsync(ColisExpressDbContext db, CancellationToken ct)
+    {
+        var trajets = await db.Trajets.Where(t => t.RelaisDepartId == null).ToListAsync(ct);
+        if (trajets.Count == 0) return;
+
+        var relais = await db.PointsRelais.ToListAsync(ct);
+        var changed = false;
+        foreach (var t in trajets)
+        {
+            // Match exact ville
+            var match = relais.FirstOrDefault(r => string.Equals(r.Ville, t.VilleDepart, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                t.RelaisDepartId = match.Id;
+                changed = true;
+            }
+        }
+        if (changed) await db.SaveChangesAsync(ct);
+    }
+
     /// Génère un gros volume de données de test couvrant 4 semaines passées + 12 semaines futures.
     /// Trajets hebdomadaires Paris → Alger via Lyon et Marseille pour transporteur1, avec 4 commandes
     /// client1 par trajet (segments variés, statuts variés selon la date pour avoir tous les cas de test).
     /// Idempotent : marqueur "[BIGSEED-V1]" dans Trajet.Conditions.
     private static async Task GenerateMassiveTestDataAsync(ColisExpressDbContext db, CancellationToken ct)
     {
-        const string MARKER = "[BIGSEED-V2]";
-        // Cleanup éventuel de la V1 (chèques, etc.)
+        const string MARKER = "[BIGSEED-V3]";
+        // Cleanup éventuel des versions précédentes
         await CleanupOldSeedAsync(db, "[BIGSEED-V1]", ct);
+        await CleanupOldSeedAsync(db, "[BIGSEED-V2]", ct);
         if (await db.Trajets.AnyAsync(t => t.Conditions == MARKER, ct)) return;
 
         var transporteurUser = await db.Utilisateurs.FirstOrDefaultAsync(u => u.Email == "transporteur1@test.com", ct);
@@ -240,6 +264,7 @@ public static class DbInitializer
                 SupplementFragile = 10m,
                 Statut = w < -1 ? StatutTrajet.Termine : StatutTrajet.Actif,
                 PointDepot = "Relais Paris 15e",
+                RelaisDepartId = relaisParis.Id,
                 Conditions = MARKER,
                 DateCreation = lundiDepart.AddDays(-14)
             };

@@ -17,4 +17,12 @@ public class OffreResponse
     public string TypeVehicule { get; init; } = string.Empty;
     public decimal Prix { get; init; }
     public decimal PoidsRecherche { get; init; }
+
+    // Relais de départ rattaché au trajet (optionnel)
+    public Guid? RelaisDepartId { get; init; }
+    public string? RelaisDepartNom { get; init; }
+    public string? RelaisDepartAdresse { get; init; }
+    public string? RelaisDepartVille { get; init; }
+    public double? RelaisDepartLatitude { get; init; }
+    public double? RelaisDepartLongitude { get; init; }
 }

@@ -66,6 +66,9 @@ public class RechercheService : IRechercheService
         var villeDepart = t.VilleDepart;
         var villeArrivee = t.VilleArrivee;
 
+        // Relais de départ : par défaut celui du trajet, sinon l'étape qui correspond à la recherche
+        PointRelais? relaisDepart = t.RelaisDepart;
+
         if (rechercheDepart is not null && rechercheArrivee is not null && t.Etapes?.Count > 0)
         {
             var dep = rechercheDepart.ToLowerInvariant();
@@ -80,6 +83,7 @@ public class RechercheService : IRechercheService
                 {
                     dateDepart = etapeDep.HeureEstimeeArrivee;
                     villeDepart = etapeDep.PointRelais?.Ville ?? villeDepart;
+                    relaisDepart = etapeDep.PointRelais;
                 }
             }
 
@@ -111,7 +115,13 @@ public class RechercheService : IRechercheService
             CapaciteMaxPoids = t.CapaciteMaxPoids,
             TypeVehicule = transporteur?.TypeVehicule ?? "Non spécifié",
             Prix = prix,
-            PoidsRecherche = poids
+            PoidsRecherche = poids,
+            RelaisDepartId = relaisDepart?.Id,
+            RelaisDepartNom = relaisDepart?.NomRelais,
+            RelaisDepartAdresse = relaisDepart?.Adresse,
+            RelaisDepartVille = relaisDepart?.Ville,
+            RelaisDepartLatitude = relaisDepart?.Latitude,
+            RelaisDepartLongitude = relaisDepart?.Longitude
         };
     }
 

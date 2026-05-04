@@ -21,6 +21,8 @@ public class Trajet
     public decimal? SupplementUrgent { get; set; }
     public decimal? SupplementFragile { get; set; }
     public string? PointDepot { get; set; }
+    public Guid? RelaisDepartId { get; set; }
+    public PointRelais? RelaisDepart { get; set; }
     public string? Conditions { get; set; }
     public StatutTrajet Statut { get; set; } = StatutTrajet.Actif;
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;

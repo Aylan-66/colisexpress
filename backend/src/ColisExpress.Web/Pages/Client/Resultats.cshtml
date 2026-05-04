@@ -1,11 +1,31 @@
 @page "/resultats"
 @model ColisExpress.Web.Pages.Client.ResultatsModel
+@using System.Globalization
 @{
-    ViewData["Title"] = "Résultats de recherche";
+    ViewData["Title"] = "Choix du point relais de départ";
+    var offresAvecRelais = Model.Offres.Where(o => o.RelaisDepartId.HasValue && o.RelaisDepartLatitude.HasValue && o.RelaisDepartLongitude.HasValue).ToList();
+    var offresSansRelais = Model.Offres.Where(o => !o.RelaisDepartId.HasValue || !o.RelaisDepartLatitude.HasValue).ToList();
+    var inv = CultureInfo.InvariantCulture;
 }
 
-<section class="web-page">
-    <h1>Transporteurs disponibles</h1>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+    .reso-grid { display:grid; grid-template-columns: 1fr 380px; gap:24px; }
+    @@media (max-width: 1024px) { .reso-grid { grid-template-columns: 1fr; } }
+    #reso-map { height: 480px; border-radius:12px; border:1px solid #e5e7eb; position:sticky; top:80px; }
+    .reso-toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:12px 16px; background:#fff; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:16px; }
+    .reso-toolbar label { font-size:12px; color:#6b7280; font-weight:600; }
+    .reso-toolbar select { padding:6px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; }
+    .relais-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px 18px; margin-bottom:12px; cursor:pointer; transition:.15s; }
+    .relais-card:hover { border-color:#1B4965; box-shadow:0 2px 8px rgba(27,73,101,.08); }
+    .relais-card.active { border-color:#1B4965; background:#F0F6FA; }
+    .relais-distance { font-size:12px; color:#1B4965; font-weight:700; }
+    .leaflet-popup-content { font-family:inherit; min-width:200px; }
+    .reso-empty-radius { padding:24px;text-align:center;color:#6b7280;background:#fff;border:1px dashed #d1d5db;border-radius:10px; }
+</style>
+
+<section class="web-page" style="max-width:1200px;">
+    <h1>Choisissez un point relais de départ</h1>
     <p class="subtitle">
         <strong>@Model.VilleDepart</strong> → <strong>@Model.VilleArrivee</strong> •
         @Model.DateDepart.ToString("dd MMM yyyy") • @Model.Poids kg
@@ -15,80 +35,251 @@
     {
         <div class="web-card text-center" style="padding:48px 24px;">
             <div style="font-size:48px;margin-bottom:12px;">🔎</div>
-            <h2>Aucun transporteur trouvé</h2>
+            <h2>Aucune offre trouvée</h2>
             <p class="text-muted mb-4">Aucun trajet ne correspond à vos critères. Essayez une autre date ou une autre ville.</p>
             <a class="web-btn" asp-page="/Client/Recherche">← Modifier ma recherche</a>
         </div>
     }
     else
     {
-        <div class="flex gap-2 items-center mb-4" style="flex-wrap:wrap;">
-            <span class="text-muted" style="font-weight:600;font-size:13px;">@Model.Offres.Count résultat@(Model.Offres.Count > 1 ? "s" : "") • Trier par :</span>
-            <a class="web-btn @(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Prix ? "" : "outline") sm"
-               asp-route-villeDepart="@Model.VilleDepart" asp-route-villeArrivee="@Model.VilleArrivee"
-               asp-route-dateDepart="@Model.DateDepart.ToString("yyyy-MM-dd")" asp-route-poids="@Model.Poids"
-               asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent" asp-route-tri="Prix">Prix croissant</a>
-            <a class="web-btn @(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Note ? "" : "outline") sm"
-               asp-route-villeDepart="@Model.VilleDepart" asp-route-villeArrivee="@Model.VilleArrivee"
-               asp-route-dateDepart="@Model.DateDepart.ToString("yyyy-MM-dd")" asp-route-poids="@Model.Poids"
-               asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent" asp-route-tri="Note">Meilleure note</a>
-            <a class="web-btn @(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Rapidite ? "" : "outline") sm"
-               asp-route-villeDepart="@Model.VilleDepart" asp-route-villeArrivee="@Model.VilleArrivee"
-               asp-route-dateDepart="@Model.DateDepart.ToString("yyyy-MM-dd")" asp-route-poids="@Model.Poids"
-               asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent" asp-route-tri="Rapidite">Plus rapide</a>
+        <div class="reso-toolbar">
+            <span style="font-weight:700;font-size:14px;">@Model.Offres.Count point@(Model.Offres.Count > 1 ? "s" : "") relais disponible@(Model.Offres.Count > 1 ? "s" : "")</span>
+            <span style="margin:0 8px;color:#d1d5db;">|</span>
+
+            <label>Trier :</label>
+            <select id="reso-tri" onchange="reso.changeTri(this.value)">
+                <option value="Prix" selected="@(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Prix)">Prix croissant</option>
+                <option value="Note" selected="@(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Note)">Meilleure note</option>
+                <option value="Rapidite" selected="@(Model.Tri == ColisExpress.Application.DTOs.Offres.TriOffres.Rapidite)">Plus rapide</option>
+            </select>
+
+            <span style="margin:0 8px;color:#d1d5db;">|</span>
+
+            <label>Rayon de recherche :</label>
+            <select id="reso-radius">
+                <option value="0">Aucun (tous)</option>
+                <option value="10">10 km</option>
+                <option value="25" selected>25 km</option>
+                <option value="50">50 km</option>
+                <option value="100">100 km</option>
+                <option value="200">200 km</option>
+                <option value="500">500 km</option>
+            </select>
+
+            <button id="reso-geoloc" type="button" class="web-btn outline sm">📍 Utiliser ma position</button>
+            <span id="reso-geoloc-status" style="font-size:12px;color:#6b7280;"></span>
         </div>
 
-        @foreach (var offre in Model.Offres)
-        {
-            <div class="web-card">
-                <div class="flex justify-between items-center mb-4">
-                    <div class="flex gap-4 items-center">
-                        <div style="width:48px;height:48px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">
-                            @offre.Initiales
-                        </div>
-                        <div>
-                            <div style="font-weight:800;font-size:16px;">@offre.NomTransporteur</div>
-                            <div style="font-size:12px;color:var(--gray-500);">
-                                ⭐ @offre.NoteMoyenne.ToString("0.0") (@offre.NombreAvis avis)
-                                <span class="web-badge success" style="margin-left:4px;">Vérifié</span>
+        <div class="reso-grid">
+            <div id="reso-list">
+                @foreach (var offre in offresAvecRelais)
+                {
+                    <div class="relais-card"
+                         data-id="@offre.RelaisDepartId"
+                         data-trajet-id="@offre.TrajetId"
+                         data-lat="@(offre.RelaisDepartLatitude!.Value.ToString(inv))"
+                         data-lng="@(offre.RelaisDepartLongitude!.Value.ToString(inv))"
+                         data-prix="@offre.Prix.ToString(inv)"
+                         data-note="@offre.NoteMoyenne.ToString(inv)"
+                         data-duree-h="@((offre.DateEstimeeArrivee - offre.DateDepart).TotalHours.ToString("0", inv))">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                            <div style="flex:1;">
+                                <div style="font-weight:800;font-size:16px;color:#1B4965;">📍 @offre.RelaisDepartNom</div>
+                                <div style="font-size:13px;color:#6b7280;margin-top:2px;">@offre.RelaisDepartAdresse, @offre.RelaisDepartVille</div>
+                                <div class="relais-distance" data-distance-slot></div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:22px;font-weight:800;color:#1B4965;">@offre.Prix.ToString("0.00") €</div>
+                                <div style="font-size:11px;color:#6b7280;">prix transport</div>
                             </div>
                         </div>
+
+                        <div style="background:#F7F5F2;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                            <div>
+                                <div style="font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;">Transporteur</div>
+                                <div style="font-weight:700;">@offre.NomTransporteur</div>
+                                <div style="font-size:11px;color:#6b7280;">⭐ @offre.NoteMoyenne.ToString("0.0") (@offre.NombreAvis avis) • @offre.TypeVehicule</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;">Trajet</div>
+                                <div style="font-weight:700;font-size:12px;">@offre.DateDepart.ToString("dd MMM") → @offre.DateEstimeeArrivee.ToString("dd MMM")</div>
+                                <div style="font-size:11px;color:#6b7280;">@offre.CapaciteRestante places</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                            <a class="web-btn sm" asp-page="/Client/Reservation"
+                               asp-route-trajetId="@offre.TrajetId"
+                               asp-route-poids="@Model.Poids"
+                               asp-route-fragile="@Model.Fragile"
+                               asp-route-urgent="@Model.Urgent"
+                               asp-route-segDepart="@offre.VilleDepart"
+                               asp-route-segArrivee="@offre.VilleArrivee"
+                               asp-route-relaisDepartId="@offre.RelaisDepartId">
+                                Choisir ce point relais →
+                            </a>
+                        </div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:24px;font-weight:800;color:var(--primary);">@offre.Prix.ToString("0.00") €</div>
-                        <div style="font-size:11px;color:var(--gray-500);">prix transport</div>
-                    </div>
+                }
+                <div id="reso-empty-msg" class="reso-empty-radius" style="display:none;">
+                    Aucun point relais dans ce rayon. Augmentez le rayon ou désactivez-le.
                 </div>
 
-                <div class="flex gap-4 items-center mb-4" style="padding:12px;background:var(--gray-50);border-radius:8px;">
-                    <div>
-                        <div style="font-size:10px;color:var(--gray-500);font-weight:700;text-transform:uppercase;">Départ</div>
-                        <div style="font-size:13px;font-weight:700;">@offre.DateDepart.ToString("dd MMM")</div>
+                @if (offresSansRelais.Any())
+                {
+                    <div class="web-card" style="margin-top:24px;padding:18px;">
+                        <div style="font-size:13px;color:#6b7280;font-weight:700;margin-bottom:8px;">⚠ Trajets sans point relais associé (@offresSansRelais.Count)</div>
+                        <div style="font-size:12px;color:#6b7280;">Ces trajets historiques n'ont pas de relais de départ enregistré. Lien direct vers la réservation :</div>
+                        <ul style="margin:8px 0 0;padding-left:18px;">
+                            @foreach (var o in offresSansRelais)
+                            {
+                                <li style="margin-bottom:4px;font-size:13px;">
+                                    @o.NomTransporteur — @o.DateDepart.ToString("dd MMM") — @o.Prix.ToString("0.00") €
+                                    <a asp-page="/Client/Reservation" asp-route-trajetId="@o.TrajetId" asp-route-poids="@Model.Poids" asp-route-segDepart="@o.VilleDepart" asp-route-segArrivee="@o.VilleArrivee" style="margin-left:6px;color:#1B4965;">Réserver →</a>
+                                </li>
+                            }
+                        </ul>
                     </div>
-                    <div class="route-visual" style="flex:1;">
-                        <div class="route-dot from"></div>
-                        <div class="route-line"></div>
-                        <div class="route-dot to"></div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:10px;color:var(--gray-500);font-weight:700;text-transform:uppercase;">Arrivée</div>
-                        <div style="font-size:13px;font-weight:700;">@offre.DateEstimeeArrivee.ToString("dd MMM")</div>
-                    </div>
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <div style="font-size:12px;color:var(--gray-500);">
-                        @offre.CapaciteRestante places restantes • @offre.TypeVehicule
-                    </div>
-                    <a class="web-btn" asp-page="/Client/Reservation"
-                       asp-route-trajetId="@offre.TrajetId"
-                       asp-route-poids="@Model.Poids"
-                       asp-route-fragile="@Model.Fragile"
-                       asp-route-urgent="@Model.Urgent"
-                       asp-route-segDepart="@offre.VilleDepart"
-                       asp-route-segArrivee="@offre.VilleArrivee">Réserver →</a>
-                </div>
+                }
             </div>
-        }
+
+            <div>
+                <div id="reso-map"></div>
+            </div>
+        </div>
     }
 </section>
+
+@section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        const reso = (function () {
+            const villeDepart = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.VilleDepart));
+            const params = new URLSearchParams(window.location.search);
+            const cards = Array.from(document.querySelectorAll('.relais-card'));
+            const map = L.map('reso-map').setView([46.5, 2.5], 5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+            const markers = {};
+            const userPos = { lat: null, lng: null };
+
+            // Crée les marqueurs
+            const bounds = [];
+            cards.forEach(c => {
+                const lat = parseFloat(c.dataset.lat), lng = parseFloat(c.dataset.lng);
+                const id = c.dataset.id;
+                const m = L.marker([lat, lng]).addTo(map);
+                const titre = c.querySelector('div[style*="font-weight:800"]')?.textContent || 'Relais';
+                const adresse = c.querySelectorAll('div[style*="color:#6b7280"]')[0]?.textContent || '';
+                const transp = c.querySelector('div[style*="font-weight:700"]')?.parentElement?.querySelector('div[style*="font-weight:700"]:not([style*="text-transform"])')?.textContent || '';
+                const prix = c.dataset.prix;
+                m.bindPopup(`<strong>${titre}</strong><br>${adresse}<br><span style="color:#6b7280;font-size:12px;">Transporteur : ${transp}</span><br><strong style="color:#1B4965;">${prix} €</strong>`);
+                markers[id] = m;
+                bounds.push([lat, lng]);
+            });
+            if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+
+            cards.forEach(c => {
+                c.addEventListener('click', e => {
+                    if (e.target.closest('a')) return;
+                    document.querySelectorAll('.relais-card.active').forEach(x => x.classList.remove('active'));
+                    c.classList.add('active');
+                    const id = c.dataset.id;
+                    const lat = parseFloat(c.dataset.lat), lng = parseFloat(c.dataset.lng);
+                    map.setView([lat, lng], 13, { animate: true });
+                    if (markers[id]) markers[id].openPopup();
+                });
+            });
+
+            function haversine(lat1, lng1, lat2, lng2) {
+                const R = 6371;
+                const tr = x => x * Math.PI / 180;
+                const dLat = tr(lat2 - lat1), dLng = tr(lng2 - lng1);
+                const a = Math.sin(dLat/2)**2 + Math.cos(tr(lat1))*Math.cos(tr(lat2))*Math.sin(dLng/2)**2;
+                return 2 * R * Math.asin(Math.sqrt(a));
+            }
+
+            function applyFiltersAndSort() {
+                const radius = parseFloat(document.getElementById('reso-radius').value);
+                const tri = document.getElementById('reso-tri').value;
+                const list = document.getElementById('reso-list');
+                const empty = document.getElementById('reso-empty-msg');
+
+                // Calculer distances et filtrer
+                const items = cards.map(c => {
+                    const lat = parseFloat(c.dataset.lat), lng = parseFloat(c.dataset.lng);
+                    let dist = null;
+                    if (userPos.lat !== null) dist = haversine(userPos.lat, userPos.lng, lat, lng);
+                    return { card: c, lat, lng, dist, prix: parseFloat(c.dataset.prix), note: parseFloat(c.dataset.note), dureeH: parseFloat(c.dataset.dureeH) };
+                });
+
+                // Filtrer par rayon (uniquement si géoloc activée et rayon > 0)
+                let visibles = items;
+                if (userPos.lat !== null && radius > 0) {
+                    visibles = items.filter(i => i.dist !== null && i.dist <= radius);
+                }
+
+                // Tri
+                if (tri === 'Prix') visibles.sort((a, b) => a.prix - b.prix);
+                else if (tri === 'Note') visibles.sort((a, b) => b.note - a.note);
+                else if (tri === 'Rapidite') visibles.sort((a, b) => a.dureeH - b.dureeH);
+
+                // Cacher tout puis remettre dans l'ordre
+                cards.forEach(c => c.style.display = 'none');
+                visibles.forEach(v => { v.card.style.display = ''; list.insertBefore(v.card, empty); });
+
+                // Mise à jour distances affichées
+                items.forEach(i => {
+                    const slot = i.card.querySelector('[data-distance-slot]');
+                    if (!slot) return;
+                    if (i.dist !== null) slot.textContent = `≈ ${i.dist.toFixed(1)} km de votre position`;
+                    else slot.textContent = '';
+                });
+
+                empty.style.display = visibles.length === 0 ? 'block' : 'none';
+            }
+
+            // Géoloc
+            const btn = document.getElementById('reso-geoloc');
+            const status = document.getElementById('reso-geoloc-status');
+
+            function tryGeoloc(silent) {
+                if (!('geolocation' in navigator)) {
+                    if (!silent) status.textContent = 'Géolocalisation non disponible.';
+                    return;
+                }
+                status.textContent = 'Recherche de votre position…';
+                navigator.geolocation.getCurrentPosition(pos => {
+                    userPos.lat = pos.coords.latitude;
+                    userPos.lng = pos.coords.longitude;
+                    L.marker([userPos.lat, userPos.lng], { title: 'Vous êtes ici' })
+                        .addTo(map)
+                        .bindPopup('<strong>Vous êtes ici</strong>');
+                    status.textContent = 'Position détectée ✓';
+                    applyFiltersAndSort();
+                }, err => {
+                    status.textContent = silent ? '' : 'Position refusée — affichage de tous les relais.';
+                }, { timeout: 8000 });
+            }
+
+            document.getElementById('reso-radius').addEventListener('change', applyFiltersAndSort);
+            document.getElementById('reso-tri').addEventListener('change', applyFiltersAndSort);
+            btn.addEventListener('click', () => tryGeoloc(false));
+
+            // Tentative auto silencieuse au chargement (sans demande explicite si l'user a déjà autorisé)
+            if ('permissions' in navigator) {
+                navigator.permissions.query({ name: 'geolocation' }).then(p => {
+                    if (p.state === 'granted') tryGeoloc(true);
+                }).catch(() => {});
+            }
+
+            applyFiltersAndSort();
+
+            return {
+                changeTri: function (v) {
+                    document.getElementById('reso-tri').value = v;
+                    applyFiltersAndSort();
+                }
+            };
+        })();
+    </script>
+}
