@@ -156,6 +156,8 @@
     <script>
         (function () {
             const villeDepart = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.VilleDepart));
+            const preLat = @(Model.DepLat?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null");
+            const preLng = @(Model.DepLng?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null");
             const cards = Array.from(document.querySelectorAll('.relais-card'));
             const map = L.map('reso-map').setView([46.5, 2.5], 5);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
@@ -321,7 +323,17 @@
             document.getElementById('reso-tri').addEventListener('change', applyFiltersAndSort);
             btn.addEventListener('click', () => tryGeoloc(false));
 
-            geocodeVille(villeDepart).then(() => {
+            // Si les coords ont été fournies par l'autocomplétion, on les utilise directement (pas de géocodage)
+            let initPromise;
+            if (preLat !== null && preLng !== null) {
+                setCenter(preLat, preLng, villeDepart, true);
+                status.textContent = `Centre : ${villeDepart}`;
+                initPromise = Promise.resolve();
+            } else {
+                initPromise = geocodeVille(villeDepart);
+            }
+
+            initPromise.then(() => {
                 if ('permissions' in navigator) {
                     navigator.permissions.query({ name: 'geolocation' }).then(p => {
                         if (p.state === 'granted') tryGeoloc(true);

@@ -8,30 +8,33 @@
     <h1>Trouvez un transporteur</h1>
     <p class="subtitle">Renseignez votre trajet et les détails du colis. Nous vous montrons les offres disponibles.</p>
 
-    <form method="get" asp-page="/Client/Resultats" class="web-card">
+    <style>
+        .ac-wrap { position: relative; }
+        .ac-suggestions { position: absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #d1d5db; border-radius:8px; margin-top:4px; box-shadow:0 4px 12px rgba(0,0,0,.08); z-index:50; max-height:280px; overflow-y:auto; display:none; }
+        .ac-item { padding:10px 12px; cursor:pointer; border-bottom:1px solid #f3f4f6; }
+        .ac-item:last-child { border-bottom:0; }
+        .ac-item:hover, .ac-item.active { background:#F0F6FA; }
+        .ac-item-name { font-weight:700; color:#1B4965; font-size:14px; }
+        .ac-item-detail { font-size:12px; color:#6b7280; margin-top:2px; }
+        .ac-empty { padding:10px 12px; color:#6b7280; font-size:13px; font-style:italic; }
+    </style>
+
+    <form method="get" asp-page="/Client/Resultats" class="web-card" id="recherche-form">
         <h3>Trajet</h3>
         <div class="web-field-row">
-            <div class="web-field">
+            <div class="web-field ac-wrap">
                 <label class="web-field-label">Ville de départ</label>
-                <input name="villeDepart" class="web-field-input" placeholder="Paris"
-                       list="villes-depart" autocomplete="off" required />
-                <datalist id="villes-depart">
-                    @foreach (var v in Model.VillesDepart)
-                    {
-                        <option value="@v"></option>
-                    }
-                </datalist>
+                <input id="ac-depart" name="villeDepart" class="web-field-input" placeholder="Paris"
+                       autocomplete="off" required />
+                <input type="hidden" id="ac-depart-lat" name="depLat" />
+                <input type="hidden" id="ac-depart-lng" name="depLng" />
+                <div id="ac-depart-list" class="ac-suggestions"></div>
             </div>
-            <div class="web-field">
+            <div class="web-field ac-wrap">
                 <label class="web-field-label">Ville de destination</label>
-                <input name="villeArrivee" class="web-field-input" placeholder="Alger"
-                       list="villes-arrivee" autocomplete="off" required />
-                <datalist id="villes-arrivee">
-                    @foreach (var v in Model.VillesArrivee)
-                    {
-                        <option value="@v"></option>
-                    }
-                </datalist>
+                <input id="ac-arrivee" name="villeArrivee" class="web-field-input" placeholder="Alger"
+                       autocomplete="off" required />
+                <div id="ac-arrivee-list" class="ac-suggestions"></div>
             </div>
         </div>
 
@@ -79,3 +82,101 @@
         <button type="submit" class="web-btn accent full mt-4">Rechercher des transporteurs →</button>
     </form>
 </section>
+
+@section Scripts {
+    <script>
+        // Autocomplétion Nominatim (OpenStreetMap, gratuit, sans clé)
+        // Affiche les villes avec département/région, élimine l'ambiguïté (ex: Chelles 77 vs Chelles 60)
+        function setupAutocomplete(inputId, listId, latId, lngId, restrictFr) {
+            const input = document.getElementById(inputId);
+            const list = document.getElementById(listId);
+            const latField = latId ? document.getElementById(latId) : null;
+            const lngField = lngId ? document.getElementById(lngId) : null;
+            let timer = null;
+            let activeIdx = -1;
+            let items = [];
+
+            function close() { list.style.display = 'none'; activeIdx = -1; }
+            function clearStored() {
+                if (latField) latField.value = '';
+                if (lngField) lngField.value = '';
+            }
+
+            input.addEventListener('input', () => {
+                clearStored();
+                clearTimeout(timer);
+                const q = input.value.trim();
+                if (q.length < 2) { close(); return; }
+                timer = setTimeout(async () => {
+                    try {
+                        const params = new URLSearchParams({
+                            q: q,
+                            format: 'json',
+                            addressdetails: '1',
+                            limit: '7',
+                            'accept-language': 'fr',
+                            featuretype: 'city'
+                        });
+                        if (restrictFr) params.set('countrycodes', 'fr');
+                        const r = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
+                        const data = await r.json();
+                        // Filtrer/ranker : place_rank ≤ 18 = ville/commune, puis tri par importance desc
+                        items = (data || [])
+                            .filter(d => parseInt(d.place_rank ?? 30) <= 20)
+                            .sort((a, b) => (parseFloat(b.importance) || 0) - (parseFloat(a.importance) || 0));
+                        if (items.length === 0) {
+                            list.innerHTML = '<div class="ac-empty">Aucune correspondance</div>';
+                            list.style.display = 'block';
+                            return;
+                        }
+                        list.innerHTML = items.map((d, i) => {
+                            const ville = d.address?.city || d.address?.town || d.address?.village || d.address?.municipality || d.display_name?.split(',')[0] || '';
+                            const dept = d.address?.county || d.address?.state_district || '';
+                            const region = d.address?.state || '';
+                            const country = d.address?.country || '';
+                            const detail = [dept, region, country].filter(Boolean).join(' • ');
+                            return `<div class="ac-item" data-idx="${i}">
+                                <div class="ac-item-name">${ville}</div>
+                                <div class="ac-item-detail">${detail}</div>
+                            </div>`;
+                        }).join('');
+                        list.style.display = 'block';
+                        activeIdx = -1;
+                        list.querySelectorAll('.ac-item').forEach(el => {
+                            el.addEventListener('click', () => choose(parseInt(el.dataset.idx)));
+                        });
+                    } catch (e) {
+                        close();
+                    }
+                }, 300);
+            });
+
+            function choose(idx) {
+                const d = items[idx];
+                if (!d) return;
+                const ville = d.address?.city || d.address?.town || d.address?.village || d.address?.municipality || d.display_name?.split(',')[0] || '';
+                input.value = ville;
+                if (latField) latField.value = d.lat;
+                if (lngField) lngField.value = d.lon;
+                close();
+            }
+
+            input.addEventListener('keydown', e => {
+                if (list.style.display === 'none') return;
+                const els = list.querySelectorAll('.ac-item');
+                if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, els.length - 1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); }
+                else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); choose(activeIdx); return; }
+                else if (e.key === 'Escape') { close(); return; }
+                els.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+            });
+
+            document.addEventListener('click', e => {
+                if (!input.parentElement.contains(e.target)) close();
+            });
+        }
+
+        setupAutocomplete('ac-depart', 'ac-depart-list', 'ac-depart-lat', 'ac-depart-lng', true);
+        setupAutocomplete('ac-arrivee', 'ac-arrivee-list', null, null, false);
+    </script>
+}

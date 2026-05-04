@@ -22,6 +22,10 @@ public class ResultatsModel : PageModel
     [BindProperty(SupportsGet = true)] public bool Assurance { get; set; }
     [BindProperty(SupportsGet = true)] public TriOffres Tri { get; set; } = TriOffres.Prix;
 
+    // Coordonnées géocodées de la ville (passées par l'autocomplétion de la page Recherche)
+    [BindProperty(SupportsGet = true, Name = "depLat")] public double? DepLat { get; set; }
+    [BindProperty(SupportsGet = true, Name = "depLng")] public double? DepLng { get; set; }
+
     public IReadOnlyList<OffreResponse> Offres { get; private set; } = Array.Empty<OffreResponse>();
 
     public async Task OnGetAsync(CancellationToken ct)
