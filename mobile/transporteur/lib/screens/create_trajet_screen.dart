@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import 'tarifs_screen.dart';
 
 class CreateTrajetScreen extends StatefulWidget {
   const CreateTrajetScreen({super.key});
@@ -25,6 +26,35 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
   DateTime _dateArrivee = DateTime.now().add(const Duration(days: 6));
   bool _loading = false;
   String? _error;
+
+  // Tarifs paramétrables
+  List<Map<String, dynamic>> _tarifs = [];
+  String? _tarifId;             // id du tarif sélectionné (null = mode legacy)
+  bool _utiliserTarif = true;   // toggle UI
+
+  // Limites par colis (refus auto)
+  final _longueurMaxCtrl = TextEditingController();
+  final _largeurMaxCtrl = TextEditingController();
+  final _hauteurMaxCtrl = TextEditingController();
+  final _poidsMaxColisCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTarifs();
+  }
+
+  Future<void> _loadTarifs() async {
+    final api = context.read<ApiService>();
+    final res = await api.getMesTarifs();
+    if (!mounted) return;
+    final actifs = res.where((t) => (t as Map<String, dynamic>)['estActif'] == true).cast<Map<String, dynamic>>().toList();
+    setState(() {
+      _tarifs = actifs;
+      if (actifs.isNotEmpty && _tarifId == null) _tarifId = actifs.first['id'];
+      if (actifs.isEmpty) _utiliserTarif = false;
+    });
+  }
 
   // Étapes inline
   final List<Map<String, dynamic>> _etapes = [];
@@ -103,8 +133,14 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
       'capaciteMaxPoids': double.tryParse(_poidsMaxCtrl.text) ?? 500,
       'nombreMaxColis': int.tryParse(_nbColisCtrl.text) ?? 30,
       'modeTarification': _modeTarif == 'PrixParColis' ? 0 : (_modeTarif == 'PrixAuKilo' ? 1 : 2),
-      if (_modeTarif == 'PrixParColis' || _modeTarif == 'Forfait') 'prixParColis': double.tryParse(_prixCtrl.text) ?? 0,
-      if (_modeTarif == 'PrixAuKilo' || _modeTarif == 'Forfait') 'prixAuKilo': double.tryParse(_prixCtrl.text) ?? 0,
+      if (!_utiliserTarif && (_modeTarif == 'PrixParColis' || _modeTarif == 'Forfait')) 'prixParColis': double.tryParse(_prixCtrl.text) ?? 0,
+      if (!_utiliserTarif && (_modeTarif == 'PrixAuKilo' || _modeTarif == 'Forfait')) 'prixAuKilo': double.tryParse(_prixCtrl.text) ?? 0,
+      if (_utiliserTarif && _tarifId != null) 'tarifId': _tarifId,
+      'relaisDepartId': _relaisDepart?['id'],
+      if (_longueurMaxCtrl.text.isNotEmpty) 'longueurMaxColisCm': int.tryParse(_longueurMaxCtrl.text),
+      if (_largeurMaxCtrl.text.isNotEmpty) 'largeurMaxColisCm': int.tryParse(_largeurMaxCtrl.text),
+      if (_hauteurMaxCtrl.text.isNotEmpty) 'hauteurMaxColisCm': int.tryParse(_hauteurMaxCtrl.text),
+      if (_poidsMaxColisCtrl.text.isNotEmpty) 'poidsMaxColisKg': double.tryParse(_poidsMaxColisCtrl.text),
       'conditions': _conditionsCtrl.text.trim(),
     };
 
@@ -285,22 +321,79 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
             ]),
 
             const SizedBox(height: 20), _label('TARIFICATION'),
-            DropdownButtonFormField<String>(
-              initialValue: _modeTarif,
-              decoration: const InputDecoration(labelText: 'MODE'),
-              items: const [
-                DropdownMenuItem(value: 'PrixParColis', child: Text('Prix par colis')),
-                DropdownMenuItem(value: 'PrixAuKilo', child: Text('Prix au kilo')),
-                DropdownMenuItem(value: 'Forfait', child: Text('Forfait + kilo')),
-              ],
-              onChanged: (v) => setState(() => _modeTarif = v!),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _utiliserTarif,
+              onChanged: _tarifs.isEmpty ? null : (v) => setState(() => _utiliserTarif = v),
+              title: const Text('Utiliser un tarif enregistré', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(_tarifs.isEmpty
+                  ? 'Aucun tarif enregistré — créez-en un d\'abord'
+                  : 'Sélection d\'un de vos templates de tarifs'),
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _prixCtrl,
-              decoration: InputDecoration(labelText: _modeTarif == 'PrixAuKilo' ? 'PRIX AU KILO (€)' : 'PRIX PAR COLIS (€)', hintText: _modeTarif == 'PrixAuKilo' ? '7' : '85'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            if (_utiliserTarif && _tarifs.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _tarifId,
+                      decoration: const InputDecoration(labelText: 'TARIF'),
+                      items: _tarifs.map((t) => DropdownMenuItem(
+                        value: t['id'] as String,
+                        child: Text(t['nom']?.toString() ?? '—'),
+                      )).toList(),
+                      onChanged: (v) => setState(() => _tarifId = v),
+                    ),
+                    if (_tarifId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: _tarifPreview(),
+                      ),
+                  ],
+                ),
+              )
+            else ...[
+              DropdownButtonFormField<String>(
+                initialValue: _modeTarif,
+                decoration: const InputDecoration(labelText: 'MODE'),
+                items: const [
+                  DropdownMenuItem(value: 'PrixParColis', child: Text('Prix par colis')),
+                  DropdownMenuItem(value: 'PrixAuKilo', child: Text('Prix au kilo')),
+                  DropdownMenuItem(value: 'Forfait', child: Text('Forfait + kilo')),
+                ],
+                onChanged: (v) => setState(() => _modeTarif = v!),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _prixCtrl,
+                decoration: InputDecoration(labelText: _modeTarif == 'PrixAuKilo' ? 'PRIX AU KILO (€)' : 'PRIX PAR COLIS (€)', hintText: _modeTarif == 'PrixAuKilo' ? '7' : '85'),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
+            const SizedBox(height: 8),
+            TextButton.icon(
+              icon: const Icon(Icons.tune, size: 18),
+              label: const Text('Configurer un nouveau tarif'),
+              onPressed: () async {
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => const TarifsScreen()));
+                _loadTarifs();
+              },
             ),
+
+            const SizedBox(height: 20), _label('LIMITES PAR COLIS (REFUS AUTO SI DÉPASSÉ)'),
+            const Text('Optionnel. Laisser vide = aucune limite individuelle.', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: TextField(controller: _longueurMaxCtrl, decoration: const InputDecoration(labelText: 'L max (cm)'), keyboardType: TextInputType.number)),
+              const SizedBox(width: 6),
+              Expanded(child: TextField(controller: _largeurMaxCtrl, decoration: const InputDecoration(labelText: 'l max (cm)'), keyboardType: TextInputType.number)),
+              const SizedBox(width: 6),
+              Expanded(child: TextField(controller: _hauteurMaxCtrl, decoration: const InputDecoration(labelText: 'H max (cm)'), keyboardType: TextInputType.number)),
+              const SizedBox(width: 6),
+              Expanded(child: TextField(controller: _poidsMaxColisCtrl, decoration: const InputDecoration(labelText: 'Poids/colis (kg)'), keyboardType: TextInputType.number)),
+            ]),
+
             const SizedBox(height: 10),
             TextField(controller: _conditionsCtrl, decoration: const InputDecoration(labelText: 'CONDITIONS (OPTIONNEL)'), maxLines: 2),
 
@@ -318,6 +411,29 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _tarifPreview() {
+    final t = _tarifs.firstWhere((x) => x['id'] == _tarifId, orElse: () => {});
+    if (t.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Standard : ${t['prixAuKiloStandard']} €/kg jusqu\'à ${t['seuilStandardKg']} kg',
+              style: const TextStyle(fontSize: 12)),
+          Text('Lourd : ${t['forfaitLourd']} € + ${t['prixAuKiloLourd']} €/kg au-delà',
+              style: const TextStyle(fontSize: 12)),
+          Text('Hors gabarit (> ${t['longueurMaxStandardCm']}×${t['largeurMaxStandardCm']}×${t['hauteurMaxStandardCm']} cm) : ${t['forfaitHorsGabarit']} € + ${t['prixAuKiloHorsGabarit']} €/kg',
+              style: const TextStyle(fontSize: 12)),
+        ],
       ),
     );
   }
