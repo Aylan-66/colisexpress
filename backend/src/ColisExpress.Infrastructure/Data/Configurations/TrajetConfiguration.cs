@@ -36,6 +36,13 @@ public class TrajetConfiguration : IEntityTypeConfiguration<Trajet>
             .HasForeignKey(t => t.TransporteurId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(t => t.Tarif)
+            .WithMany()
+            .HasForeignKey(t => t.TarifId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Property(t => t.PoidsMaxColisKg).HasPrecision(10, 2);
+
         builder.HasIndex(t => t.TransporteurId);
         builder.HasIndex(t => new { t.VilleDepart, t.VilleArrivee, t.DateDepart });
         builder.HasIndex(t => t.Statut);

@@ -18,6 +18,9 @@ public class CreateCommandeRequest
     public string DescriptionContenu { get; set; } = string.Empty;
     public decimal PoidsDeclare { get; set; }
     public string? Dimensions { get; set; }
+    public int? LongueurCm { get; set; }
+    public int? LargeurCm { get; set; }
+    public int? HauteurCm { get; set; }
     public decimal ValeurDeclaree { get; set; }
 
     public bool Fragile { get; set; }

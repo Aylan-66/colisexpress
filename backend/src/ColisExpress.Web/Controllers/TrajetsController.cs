@@ -76,6 +76,12 @@ public class TrajetsController : ControllerBase
             SupplementFragile = request.SupplementFragile,
             PointDepot = request.PointDepot,
             Conditions = request.Conditions,
+            TarifId = request.TarifId,
+            RelaisDepartId = request.RelaisDepartId,
+            LongueurMaxColisCm = request.LongueurMaxColisCm,
+            LargeurMaxColisCm = request.LargeurMaxColisCm,
+            HauteurMaxColisCm = request.HauteurMaxColisCm,
+            PoidsMaxColisKg = request.PoidsMaxColisKg,
             Statut = StatutTrajet.Actif
         };
 
@@ -110,6 +116,12 @@ public class TrajetsController : ControllerBase
         trajet.SupplementFragile = request.SupplementFragile;
         trajet.PointDepot = request.PointDepot;
         trajet.Conditions = request.Conditions;
+        trajet.TarifId = request.TarifId;
+        trajet.RelaisDepartId = request.RelaisDepartId;
+        trajet.LongueurMaxColisCm = request.LongueurMaxColisCm;
+        trajet.LargeurMaxColisCm = request.LargeurMaxColisCm;
+        trajet.HauteurMaxColisCm = request.HauteurMaxColisCm;
+        trajet.PoidsMaxColisKg = request.PoidsMaxColisKg;
 
         await _uow.SaveChangesAsync(ct);
         return Ok(new { trajet.Id });
@@ -536,11 +548,270 @@ public class TrajetsController : ControllerBase
         });
     }
 
+    /// Liste les colis en attente de validation transporteur (après paiement client)
+    [HttpGet("/api/transporteur/colis-en-attente")]
+    public async Task<IActionResult> GetColisEnAttenteValidation(CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var commandes = await _db.Commandes
+            .Include(c => c.Colis)
+            .Include(c => c.Trajet)
+            .Include(c => c.Client)
+            .Where(c => c.TransporteurId == transporteur.Id
+                     && c.Colis != null
+                     && c.Colis.Statut == StatutColis.EnAttenteValidationTransporteur)
+            .OrderByDescending(c => c.DateCreation)
+            .ToListAsync(ct);
+
+        return Ok(commandes.Select(c => new
+        {
+            commandeId = c.Id,
+            colisId = c.Colis!.Id,
+            codeColis = c.Colis.CodeColis,
+            trajetId = c.TrajetId,
+            trajet = c.Trajet is null ? "—" : $"{c.Trajet.VilleDepart} → {c.Trajet.VilleArrivee}",
+            dateDepart = c.Trajet?.DateDepart,
+            segmentDepart = c.SegmentDepart,
+            segmentArrivee = c.SegmentArrivee,
+            nomDestinataire = c.NomDestinataire,
+            telephoneDestinataire = c.TelephoneDestinataire,
+            villeDestinataire = c.VilleDestinataire,
+            descriptionContenu = c.DescriptionContenu,
+            poidsDeclare = c.PoidsDeclare,
+            longueurCm = c.LongueurCm,
+            largeurCm = c.LargeurCm,
+            hauteurCm = c.HauteurCm,
+            dimensions = c.Dimensions,
+            valeurDeclaree = c.ValeurDeclaree,
+            total = c.Total,
+            modeReglement = c.ModeReglement.ToString(),
+            client = c.Client is null ? "—" : $"{c.Client.Prenom} {c.Client.Nom}",
+            clientEmail = c.Client?.Email,
+            dateCreation = c.DateCreation
+        }));
+    }
+
+    /// Valider la prise en charge d'un colis (transporteur uniquement) → passe à EnAttenteDepot
+    [HttpPost("/api/transporteur/colis/{codeColis}/valider")]
+    public async Task<IActionResult> ValiderColis(string codeColis, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
+        if (colis is null) return NotFound(new { error = "Colis introuvable." });
+
+        var commande = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commande is null || commande.TransporteurId != transporteur.Id)
+            return Forbid();
+
+        if (colis.Statut != StatutColis.EnAttenteValidationTransporteur)
+            return BadRequest(new { error = $"Ce colis n'est pas en attente de validation (statut : {colis.Statut})." });
+
+        var ancien = colis.Statut;
+        colis.Statut = StatutColis.EnAttenteDepot;
+
+        await _uow.Colis.AddEvenementAsync(new EvenementColis
+        {
+            ColisId = colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.EnAttenteDepot,
+            ActeurId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
+            Commentaire = "Prise en charge validée par le transporteur"
+        }, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        return Ok(new { message = "Colis validé. Le client peut le déposer au point relais.", statut = colis.Statut.ToString() });
+    }
+
+    /// Clôturer un trajet : passe à Termine, n'apparaît plus en recherche
+    [HttpPost("{id:guid}/cloturer")]
+    public async Task<IActionResult> Cloturer(Guid id, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var trajet = await _uow.Trajets.GetByIdAsync(id, ct);
+        if (trajet is null || trajet.TransporteurId != transporteur.Id)
+            return NotFound(new { error = "Trajet introuvable." });
+
+        if (trajet.Statut == StatutTrajet.Termine) return Ok(new { message = "Déjà clôturé." });
+        trajet.Statut = StatutTrajet.Termine;
+        await _uow.SaveChangesAsync(ct);
+        return Ok(new { message = "Trajet clôturé.", statut = trajet.Statut.ToString() });
+    }
+
+    /// Dupliquer un trajet existant — retourne le nouveau trajet (dates à ajuster côté client)
+    [HttpPost("{id:guid}/dupliquer")]
+    public async Task<IActionResult> Dupliquer(Guid id, [FromBody] DupliquerTrajetRequest body, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var trajet = await _db.Trajets
+            .Include(t => t.Etapes)
+            .FirstOrDefaultAsync(t => t.Id == id && t.TransporteurId == transporteur.Id, ct);
+        if (trajet is null) return NotFound(new { error = "Trajet introuvable." });
+
+        var decalage = body.NouvelleDateDepart - trajet.DateDepart;
+        var nouveau = new Trajet
+        {
+            TransporteurId = trajet.TransporteurId,
+            PaysDepart = trajet.PaysDepart,
+            VilleDepart = trajet.VilleDepart,
+            PaysArrivee = trajet.PaysArrivee,
+            VilleArrivee = trajet.VilleArrivee,
+            DateDepart = DateTime.SpecifyKind(body.NouvelleDateDepart, DateTimeKind.Utc),
+            DateEstimeeArrivee = DateTime.SpecifyKind(trajet.DateEstimeeArrivee + decalage, DateTimeKind.Utc),
+            CapaciteMaxPoids = trajet.CapaciteMaxPoids,
+            NombreMaxColis = trajet.NombreMaxColis,
+            CapaciteRestante = trajet.NombreMaxColis,
+            ModeTarification = trajet.ModeTarification,
+            PrixParColis = trajet.PrixParColis,
+            PrixAuKilo = trajet.PrixAuKilo,
+            SupplementUrgent = trajet.SupplementUrgent,
+            SupplementFragile = trajet.SupplementFragile,
+            PointDepot = trajet.PointDepot,
+            RelaisDepartId = trajet.RelaisDepartId,
+            TarifId = trajet.TarifId,
+            LongueurMaxColisCm = trajet.LongueurMaxColisCm,
+            LargeurMaxColisCm = trajet.LargeurMaxColisCm,
+            HauteurMaxColisCm = trajet.HauteurMaxColisCm,
+            PoidsMaxColisKg = trajet.PoidsMaxColisKg,
+            Conditions = trajet.Conditions,
+            Statut = StatutTrajet.Actif
+        };
+        _db.Trajets.Add(nouveau);
+        await _db.SaveChangesAsync(ct);
+
+        // Dupliquer aussi les étapes avec le même décalage
+        foreach (var e in trajet.Etapes.OrderBy(e => e.Ordre))
+        {
+            _db.EtapesTrajets.Add(new EtapeTrajet
+            {
+                TrajetId = nouveau.Id,
+                PointRelaisId = e.PointRelaisId,
+                Ordre = e.Ordre,
+                HeureEstimeeArrivee = e.HeureEstimeeArrivee + decalage,
+                RelaisOuvertALArrivee = e.RelaisOuvertALArrivee,
+                Statut = StatutEtape.Planifiee
+            });
+        }
+        await _db.SaveChangesAsync(ct);
+
+        return Created($"/api/trajets/{nouveau.Id}", new { nouveau.Id });
+    }
+
+    /// Mettre à jour le statut de TOUS les colis d'un trajet (boutons "En transit", "Arrivé destination", etc.)
+    [HttpPost("{id:guid}/colis/batch-statut")]
+    public async Task<IActionResult> BatchStatutColis(Guid id, [FromBody] BatchStatutRequest body, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var trajet = await _uow.Trajets.GetByIdAsync(id, ct);
+        if (trajet is null || trajet.TransporteurId != transporteur.Id)
+            return NotFound(new { error = "Trajet introuvable." });
+
+        if (!Enum.TryParse<StatutColis>(body.NouveauStatut, out var nouveau))
+            return BadRequest(new { error = "Statut invalide." });
+
+        var commandes = await _db.Commandes
+            .Include(c => c.Colis)
+            .Where(c => c.TrajetId == id && c.Colis != null)
+            .ToListAsync(ct);
+
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var modifies = 0;
+
+        foreach (var c in commandes)
+        {
+            // On ne touche pas aux colis déjà refusés/livrés/annulés
+            if (c.Colis!.Statut is StatutColis.Refuse or StatutColis.LivraisonCloturee
+                or StatutColis.RetireParDestinataire or StatutColis.Annulee)
+                continue;
+
+            var ancien = c.Colis.Statut;
+            c.Colis.Statut = nouveau;
+            await _uow.Colis.AddEvenementAsync(new EvenementColis
+            {
+                ColisId = c.Colis.Id, AncienStatut = ancien, NouveauStatut = nouveau,
+                ActeurId = userId,
+                Commentaire = $"Mise à jour groupée par le transporteur (trajet {trajet.VilleDepart}→{trajet.VilleArrivee})"
+            }, ct);
+            modifies++;
+        }
+
+        await _uow.SaveChangesAsync(ct);
+        return Ok(new { message = $"{modifies} colis mis à jour.", statut = nouveau.ToString() });
+    }
+
+    /// Liste les points relais avec lesquels le transporteur travaille (relais de ses trajets actifs)
+    [HttpGet("/api/transporteur/relais-partenaires")]
+    public async Task<IActionResult> GetRelaisPartenaires(CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        var trajets = await _db.Trajets
+            .Include(t => t.RelaisDepart)
+            .Include(t => t.Etapes).ThenInclude(e => e.PointRelais)
+            .Where(t => t.TransporteurId == transporteur.Id && t.Statut != StatutTrajet.Termine)
+            .ToListAsync(ct);
+
+        var relaisDict = new Dictionary<Guid, PointRelais>();
+        foreach (var t in trajets)
+        {
+            if (t.RelaisDepart != null) relaisDict[t.RelaisDepart.Id] = t.RelaisDepart;
+            foreach (var e in t.Etapes)
+                if (e.PointRelais != null) relaisDict[e.PointRelais.Id] = e.PointRelais;
+        }
+
+        var relaisIds = relaisDict.Keys.ToList();
+
+        // Colis en attente de récupération côté relais (DisponibleAuRetrait) pour ce transporteur
+        var colisEnAttente = await _db.Commandes
+            .Include(c => c.Colis)
+            .Include(c => c.Trajet)
+            .Where(c => c.TransporteurId == transporteur.Id
+                     && c.Colis != null
+                     && c.Colis.Statut == StatutColis.DisponibleAuRetrait)
+            .ToListAsync(ct);
+
+        return Ok(relaisDict.Values.Select(r => new
+        {
+            id = r.Id,
+            nom = r.NomRelais,
+            adresse = r.Adresse,
+            ville = r.Ville,
+            pays = r.Pays,
+            telephone = r.Telephone,
+            colisEnAttente = colisEnAttente
+                .Where(c => c.RelaisArriveeId == r.Id || (c.VilleDestinataire?.ToLower() == r.Ville.ToLower()))
+                .Select(c => new
+                {
+                    codeColis = c.Colis!.CodeColis,
+                    nomDestinataire = c.NomDestinataire,
+                    trajet = c.Trajet is null ? "—" : $"{c.Trajet.VilleDepart} → {c.Trajet.VilleArrivee}"
+                }).ToList()
+        }));
+    }
+
     private async Task<Transporteur?> GetTransporteurAsync(CancellationToken ct)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         return await _uow.Transporteurs.GetByUtilisateurIdAsync(userId, ct);
     }
+}
+
+public class DupliquerTrajetRequest
+{
+    public DateTime NouvelleDateDepart { get; set; }
+}
+
+public class BatchStatutRequest
+{
+    public string NouveauStatut { get; set; } = string.Empty;
 }
 
 public class CreateTrajetApiRequest
@@ -560,6 +831,12 @@ public class CreateTrajetApiRequest
     public decimal? SupplementFragile { get; set; }
     public string? PointDepot { get; set; }
     public string? Conditions { get; set; }
+    public Guid? TarifId { get; set; }
+    public Guid? RelaisDepartId { get; set; }
+    public int? LongueurMaxColisCm { get; set; }
+    public int? LargeurMaxColisCm { get; set; }
+    public int? HauteurMaxColisCm { get; set; }
+    public decimal? PoidsMaxColisKg { get; set; }
 }
 
 public class AddEtapeRequest

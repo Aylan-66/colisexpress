@@ -19,6 +19,7 @@ public class ColisExpressDbContext : DbContext
     public DbSet<Paiement> Paiements => Set<Paiement>();
     public DbSet<Avis> Avis => Set<Avis>();
     public DbSet<EtapeTrajet> EtapesTrajets => Set<EtapeTrajet>();
+    public DbSet<Tarif> Tarifs => Set<Tarif>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

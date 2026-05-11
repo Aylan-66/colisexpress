@@ -20,6 +20,16 @@ public class Trajet
     public decimal? PrixAuKilo { get; set; }
     public decimal? SupplementUrgent { get; set; }
     public decimal? SupplementFragile { get; set; }
+
+    // Tarif paramétrable (remplace progressivement les champs PrixPar* / Mode ci-dessus)
+    public Guid? TarifId { get; set; }
+    public Tarif? Tarif { get; set; }
+
+    // Limites strictes par colis (au-delà → refus auto à la création de la commande)
+    public int? LongueurMaxColisCm { get; set; }
+    public int? LargeurMaxColisCm { get; set; }
+    public int? HauteurMaxColisCm { get; set; }
+    public decimal? PoidsMaxColisKg { get; set; }
     public string? PointDepot { get; set; }
     public Guid? RelaisDepartId { get; set; }
     public PointRelais? RelaisDepart { get; set; }

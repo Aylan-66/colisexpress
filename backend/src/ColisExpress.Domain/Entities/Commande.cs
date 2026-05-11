@@ -21,7 +21,10 @@ public class Commande
 
     public string DescriptionContenu { get; set; } = string.Empty;
     public decimal PoidsDeclare { get; set; }
-    public string? Dimensions { get; set; }
+    public string? Dimensions { get; set; }                  // legacy : "40x30x25"
+    public int? LongueurCm { get; set; }
+    public int? LargeurCm { get; set; }
+    public int? HauteurCm { get; set; }
     public decimal ValeurDeclaree { get; set; }
 
     public decimal PrixTransport { get; set; }

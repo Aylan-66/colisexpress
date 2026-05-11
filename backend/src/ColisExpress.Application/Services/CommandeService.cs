@@ -39,7 +39,27 @@ public class CommandeService : ICommandeService
         if (request.PoidsDeclare > trajet.CapaciteMaxPoids)
             throw new DomainException($"Le poids dépasse la capacité maximale ({trajet.CapaciteMaxPoids} kg).");
 
-        var prixTransport = RechercheService.CalculerPrix(trajet, request.PoidsDeclare, request.Urgent, request.Fragile);
+        // Limites par colis définies sur le trajet (refus automatique si dépassement)
+        if (trajet.PoidsMaxColisKg.HasValue && request.PoidsDeclare > trajet.PoidsMaxColisKg.Value)
+            throw new DomainException($"Ce transporteur n'accepte pas les colis de plus de {trajet.PoidsMaxColisKg.Value} kg.");
+
+        if (trajet.LongueurMaxColisCm.HasValue && request.LongueurCm.HasValue && request.LongueurCm.Value > trajet.LongueurMaxColisCm.Value)
+            throw new DomainException($"La longueur dépasse la limite acceptée ({trajet.LongueurMaxColisCm.Value} cm).");
+        if (trajet.LargeurMaxColisCm.HasValue && request.LargeurCm.HasValue && request.LargeurCm.Value > trajet.LargeurMaxColisCm.Value)
+            throw new DomainException($"La largeur dépasse la limite acceptée ({trajet.LargeurMaxColisCm.Value} cm).");
+        if (trajet.HauteurMaxColisCm.HasValue && request.HauteurCm.HasValue && request.HauteurCm.Value > trajet.HauteurMaxColisCm.Value)
+            throw new DomainException($"La hauteur dépasse la limite acceptée ({trajet.HauteurMaxColisCm.Value} cm).");
+
+        // Tarif paramétrable si défini, sinon tarif legacy du trajet
+        decimal prixTransport;
+        if (trajet.Tarif != null)
+        {
+            prixTransport = trajet.Tarif.CalculerPrix(request.PoidsDeclare, request.LongueurCm, request.LargeurCm, request.HauteurCm);
+        }
+        else
+        {
+            prixTransport = RechercheService.CalculerPrix(trajet, request.PoidsDeclare, request.Urgent, request.Fragile);
+        }
         const decimal fraisService = 5m;
         var supplements = 0m;
         if (request.Urgent) supplements += trajet.SupplementUrgent ?? 0;
@@ -62,6 +82,9 @@ public class CommandeService : ICommandeService
             DescriptionContenu = request.DescriptionContenu.Trim(),
             PoidsDeclare = request.PoidsDeclare,
             Dimensions = request.Dimensions,
+            LongueurCm = request.LongueurCm,
+            LargeurCm = request.LargeurCm,
+            HauteurCm = request.HauteurCm,
             ValeurDeclaree = request.ValeurDeclaree,
             PrixTransport = prixTransport,
             FraisService = fraisService,
@@ -302,15 +325,16 @@ public class CommandeService : ICommandeService
         if (commande.Colis is not null)
         {
             var ancien = commande.Colis.Statut;
-            commande.Colis.Statut = StatutColis.EnAttenteDepot;
+            // Après paiement → le transporteur doit valider la prise en charge avant le dépôt
+            commande.Colis.Statut = StatutColis.EnAttenteValidationTransporteur;
 
             await _uow.Colis.AddEvenementAsync(new EvenementColis
             {
                 ColisId = commande.Colis.Id,
                 AncienStatut = ancien,
-                NouveauStatut = StatutColis.EnAttenteDepot,
+                NouveauStatut = StatutColis.EnAttenteValidationTransporteur,
                 ActeurId = clientId,
-                Commentaire = "Paiement confirmé — en attente de dépôt au point relais"
+                Commentaire = "Paiement confirmé — en attente de validation du transporteur"
             }, ct);
         }
 

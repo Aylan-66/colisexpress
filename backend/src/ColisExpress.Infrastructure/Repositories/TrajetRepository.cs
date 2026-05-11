@@ -13,7 +13,7 @@ public class TrajetRepository : ITrajetRepository
     public TrajetRepository(ColisExpressDbContext db) => _db = db;
 
     public Task<Trajet?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        _db.Trajets.Include(t => t.Transporteur).FirstOrDefaultAsync(t => t.Id == id, ct);
+        _db.Trajets.Include(t => t.Transporteur).Include(t => t.Tarif).FirstOrDefaultAsync(t => t.Id == id, ct);
 
     public async Task<IReadOnlyList<Trajet>> GetByTransporteurIdAsync(Guid transporteurId, CancellationToken ct = default) =>
         await _db.Trajets.Where(t => t.TransporteurId == transporteurId).ToListAsync(ct);

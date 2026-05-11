@@ -22,5 +22,6 @@ public enum StatutColis
     Endommage,
     Perdu,
     RetourExpediteur,
-    Annulee
+    Annulee,
+    EnAttenteValidationTransporteur
 }
