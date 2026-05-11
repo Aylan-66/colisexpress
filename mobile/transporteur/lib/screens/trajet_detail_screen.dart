@@ -52,7 +52,8 @@ class _TrajetDetailScreenState extends State<TrajetDetailScreen> {
                     _info('Départ', _fmtDate(t['dateDepart'])),
                     _info('Arrivée', _fmtDate(t['dateEstimeeArrivee'])),
                     _info('Capacité', '${t['capaciteRestante']}/${t['nombreMaxColis']} places'),
-                    _info('Poids max', '${t['capaciteMaxPoids']} kg'),
+                    _info('Poids max trajet', '${t['capaciteMaxPoids']} kg'),
+                    _info('Poids restant', '${_calculPoidsRestant()} kg'),
                     if (t['pointDepot'] != null) _info('Point de dépôt', t['pointDepot']),
                     if (t['prixParColis'] != null) _info('Prix/colis', '${t['prixParColis']} €'),
                     if (t['prixAuKilo'] != null) _info('Prix/kg', '${t['prixAuKilo']} €'),
@@ -70,6 +71,18 @@ class _TrajetDetailScreenState extends State<TrajetDetailScreen> {
                             ))),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    if (t['statut'] != 'Termine')
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.lock_outline, size: 18),
+                          label: const Text('Clôturer le trajet'),
+                          onPressed: _cloturer,
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    if (_colis.isNotEmpty) _batchActions(),
                   ],
                 ),
               ),
@@ -132,6 +145,73 @@ class _TrajetDetailScreenState extends State<TrajetDetailScreen> {
         ),
       ),
     );
+  }
+
+  String _calculPoidsRestant() {
+    final cap = (widget.trajet['capaciteMaxPoids'] as num?)?.toDouble() ?? 0;
+    final utilise = _colis.fold<double>(0, (sum, c) {
+      final p = (c['poidsDeclare'] as num?)?.toDouble() ?? 0;
+      return sum + p;
+    });
+    return (cap - utilise).toStringAsFixed(1);
+  }
+
+  Future<void> _cloturer() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clôturer ce trajet ?'),
+        content: const Text('Le trajet n\'apparaîtra plus dans les recherches et n\'acceptera plus de nouveaux colis.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Clôturer')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await context.read<ApiService>().cloturerTrajet(widget.trajet['id']);
+    if (!mounted) return;
+    Navigator.pop(context, true);
+  }
+
+  Widget _batchActions() {
+    return Wrap(
+      spacing: 8, runSpacing: 8,
+      children: [
+        _batchBtn('En transit', 'EnTransit', Icons.local_shipping),
+        _batchBtn('Arrivé', 'ArriveDansPaysDest', Icons.flag),
+        _batchBtn('Au relais', 'ReceptionneParPointRelais', Icons.store),
+        _batchBtn('Incident', 'Incident', Icons.warning, danger: true),
+      ],
+    );
+  }
+
+  Widget _batchBtn(String label, String statut, IconData icon, {bool danger = false}) {
+    return OutlinedButton.icon(
+      icon: Icon(icon, size: 16, color: danger ? AppTheme.danger : AppTheme.primary),
+      label: Text(label, style: TextStyle(fontSize: 12, color: danger ? AppTheme.danger : AppTheme.primary)),
+      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+      onPressed: () => _appliquerBatch(label, statut),
+    );
+  }
+
+  Future<void> _appliquerBatch(String label, String statut) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Marquer tous les colis : $label ?'),
+        content: Text('Cette action s\'applique à tous les colis de ce trajet (sauf ceux déjà refusés, livrés ou annulés).'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final res = await context.read<ApiService>().batchStatutColis(widget.trajet['id'], statut);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message']?.toString() ?? 'Mis à jour')));
+    _load();
   }
 
   Widget _info(String label, String value) => Padding(

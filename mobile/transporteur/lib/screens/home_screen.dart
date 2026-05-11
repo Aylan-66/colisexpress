@@ -7,6 +7,7 @@ import 'colis_screen.dart';
 import 'scan_screen.dart';
 import 'kyc_screen.dart';
 import 'profil_screen.dart';
+import 'validation_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Widget> get _screens => _kycValide
-      ? [const TrajetsScreen(), const ColisScreen(), const ScanScreen(), KycScreen(onKycValidated: _onKycValidated), const ProfilScreen()]
+      ? [const TrajetsScreen(), const ValidationScreen(), const ColisScreen(), const ScanScreen(), const ProfilScreen()]
       : [KycScreen(onKycValidated: _onKycValidated), const ProfilScreen()];
 
   @override
@@ -95,6 +96,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: 'Trajets',
                 ),
                 NavigationDestination(
+                  icon: Icon(Icons.fact_check_outlined),
+                  selectedIcon: Icon(Icons.fact_check, color: AppTheme.primary),
+                  label: 'À valider',
+                ),
+                NavigationDestination(
                   icon: Icon(Icons.inventory_2_outlined),
                   selectedIcon: Icon(Icons.inventory_2, color: AppTheme.primary),
                   label: 'Colis',
@@ -103,11 +109,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icon(Icons.qr_code_scanner_outlined),
                   selectedIcon: Icon(Icons.qr_code_scanner, color: AppTheme.primary),
                   label: 'Scanner',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.verified_outlined),
-                  selectedIcon: Icon(Icons.verified, color: AppTheme.success),
-                  label: 'KYC',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.person_outline),

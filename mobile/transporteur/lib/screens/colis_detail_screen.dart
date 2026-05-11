@@ -112,18 +112,70 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
     }
   }
 
-  Future<void> _takePhoto() async {
+  /// Prise en charge avec photo obligatoire en une seule action.
+  /// Étape 1 : upload de la photo (le backend met le statut à PhotoPriseEnChargeEnregistree).
+  /// Étape 2 : passage à ReceptionneParTransporteur.
+  Future<void> _prendreEnChargeAvecPhoto() async {
     final picker = ImagePicker();
     final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 1200, imageQuality: 80);
-    if (photo == null) return;
+    if (photo == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo obligatoire pour la prise en charge.')),
+        );
+      }
+      return;
+    }
 
-    setState(() { _loading = true; _success = null; });
+    setState(() { _loading = true; _success = null; _error = null; });
     final api = context.read<ApiService>();
+
+    // 1) On passe d'abord à ReceptionneParTransporteur (sinon upload photo ne change rien)
+    final updateRes = await api.updateStatutColis(widget.codeColis, 'ReceptionneParTransporteur', 'Prise en charge');
+    if (updateRes.containsKey('error')) {
+      setState(() { _error = updateRes['error']; _loading = false; });
+      return;
+    }
+    // 2) Upload de la photo (passe à PhotoPriseEnChargeEnregistree)
     final res = await api.uploadPhotoColis(widget.codeColis, File(photo.path));
+    if (!mounted) return;
     if (res.containsKey('error')) {
       setState(() { _error = res['error']; _loading = false; });
     } else {
-      setState(() => _success = 'Photo enregistrée.');
+      setState(() => _success = 'Colis pris en charge avec photo.');
+      await _load();
+    }
+  }
+
+  /// Confirmation manuelle d'un paiement en espèces (le transporteur encaisse).
+  /// L'utilisateur saisit le montant pour vérification visuelle, l'API marque la commande comme payée.
+  Future<void> _confirmerPaiement() async {
+    final montant = _colis?['total']?.toString() ?? '—';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmer l\'encaissement'),
+        content: Text('Confirmez avoir reçu $montant € en espèces de la part du client. Le statut du colis sera mis à jour.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() { _loading = true; _success = null; _error = null; });
+    final res = await context.read<ApiService>().updateStatutColis(
+      widget.codeColis, 'ReservationConfirmee', 'Paiement espèces encaissé par le transporteur',
+    );
+    if (!mounted) return;
+    if (res.containsKey('error')) {
+      setState(() { _error = res['error']; _loading = false; });
+    } else {
+      setState(() => _success = 'Paiement confirmé.');
       await _load();
     }
   }
@@ -219,12 +271,12 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _actionButton('Prendre en charge', 'ReceptionneParTransporteur', Icons.handshake, AppTheme.primary),
-                    _actionButton('Photo prise en charge', null, Icons.camera_alt, AppTheme.accent, onTap: _takePhoto),
+                    _actionButton('Prendre en charge (photo obligatoire)', null, Icons.handshake, AppTheme.primary, onTap: _prendreEnChargeAvecPhoto),
+                    _actionButton('Confirmer paiement (espèces)', null, Icons.payments, AppTheme.success, onTap: _confirmerPaiement),
                     _actionButton('En transit', 'EnTransit', Icons.local_shipping, AppTheme.primary),
                     _actionButton('Arrivé destination', 'ArriveDansPaysDest', Icons.flag, AppTheme.success),
                     _actionButton('Au point relais', 'ReceptionneParPointRelais', Icons.store, AppTheme.success),
-                    _actionButton('Disponible retrait', 'DisponibleAuRetrait', Icons.check_circle, AppTheme.success),
+                    // Bouton "Disponible retrait" retiré : c'est le relais qui définit la disponibilité au retrait
                     _actionButton('Signaler incident', 'Incident', Icons.warning, AppTheme.danger),
                     _actionButton('Refuser le colis', null, Icons.block, AppTheme.danger, onTap: _refuserColis),
                   ],

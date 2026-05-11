@@ -140,6 +140,47 @@ class ApiService {
   Future<Map<String, dynamic>> getColisForEtape(String trajetId, String etapeId) async =>
       await _get('/api/trajets/$trajetId/etapes/$etapeId/colis');
 
+  Future<Map<String, dynamic>> cloturerTrajet(String trajetId) async =>
+      await _post('/api/trajets/$trajetId/cloturer', {});
+
+  Future<Map<String, dynamic>> dupliquerTrajet(String trajetId, String nouvelleDateDepartIso) async =>
+      await _post('/api/trajets/$trajetId/dupliquer', {'nouvelleDateDepart': nouvelleDateDepartIso});
+
+  Future<Map<String, dynamic>> batchStatutColis(String trajetId, String nouveauStatut) async =>
+      await _post('/api/trajets/$trajetId/colis/batch-statut', {'nouveauStatut': nouveauStatut});
+
+  // ============================================
+  // TARIFS
+  // ============================================
+
+  Future<List<dynamic>> getMesTarifs() async => await _getList('/api/tarifs');
+
+  Future<Map<String, dynamic>> getTarif(String id) async => await _get('/api/tarifs/$id');
+
+  Future<Map<String, dynamic>> createTarif(Map<String, dynamic> data) async =>
+      await _post('/api/tarifs', data);
+
+  Future<Map<String, dynamic>> updateTarif(String id, Map<String, dynamic> data) async =>
+      await _put('/api/tarifs/$id', data);
+
+  Future<void> deleteTarif(String id) async => await _delete('/api/tarifs/$id');
+
+  Future<Map<String, dynamic>> simulerTarif(Map<String, dynamic> data) async =>
+      await _post('/api/tarifs/simuler', data);
+
+  // ============================================
+  // VALIDATION COLIS
+  // ============================================
+
+  Future<List<dynamic>> getColisEnAttenteValidation() async =>
+      await _getList('/api/transporteur/colis-en-attente');
+
+  Future<Map<String, dynamic>> validerColis(String codeColis) async =>
+      await _post('/api/transporteur/colis/$codeColis/valider', {});
+
+  Future<List<dynamic>> getRelaisPartenaires() async =>
+      await _getList('/api/transporteur/relais-partenaires');
+
   // ============================================
   // KYC
   // ============================================

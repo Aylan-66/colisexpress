@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../main.dart';
+import 'tarifs_screen.dart';
+import 'relais_partenaires_screen.dart';
+import 'kyc_screen.dart';
 
 class ProfilScreen extends StatelessWidget {
   const ProfilScreen({super.key});
@@ -54,6 +57,20 @@ class ProfilScreen extends StatelessWidget {
               const SizedBox(height: 12),
 
               Card(
+                child: Column(
+                  children: [
+                    _menuTile(context, Icons.euro, 'Mes tarifs', 'Configurer mes templates de prix', const TarifsScreen()),
+                    const Divider(height: 1),
+                    _menuTile(context, Icons.store, 'Mes points relais', 'Relais associés à mes trajets', const RelaisPartenairesScreen()),
+                    const Divider(height: 1),
+                    _menuTile(context, Icons.verified, 'KYC', 'Mes documents', KycScreen(onKycValidated: () {})),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -93,6 +110,14 @@ class ProfilScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _menuTile(BuildContext context, IconData icon, String title, String subtitle, Widget page) => ListTile(
+        leading: Icon(icon, color: AppTheme.primary),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+        trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
+      );
 
   Widget _row(String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
