@@ -148,6 +148,16 @@ class ApiService {
   Future<Map<String, dynamic>> refuserColis(String codeColis, String motif) async =>
       await _post('/api/relais/colis/$codeColis/refuser', {'motif': motif});
 
+  Future<Map<String, dynamic>> uploadPhotoDepot(String codeColis, File photo) async {
+    final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/relais/colis/$codeColis/photo-depot');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $_accessToken';
+    request.files.add(await http.MultipartFile.fromPath('photo', photo.path));
+    final response = await request.send();
+    final body = await response.stream.bytesToString();
+    try { return jsonDecode(body); } catch (_) { return {'error': 'Réponse invalide'}; }
+  }
+
   // ============================================
   // HELPERS
   // ============================================

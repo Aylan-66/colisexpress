@@ -1,10 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 
-enum ScanMode { depot, retrait }
+enum ScanMode { depotClient, depotTransporteur, retrait }
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -46,6 +48,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _processScan(String code) async {
     final api = context.read<ApiService>();
+    // depotClient et depotTransporteur partagent le mode "depot" côté backend
     final modeStr = _mode == ScanMode.retrait ? 'retrait' : 'depot';
     final res = await api.scanColis(code, mode: modeStr);
 
@@ -59,13 +62,46 @@ class _ScanScreenState extends State<ScanScreen> {
       } else {
         setState(() => _error = res['error']);
       }
+      return;
+    }
+
+    final action = res['action']?.toString();
+    if (action == 'retrait_requis') {
+      _showRetraitDialog(code);
+      return;
+    }
+
+    setState(() => _result = res);
+
+    // Mode "Dépôt par client" : photo obligatoire après scan réussi
+    if (_mode == ScanMode.depotClient) {
+      await _prendrePhotoDepot(code);
+    }
+
+    // Mode "Dépôt par transporteur" : enchaînement automatique sur le scan suivant après 1.2s
+    if (_mode == ScanMode.depotTransporteur) {
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (mounted) _resetScan();
+    }
+  }
+
+  Future<void> _prendrePhotoDepot(String code) async {
+    final picker = ImagePicker();
+    final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 1200, imageQuality: 80);
+    if (!mounted) return;
+    if (photo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo de dépôt non prise — vous pouvez la refaire plus tard.')),
+      );
+      return;
+    }
+    final api = context.read<ApiService>();
+    final res = await api.uploadPhotoDepot(code, File(photo.path));
+    if (!mounted) return;
+    if (res.containsKey('error')) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Photo : ${res['error']}')));
     } else {
-      final action = res['action']?.toString();
-      if (action == 'retrait_requis') {
-        _showRetraitDialog(code);
-      } else {
-        setState(() => _result = res);
-      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Photo de dépôt enregistrée.')));
     }
   }
 
@@ -196,18 +232,26 @@ class _ScanScreenState extends State<ScanScreen> {
                 style: TextStyle(fontSize: 14, color: AppTheme.textMuted)),
             const SizedBox(height: 28),
             _ModeCard(
-              icon: Icons.download_done,
+              icon: Icons.person_pin_circle,
               color: AppTheme.success,
-              title: 'Dépôt',
-              subtitle: 'Un client dépose un colis chez moi (envoi)\nou un transporteur livre un colis (réception)',
-              onTap: () => _selectMode(ScanMode.depot),
+              title: 'Dépôt par client',
+              subtitle: 'Un client dépose un colis pour l\'envoyer.\nPhoto obligatoire + confirmation paiement si espèces.',
+              onTap: () => _selectMode(ScanMode.depotClient),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            _ModeCard(
+              icon: Icons.local_shipping,
+              color: AppTheme.primary,
+              title: 'Dépôt par transporteur',
+              subtitle: 'Un transporteur livre plusieurs colis en arrivée.\nScan rapide en série, sans retour entre chaque.',
+              onTap: () => _selectMode(ScanMode.depotTransporteur),
+            ),
+            const SizedBox(height: 12),
             _ModeCard(
               icon: Icons.upload_outlined,
               color: AppTheme.accent,
-              title: 'Récupération',
-              subtitle: 'Un destinataire vient retirer son colis\n(code 4 chiffres demandé)',
+              title: 'Récupération par client',
+              subtitle: 'Un destinataire vient retirer son colis\n(code 4 chiffres demandé).',
               onTap: () => _selectMode(ScanMode.retrait),
             ),
           ],
@@ -217,8 +261,16 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildScanner() {
-    final modeLabel = _mode == ScanMode.retrait ? 'Mode : Récupération' : 'Mode : Dépôt';
-    final modeColor = _mode == ScanMode.retrait ? AppTheme.accent : AppTheme.success;
+    final modeLabel = switch (_mode) {
+      ScanMode.retrait => 'Mode : Récupération client',
+      ScanMode.depotTransporteur => 'Mode : Dépôt transporteur (scan en série)',
+      _ => 'Mode : Dépôt client',
+    };
+    final modeColor = switch (_mode) {
+      ScanMode.retrait => AppTheme.accent,
+      ScanMode.depotTransporteur => AppTheme.primary,
+      _ => AppTheme.success,
+    };
 
     return Scaffold(
       appBar: AppBar(

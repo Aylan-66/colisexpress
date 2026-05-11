@@ -15,6 +15,7 @@ class _ColisScreenState extends State<ColisScreen> {
   bool _loading = true;
   final _searchCtrl = TextEditingController();
   String _search = '';
+  String _filtre = 'Tous'; // Tous / Cote client / Cote transporteur / Disponible retrait
 
   @override
   void initState() {
@@ -29,13 +30,34 @@ class _ColisScreenState extends State<ColisScreen> {
   }
 
   List<dynamic> get _filtered {
-    if (_search.isEmpty) return _colisList;
     final q = _search.toLowerCase();
     return _colisList.where((c) {
       final code = (c['codeColis'] ?? '').toString().toLowerCase();
       final dest = (c['nomDestinataire'] ?? '').toString().toLowerCase();
-      final statut = (c['statut'] ?? '').toString().toLowerCase();
-      return code.contains(q) || dest.contains(q) || statut.contains(q);
+      final statut = (c['statut'] ?? '').toString();
+      final trajet = (c['trajet'] ?? '').toString().toLowerCase();
+      final date = (c['dateCreation'] ?? '').toString();
+
+      // Filtre par catégorie
+      const cotClient = {'EnAttenteDepot', 'EnAttenteReglement', 'DeposeParClient', 'DemandeCreee', 'ReservationConfirmee', 'CodeColisGenere', 'EnAttenteValidationTransporteur'};
+      const cotTransporteur = {'ReceptionneParTransporteur', 'PhotoPriseEnChargeEnregistree', 'EnTransit', 'ArriveDansPaysDest', 'ReceptionneParPointRelais'};
+      const dispoRetrait = {'DisponibleAuRetrait'};
+
+      switch (_filtre) {
+        case 'Côté client':
+          if (!cotClient.contains(statut)) return false;
+          break;
+        case 'Côté transporteur':
+          if (!cotTransporteur.contains(statut)) return false;
+          break;
+        case 'À retirer':
+          if (!dispoRetrait.contains(statut)) return false;
+          break;
+      }
+
+      if (q.isEmpty) return true;
+      return code.contains(q) || dest.contains(q) || statut.toLowerCase().contains(q)
+          || trajet.contains(q) || date.contains(q);
     }).toList();
   }
 
@@ -143,10 +165,28 @@ class _ColisScreenState extends State<ColisScreen> {
             child: TextField(
               controller: _searchCtrl,
               decoration: const InputDecoration(
-                labelText: 'RECHERCHER', hintText: 'Code colis, destinataire...',
+                labelText: 'RECHERCHER', hintText: 'Code, destinataire, trajet, date...',
                 prefixIcon: Icon(Icons.search, size: 20),
               ),
               onChanged: (v) => setState(() => _search = v),
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: ['Tous', 'Côté client', 'Côté transporteur', 'À retirer'].map((f) {
+                final selected = _filtre == f;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: ChoiceChip(
+                    label: Text(f),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _filtre = f),
+                  ),
+                );
+              }).toList(),
             ),
           ),
           Expanded(

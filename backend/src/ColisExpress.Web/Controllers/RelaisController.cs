@@ -321,6 +321,32 @@ public class RelaisController : ControllerBase
         return Ok(new { message = "Paiement espèces validé." });
     }
 
+    /// Upload d'une photo de preuve lors du dépôt client (n'affecte pas le statut, ajoute juste un événement)
+    [HttpPost("colis/{codeColis}/photo-depot")]
+    public async Task<IActionResult> UploadPhotoDepot(string codeColis, IFormFile photo, CancellationToken ct)
+    {
+        var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
+        if (colis is null) return NotFound(new { error = "Colis introuvable." });
+        if (photo is null || photo.Length == 0) return BadRequest(new { error = "Photo manquante." });
+        if (photo.Length > 5 * 1024 * 1024) return BadRequest(new { error = "Photo trop volumineuse (5 Mo max)." });
+
+        using var ms = new MemoryStream();
+        await photo.CopyToAsync(ms, ct);
+        var b64 = Convert.ToBase64String(ms.ToArray());
+
+        await _uow.Colis.AddEvenementAsync(new EvenementColis
+        {
+            ColisId = colis.Id,
+            AncienStatut = colis.Statut,
+            NouveauStatut = colis.Statut,
+            ActeurId = GetUserId(),
+            Commentaire = "Photo de dépôt au point relais",
+            PhotoChemin = $"data:{photo.ContentType};base64,{b64}"
+        }, ct);
+        await _uow.SaveChangesAsync(ct);
+        return Ok(new { message = "Photo enregistrée." });
+    }
+
     [HttpPost("colis/{codeColis}/refuser")]
     public async Task<IActionResult> RefuserColis(string codeColis, [FromBody] RefuserColisRequest body, CancellationToken ct)
     {
