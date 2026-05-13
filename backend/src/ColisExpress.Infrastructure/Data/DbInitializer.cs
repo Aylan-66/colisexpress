@@ -254,11 +254,12 @@ public static class DbInitializer
     /// Idempotent : marqueur "[BIGSEED-V1]" dans Trajet.Conditions.
     private static async Task GenerateMassiveTestDataAsync(ColisExpressDbContext db, CancellationToken ct)
     {
-        const string MARKER = "[BIGSEED-V4]";
+        const string MARKER = "[BIGSEED-V5]";
         // Cleanup éventuel des versions précédentes
         await CleanupOldSeedAsync(db, "[BIGSEED-V1]", ct);
         await CleanupOldSeedAsync(db, "[BIGSEED-V2]", ct);
         await CleanupOldSeedAsync(db, "[BIGSEED-V3]", ct);
+        await CleanupOldSeedAsync(db, "[BIGSEED-V4]", ct);
         if (await db.Trajets.AnyAsync(t => t.Conditions == MARKER, ct)) return;
 
         var transporteurUser = await db.Utilisateurs.FirstOrDefaultAsync(u => u.Email == "transporteur1@test.com", ct);
@@ -267,6 +268,30 @@ public static class DbInitializer
 
         var transporteur = await db.Transporteurs.FirstOrDefaultAsync(t => t.UtilisateurId == transporteurUser.Id, ct);
         if (transporteur is null) return;
+
+        // Tarif paramétrable pour Karim (3 paliers démo) — créé idempotemment
+        var tarifKarim = await db.Tarifs.FirstOrDefaultAsync(t => t.TransporteurId == transporteur.Id && t.Nom == "Tarif Paris-Maghreb (démo)", ct);
+        if (tarifKarim is null)
+        {
+            tarifKarim = new Tarif
+            {
+                TransporteurId = transporteur.Id,
+                Nom = "Tarif Paris-Maghreb (démo)",
+                Description = "Tarif standard pour les colis légers, palier lourd au-delà de 10 kg, hors gabarit si une dimension dépasse 60×40×40 cm.",
+                PrixAuKiloStandard = 8m,
+                SeuilStandardKg = 10m,
+                ForfaitLourd = 30m,
+                PrixAuKiloLourd = 6m,
+                ForfaitHorsGabarit = 60m,
+                PrixAuKiloHorsGabarit = 7m,
+                LongueurMaxStandardCm = 60,
+                LargeurMaxStandardCm = 40,
+                HauteurMaxStandardCm = 40,
+                EstActif = true
+            };
+            db.Tarifs.Add(tarifKarim);
+            await db.SaveChangesAsync(ct);
+        }
 
         // Récupération des points relais nécessaires (par ville)
         var relaisParis = await db.PointsRelais.FirstOrDefaultAsync(r => r.Ville == "Paris", ct);
@@ -320,6 +345,11 @@ public static class DbInitializer
                 Statut = w < -1 ? StatutTrajet.Termine : StatutTrajet.Actif,
                 PointDepot = "Relais Paris 15e",
                 RelaisDepartId = relaisParis.Id,
+                TarifId = tarifKarim.Id,
+                LongueurMaxColisCm = 100,
+                LargeurMaxColisCm = 80,
+                HauteurMaxColisCm = 80,
+                PoidsMaxColisKg = 25m,
                 Conditions = MARKER,
                 DateCreation = lundiDepart.AddDays(-14)
             };
@@ -454,6 +484,30 @@ public static class DbInitializer
 
         if (transporteur2 != null && relaisParisGdN != null && relaisOran != null)
         {
+            // Tarif Sofia (un peu plus cher, seuil plus haut)
+            var tarifSofia = await db.Tarifs.FirstOrDefaultAsync(t => t.TransporteurId == transporteur2.Id && t.Nom == "Tarif Sofia Paris-Oran", ct);
+            if (tarifSofia is null)
+            {
+                tarifSofia = new Tarif
+                {
+                    TransporteurId = transporteur2.Id,
+                    Nom = "Tarif Sofia Paris-Oran",
+                    Description = "Petits colis à 10 €/kg jusqu'à 8 kg, forfait au-delà, hors gabarit > 50 cm.",
+                    PrixAuKiloStandard = 10m,
+                    SeuilStandardKg = 8m,
+                    ForfaitLourd = 40m,
+                    PrixAuKiloLourd = 7m,
+                    ForfaitHorsGabarit = 75m,
+                    PrixAuKiloHorsGabarit = 8m,
+                    LongueurMaxStandardCm = 50,
+                    LargeurMaxStandardCm = 50,
+                    HauteurMaxStandardCm = 50,
+                    EstActif = true
+                };
+                db.Tarifs.Add(tarifSofia);
+                await db.SaveChangesAsync(ct);
+            }
+
             for (int w = 0; w <= 8; w++)
             {
                 var jeudiDepart = thisMonday.AddDays(w * 7 + 3).AddHours(8); // jeudi 8h
@@ -478,6 +532,11 @@ public static class DbInitializer
                     Statut = StatutTrajet.Actif,
                     PointDepot = "Relais Paris Gare du Nord",
                     RelaisDepartId = relaisParisGdN.Id,
+                    TarifId = tarifSofia.Id,
+                    LongueurMaxColisCm = 80,
+                    LargeurMaxColisCm = 60,
+                    HauteurMaxColisCm = 60,
+                    PoidsMaxColisKg = 20m,
                     Conditions = MARKER,
                     DateCreation = jeudiDepart.AddDays(-10)
                 };
