@@ -25,8 +25,11 @@ public static class DbInitializer
         // Crée des points relais additionnels si manquants (Paris Gare du Nord, etc.)
         await EnsureExtraRelaisAsync(db, ct);
 
-        // Données de démo massives pour tests (idempotent, marqueur "[BIGSEED-V4]")
+        // Données de démo massives pour tests (idempotent, marqueur "[BIGSEED-V5]")
         await GenerateMassiveTestDataAsync(db, ct);
+
+        // Backfill Tarif + limites sur trajets existants (idempotent, tourne à chaque startup)
+        await BackfillTarifsAsync(db, ct);
 
         if (await db.Utilisateurs.AnyAsync(ct)) return;
 
@@ -175,6 +178,80 @@ public static class DbInitializer
             }
         }
         if (changed) await db.SaveChangesAsync(ct);
+    }
+
+    /// Crée un Tarif par défaut pour transporteur1 et transporteur2 (si pas déjà fait)
+    /// et assigne le Tarif + des limites max colis sur TOUS leurs trajets actifs sans tarif.
+    /// Tourne à chaque démarrage, idempotent.
+    private static async Task BackfillTarifsAsync(ColisExpressDbContext db, CancellationToken ct)
+    {
+        var configs = new[]
+        {
+            new {
+                Email = "transporteur1@test.com",
+                TarifNom = "Tarif Paris-Maghreb (démo)",
+                Description = "Standard 8 €/kg jusqu'à 10 kg, palier lourd au-delà, hors gabarit si dimension > 60×40×40 cm.",
+                Std = 8m, Seuil = 10m, ForfL = 30m, PrixL = 6m, ForfHG = 60m, PrixHG = 7m,
+                Lmax = 60, lmax = 40, Hmax = 40,
+                TrajetLmax = 100, TrajetlMax = 80, TrajetHmax = 80, TrajetKgMax = 25m,
+            },
+            new {
+                Email = "transporteur2@test.com",
+                TarifNom = "Tarif Sofia Paris-Oran",
+                Description = "Standard 10 €/kg jusqu'à 8 kg, palier lourd au-delà, hors gabarit si dimension > 50×50×50 cm.",
+                Std = 10m, Seuil = 8m, ForfL = 40m, PrixL = 7m, ForfHG = 75m, PrixHG = 8m,
+                Lmax = 50, lmax = 50, Hmax = 50,
+                TrajetLmax = 80, TrajetlMax = 60, TrajetHmax = 60, TrajetKgMax = 20m,
+            },
+        };
+
+        foreach (var c in configs)
+        {
+            var u = await db.Utilisateurs.FirstOrDefaultAsync(x => x.Email == c.Email, ct);
+            if (u is null) continue;
+            var transp = await db.Transporteurs.FirstOrDefaultAsync(x => x.UtilisateurId == u.Id, ct);
+            if (transp is null) continue;
+
+            // 1. Trouver ou créer le Tarif
+            var tarif = await db.Tarifs.FirstOrDefaultAsync(x => x.TransporteurId == transp.Id && x.Nom == c.TarifNom, ct);
+            if (tarif is null)
+            {
+                tarif = new Tarif
+                {
+                    TransporteurId = transp.Id,
+                    Nom = c.TarifNom,
+                    Description = c.Description,
+                    PrixAuKiloStandard = c.Std,
+                    SeuilStandardKg = c.Seuil,
+                    ForfaitLourd = c.ForfL,
+                    PrixAuKiloLourd = c.PrixL,
+                    ForfaitHorsGabarit = c.ForfHG,
+                    PrixAuKiloHorsGabarit = c.PrixHG,
+                    LongueurMaxStandardCm = c.Lmax,
+                    LargeurMaxStandardCm = c.lmax,
+                    HauteurMaxStandardCm = c.Hmax,
+                    EstActif = true
+                };
+                db.Tarifs.Add(tarif);
+                await db.SaveChangesAsync(ct);
+            }
+
+            // 2. Backfill TarifId + limites sur les trajets de ce transporteur sans tarif
+            var trajetsSansTarif = await db.Trajets
+                .Where(t => t.TransporteurId == transp.Id && t.TarifId == null)
+                .ToListAsync(ct);
+            if (trajetsSansTarif.Count == 0) continue;
+
+            foreach (var t in trajetsSansTarif)
+            {
+                t.TarifId = tarif.Id;
+                t.LongueurMaxColisCm ??= c.TrajetLmax;
+                t.LargeurMaxColisCm ??= c.TrajetlMax;
+                t.HauteurMaxColisCm ??= c.TrajetHmax;
+                t.PoidsMaxColisKg ??= c.TrajetKgMax;
+            }
+            await db.SaveChangesAsync(ct);
+        }
     }
 
     private static async Task EnsureExtraRelaisAsync(ColisExpressDbContext db, CancellationToken ct)
