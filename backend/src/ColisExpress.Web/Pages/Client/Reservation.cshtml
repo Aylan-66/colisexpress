@@ -116,19 +116,39 @@
 
                 @if (Model.Offre.Tarif is not null)
                 {
-                    var inv = System.Globalization.CultureInfo.InvariantCulture;
                     var tt = Model.Offre.Tarif;
+                    <style>
+                        .palier { padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; margin-bottom:6px; transition:.2s; }
+                        .palier.actif { border-color:#1B4965; background:#F0F6FA; box-shadow:0 1px 4px rgba(27,73,101,.15); }
+                        .palier-titre { font-weight:800; font-size:13px; }
+                        .palier-detail { font-size:12px; color:#6b7280; margin-top:2px; }
+                        .badge-actif { display:inline-block; background:#1B4965; color:#fff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; margin-left:6px; }
+                        @@keyframes flash { 0% { background:#FEF3C7; } 100% { background:transparent; } }
+                        .price-flash { animation: flash 0.5s ease-out; }
+                    </style>
+
                     <div class="web-card">
-                        <h3>Tarification</h3>
-                        <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px;">@tt.Nom</div>
-                        <div style="font-size:12px;line-height:1.6;">
-                            <div><strong>Standard :</strong> @tt.PrixAuKiloStandard €/kg, jusqu'à @tt.SeuilStandardKg kg</div>
-                            <div><strong>Lourd :</strong> forfait @tt.ForfaitLourd € + @tt.PrixAuKiloLourd €/kg au-delà</div>
-                            <div><strong>Hors gabarit :</strong> forfait @tt.ForfaitHorsGabarit € + @tt.PrixAuKiloHorsGabarit €/kg si une dimension dépasse @tt.LongueurMaxStandardCm × @tt.LargeurMaxStandardCm × @tt.HauteurMaxStandardCm cm</div>
+                        <h3>💰 Comment le prix est calculé</h3>
+                        <div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;">Tarif appliqué : <strong>@tt.Nom</strong></div>
+
+                        <div id="palier-std" class="palier">
+                            <div class="palier-titre">📦 Standard <span class="badge-actif" style="display:none;">ACTUEL</span></div>
+                            <div class="palier-detail">@tt.PrixAuKiloStandard €/kg, pour les colis jusqu'à <strong>@tt.SeuilStandardKg kg</strong></div>
                         </div>
-                        <div id="palier-actif" style="margin-top:10px;padding:8px 10px;border-radius:6px;background:var(--gray-50);font-size:12px;font-weight:700;display:none;">
-                            <span id="palier-label"></span>
+                        <div id="palier-lourd" class="palier">
+                            <div class="palier-titre">🏋️ Lourd <span class="badge-actif" style="display:none;">ACTUEL</span></div>
+                            <div class="palier-detail">Forfait <strong>@tt.ForfaitLourd €</strong> + <strong>@tt.PrixAuKiloLourd €/kg</strong> au-delà de @tt.SeuilStandardKg kg</div>
                         </div>
+                        <div id="palier-hg" class="palier">
+                            <div class="palier-titre">📐 Hors gabarit <span class="badge-actif" style="display:none;">ACTUEL</span></div>
+                            <div class="palier-detail">Forfait <strong>@tt.ForfaitHorsGabarit €</strong> + <strong>@tt.PrixAuKiloHorsGabarit €/kg</strong> si une dimension dépasse <strong>@tt.LongueurMaxStandardCm × @tt.LargeurMaxStandardCm × @tt.HauteurMaxStandardCm cm</strong></div>
+                        </div>
+                    </div>
+
+                    <div class="web-card" id="calcul-detail" style="background:#F0F6FA;border:1px solid #1B4965;">
+                        <h3 style="color:#1B4965;">🧮 Votre colis</h3>
+                        <div id="calcul-formule" style="font-family:monospace;font-size:13px;color:#1B4965;line-height:1.8;"></div>
+                        <div id="calcul-warning" style="display:none;background:#FEE2E2;color:#991B1B;padding:8px 10px;border-radius:6px;margin-top:8px;font-size:12px;font-weight:700;"></div>
                     </div>
                 }
 
@@ -143,11 +163,14 @@
                         <span style="font-weight:700;">5,00 €</span>
                     </div>
                     <hr style="border:none;border-top:1px solid var(--gray-200);margin:12px 0;" />
-                    <div class="flex justify-between" style="font-size:18px;font-weight:800;color:var(--primary);">
+                    <div class="flex justify-between" style="font-size:22px;font-weight:800;color:var(--primary);">
                         <span>Total</span>
                         <span id="prix-total">@((Model.Offre.Prix + 5m).ToString("0.00")) €</span>
                     </div>
-                    <div class="text-muted" style="font-size:11px;margin-top:6px;">Prix mis à jour selon le poids et les dimensions saisis.</div>
+                    @if (Model.Offre.Tarif is not null)
+                    {
+                        <div class="text-muted" style="font-size:11px;margin-top:6px;">↻ Prix recalculé automatiquement quand vous modifiez poids ou dimensions</div>
+                    }
                 </div>
             }
         </div>
@@ -158,6 +181,10 @@
 {
     var inv = System.Globalization.CultureInfo.InvariantCulture;
     var t = Model.Offre.Tarif;
+    var maxL = Model.Offre.LongueurMaxColisCm;
+    var maxLa = Model.Offre.LargeurMaxColisCm;
+    var maxH = Model.Offre.HauteurMaxColisCm;
+    var maxKg = Model.Offre.PoidsMaxColisKg;
     <script>
         (function () {
             const tarif = {
@@ -171,39 +198,96 @@
                 lmax: @t.LargeurMaxStandardCm,
                 Hmax: @t.HauteurMaxStandardCm
             };
+            const limits = {
+                L: @(maxL?.ToString() ?? "null"),
+                la: @(maxLa?.ToString() ?? "null"),
+                H: @(maxH?.ToString() ?? "null"),
+                kg: @(maxKg?.ToString(inv) ?? "null")
+            };
             const FRAIS = 5;
-            const poids = document.getElementById('f-poids');
-            const fL = document.getElementById('f-l');
-            const fla = document.getElementById('f-la');
-            const fH = document.getElementById('f-h');
-            const transp = document.getElementById('prix-transport');
-            const total = document.getElementById('prix-total');
-            const palierBox = document.getElementById('palier-actif');
-            const palierLbl = document.getElementById('palier-label');
+            const $ = id => document.getElementById(id);
+            const poids = $('f-poids'), fL = $('f-l'), fla = $('f-la'), fH = $('f-h');
+            const transp = $('prix-transport'), total = $('prix-total');
+            const pStd = $('palier-std'), pLourd = $('palier-lourd'), pHg = $('palier-hg');
+            const formule = $('calcul-formule');
+            const warning = $('calcul-warning');
+
+            function setActif(palier) {
+                [pStd, pLourd, pHg].forEach(el => {
+                    el.classList.remove('actif');
+                    el.querySelector('.badge-actif').style.display = 'none';
+                });
+                if (palier) {
+                    palier.classList.add('actif');
+                    palier.querySelector('.badge-actif').style.display = 'inline-block';
+                }
+            }
+
+            function fmt(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
 
             function recalc() {
                 const p = parseFloat(poids.value);
                 const L = parseInt(fL.value);
                 const la = parseInt(fla.value);
                 const H = parseInt(fH.value);
-                if (!p || p <= 0) return;
+
+                // Vérifs limites strictes (refus auto à la création)
+                const warns = [];
+                if (limits.kg !== null && p > limits.kg) warns.push(`Poids ${p} kg dépasse la limite stricte de ${limits.kg} kg → refus auto`);
+                if (limits.L !== null && L > limits.L) warns.push(`Longueur ${L} cm dépasse la limite stricte de ${limits.L} cm → refus auto`);
+                if (limits.la !== null && la > limits.la) warns.push(`Largeur ${la} cm dépasse la limite stricte de ${limits.la} cm → refus auto`);
+                if (limits.H !== null && H > limits.H) warns.push(`Hauteur ${H} cm dépasse la limite stricte de ${limits.H} cm → refus auto`);
+
+                if (warns.length > 0) {
+                    warning.style.display = 'block';
+                    warning.innerHTML = '⚠ ' + warns.join('<br>⚠ ');
+                } else {
+                    warning.style.display = 'none';
+                }
+
+                if (!p || p <= 0 || !L || !la || !H) {
+                    formule.innerHTML = '<span style="color:#6b7280;">Saisissez le poids et les 3 dimensions pour voir le prix calculé.</span>';
+                    return;
+                }
 
                 const horsGabarit = (L > tarif.Lmax) || (la > tarif.lmax) || (H > tarif.Hmax);
-                let prix, palier;
+                let prix, palierActif, formuleStr, raison;
+
                 if (horsGabarit) {
                     prix = tarif.forfaitHG + tarif.prixHG * p;
-                    palier = `Hors gabarit (forfait ${tarif.forfaitHG} € + ${tarif.prixHG} €/kg)`;
+                    palierActif = pHg;
+                    raison = `Une dimension dépasse ${tarif.Lmax}×${tarif.lmax}×${tarif.Hmax} cm`;
+                    formuleStr = `${tarif.forfaitHG} € (forfait) + ${tarif.prixHG} €/kg × ${p} kg = <strong>${fmt(prix)}</strong>`;
                 } else if (p > tarif.seuil) {
                     prix = tarif.forfaitL + tarif.prixL * p;
-                    palier = `Lourd (forfait ${tarif.forfaitL} € + ${tarif.prixL} €/kg)`;
+                    palierActif = pLourd;
+                    raison = `Poids ${p} kg supérieur au seuil de ${tarif.seuil} kg`;
+                    formuleStr = `${tarif.forfaitL} € (forfait) + ${tarif.prixL} €/kg × ${p} kg = <strong>${fmt(prix)}</strong>`;
                 } else {
                     prix = tarif.std * p;
-                    palier = `Standard (${tarif.std} €/kg)`;
+                    palierActif = pStd;
+                    raison = `Poids ${p} kg ≤ ${tarif.seuil} kg et dimensions ≤ ${tarif.Lmax}×${tarif.lmax}×${tarif.Hmax} cm`;
+                    formuleStr = `${tarif.std} €/kg × ${p} kg = <strong>${fmt(prix)}</strong>`;
                 }
-                transp.textContent = prix.toFixed(2).replace('.', ',') + ' €';
-                total.textContent = (prix + FRAIS).toFixed(2).replace('.', ',') + ' €';
-                palierBox.style.display = 'block';
-                palierLbl.textContent = 'Palier appliqué : ' + palier;
+
+                setActif(palierActif);
+                formule.innerHTML = `
+                    <div style="color:#6b7280;font-size:12px;font-family:inherit;">Pourquoi ce palier ?</div>
+                    <div style="margin-bottom:8px;font-size:12px;font-family:inherit;">${raison}</div>
+                    <div style="color:#6b7280;font-size:12px;font-family:inherit;">Calcul :</div>
+                    <div>${formuleStr}</div>
+                    <div style="margin-top:8px;font-size:12px;font-family:inherit;color:#6b7280;">+ 5,00 € frais de service = <strong>${fmt(prix + FRAIS)} TTC</strong></div>
+                `;
+
+                transp.textContent = fmt(prix);
+                total.textContent = fmt(prix + FRAIS);
+
+                // Flash animation
+                transp.classList.remove('price-flash');
+                total.classList.remove('price-flash');
+                void transp.offsetWidth; // force reflow
+                transp.classList.add('price-flash');
+                total.classList.add('price-flash');
             }
 
             [poids, fL, fla, fH].forEach(el => el && el.addEventListener('input', recalc));
