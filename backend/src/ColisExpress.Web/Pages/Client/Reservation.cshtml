@@ -53,17 +53,31 @@
                 <div class="web-field-row">
                     <div class="web-field">
                         <label class="web-field-label">Poids déclaré (kg)</label>
-                        <input type="number" step="0.1" min="0.1"
-                               max="@(Model.Offre?.CapaciteMaxPoids.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture))"
+                        <input id="f-poids" type="number" step="0.1" min="0.1"
+                               max="@(Model.Offre?.PoidsMaxColisKg?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? Model.Offre?.CapaciteMaxPoids.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture))"
                                class="web-field-input" asp-for="Input.PoidsDeclare" required />
                         @if (Model.Offre is not null)
                         {
-                            <div class="text-muted" style="font-size:11px;margin-top:4px;">Max @Model.Offre.CapaciteMaxPoids kg sur ce trajet</div>
+                            var maxKg = Model.Offre.PoidsMaxColisKg ?? Model.Offre.CapaciteMaxPoids;
+                            <div class="text-muted" style="font-size:11px;margin-top:4px;">Max @maxKg kg par colis</div>
                         }
                     </div>
+                </div>
+                <div class="web-field-row">
                     <div class="web-field">
-                        <label class="web-field-label">Dimensions</label>
-                        <input class="web-field-input" asp-for="Input.Dimensions" placeholder="40x30x25 cm" />
+                        <label class="web-field-label">Longueur (cm)</label>
+                        <input id="f-l" type="number" min="1" class="web-field-input" asp-for="Input.LongueurCm" required />
+                        @if (Model.Offre?.LongueurMaxColisCm is int l) { <div class="text-muted" style="font-size:11px;margin-top:4px;">Max @l cm</div> }
+                    </div>
+                    <div class="web-field">
+                        <label class="web-field-label">Largeur (cm)</label>
+                        <input id="f-la" type="number" min="1" class="web-field-input" asp-for="Input.LargeurCm" required />
+                        @if (Model.Offre?.LargeurMaxColisCm is int la) { <div class="text-muted" style="font-size:11px;margin-top:4px;">Max @la cm</div> }
+                    </div>
+                    <div class="web-field">
+                        <label class="web-field-label">Hauteur (cm)</label>
+                        <input id="f-h" type="number" min="1" class="web-field-input" asp-for="Input.HauteurCm" required />
+                        @if (Model.Offre?.HauteurMaxColisCm is int h) { <div class="text-muted" style="font-size:11px;margin-top:4px;">Max @h cm</div> }
                     </div>
                 </div>
                 <div class="web-field">
@@ -100,11 +114,29 @@
                     </div>
                 </div>
 
+                @if (Model.Offre.Tarif is not null)
+                {
+                    var inv = System.Globalization.CultureInfo.InvariantCulture;
+                    var tt = Model.Offre.Tarif;
+                    <div class="web-card">
+                        <h3>Tarification</h3>
+                        <div style="font-size:12px;color:var(--gray-500);margin-bottom:8px;">@tt.Nom</div>
+                        <div style="font-size:12px;line-height:1.6;">
+                            <div><strong>Standard :</strong> @tt.PrixAuKiloStandard €/kg, jusqu'à @tt.SeuilStandardKg kg</div>
+                            <div><strong>Lourd :</strong> forfait @tt.ForfaitLourd € + @tt.PrixAuKiloLourd €/kg au-delà</div>
+                            <div><strong>Hors gabarit :</strong> forfait @tt.ForfaitHorsGabarit € + @tt.PrixAuKiloHorsGabarit €/kg si une dimension dépasse @tt.LongueurMaxStandardCm × @tt.LargeurMaxStandardCm × @tt.HauteurMaxStandardCm cm</div>
+                        </div>
+                        <div id="palier-actif" style="margin-top:10px;padding:8px 10px;border-radius:6px;background:var(--gray-50);font-size:12px;font-weight:700;display:none;">
+                            <span id="palier-label"></span>
+                        </div>
+                    </div>
+                }
+
                 <div class="web-card">
                     <h3>Récapitulatif</h3>
                     <div class="flex justify-between mb-2" style="font-size:13px;">
                         <span class="text-muted">Transport</span>
-                        <span style="font-weight:700;">@Model.Offre.Prix.ToString("0.00") €</span>
+                        <span id="prix-transport" style="font-weight:700;">@Model.Offre.Prix.ToString("0.00") €</span>
                     </div>
                     <div class="flex justify-between mb-2" style="font-size:13px;">
                         <span class="text-muted">Frais de service</span>
@@ -113,10 +145,69 @@
                     <hr style="border:none;border-top:1px solid var(--gray-200);margin:12px 0;" />
                     <div class="flex justify-between" style="font-size:18px;font-weight:800;color:var(--primary);">
                         <span>Total</span>
-                        <span>@((Model.Offre.Prix + 5m).ToString("0.00")) €</span>
+                        <span id="prix-total">@((Model.Offre.Prix + 5m).ToString("0.00")) €</span>
                     </div>
+                    <div class="text-muted" style="font-size:11px;margin-top:6px;">Prix mis à jour selon le poids et les dimensions saisis.</div>
                 </div>
             }
         </div>
     </div>
 </section>
+
+@if (Model.Offre?.Tarif is not null)
+{
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var t = Model.Offre.Tarif;
+    <script>
+        (function () {
+            const tarif = {
+                std: @t.PrixAuKiloStandard.ToString(inv),
+                seuil: @t.SeuilStandardKg.ToString(inv),
+                forfaitL: @t.ForfaitLourd.ToString(inv),
+                prixL: @t.PrixAuKiloLourd.ToString(inv),
+                forfaitHG: @t.ForfaitHorsGabarit.ToString(inv),
+                prixHG: @t.PrixAuKiloHorsGabarit.ToString(inv),
+                Lmax: @t.LongueurMaxStandardCm,
+                lmax: @t.LargeurMaxStandardCm,
+                Hmax: @t.HauteurMaxStandardCm
+            };
+            const FRAIS = 5;
+            const poids = document.getElementById('f-poids');
+            const fL = document.getElementById('f-l');
+            const fla = document.getElementById('f-la');
+            const fH = document.getElementById('f-h');
+            const transp = document.getElementById('prix-transport');
+            const total = document.getElementById('prix-total');
+            const palierBox = document.getElementById('palier-actif');
+            const palierLbl = document.getElementById('palier-label');
+
+            function recalc() {
+                const p = parseFloat(poids.value);
+                const L = parseInt(fL.value);
+                const la = parseInt(fla.value);
+                const H = parseInt(fH.value);
+                if (!p || p <= 0) return;
+
+                const horsGabarit = (L > tarif.Lmax) || (la > tarif.lmax) || (H > tarif.Hmax);
+                let prix, palier;
+                if (horsGabarit) {
+                    prix = tarif.forfaitHG + tarif.prixHG * p;
+                    palier = `Hors gabarit (forfait ${tarif.forfaitHG} € + ${tarif.prixHG} €/kg)`;
+                } else if (p > tarif.seuil) {
+                    prix = tarif.forfaitL + tarif.prixL * p;
+                    palier = `Lourd (forfait ${tarif.forfaitL} € + ${tarif.prixL} €/kg)`;
+                } else {
+                    prix = tarif.std * p;
+                    palier = `Standard (${tarif.std} €/kg)`;
+                }
+                transp.textContent = prix.toFixed(2).replace('.', ',') + ' €';
+                total.textContent = (prix + FRAIS).toFixed(2).replace('.', ',') + ' €';
+                palierBox.style.display = 'block';
+                palierLbl.textContent = 'Palier appliqué : ' + palier;
+            }
+
+            [poids, fL, fla, fH].forEach(el => el && el.addEventListener('input', recalc));
+            recalc();
+        })();
+    </script>
+}

@@ -25,4 +25,27 @@ public class OffreResponse
     public string? RelaisDepartVille { get; init; }
     public double? RelaisDepartLatitude { get; init; }
     public double? RelaisDepartLongitude { get; init; }
+
+    // Tarif paramétrable du trajet (les 3 paliers) — si null, le trajet utilise les anciens prix
+    public TarifApercu? Tarif { get; init; }
+
+    // Limites par colis définies sur le trajet (refus auto à la création de commande)
+    public int? LongueurMaxColisCm { get; init; }
+    public int? LargeurMaxColisCm { get; init; }
+    public int? HauteurMaxColisCm { get; init; }
+    public decimal? PoidsMaxColisKg { get; init; }
+}
+
+public class TarifApercu
+{
+    public string Nom { get; init; } = string.Empty;
+    public decimal PrixAuKiloStandard { get; init; }
+    public decimal SeuilStandardKg { get; init; }
+    public decimal ForfaitLourd { get; init; }
+    public decimal PrixAuKiloLourd { get; init; }
+    public decimal ForfaitHorsGabarit { get; init; }
+    public decimal PrixAuKiloHorsGabarit { get; init; }
+    public int LongueurMaxStandardCm { get; init; }
+    public int LargeurMaxStandardCm { get; init; }
+    public int HauteurMaxStandardCm { get; init; }
 }

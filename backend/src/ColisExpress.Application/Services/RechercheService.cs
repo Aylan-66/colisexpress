@@ -121,7 +121,24 @@ public class RechercheService : IRechercheService
             RelaisDepartAdresse = relaisDepart?.Adresse,
             RelaisDepartVille = relaisDepart?.Ville,
             RelaisDepartLatitude = relaisDepart?.Latitude,
-            RelaisDepartLongitude = relaisDepart?.Longitude
+            RelaisDepartLongitude = relaisDepart?.Longitude,
+            LongueurMaxColisCm = t.LongueurMaxColisCm,
+            LargeurMaxColisCm = t.LargeurMaxColisCm,
+            HauteurMaxColisCm = t.HauteurMaxColisCm,
+            PoidsMaxColisKg = t.PoidsMaxColisKg,
+            Tarif = t.Tarif is null ? null : new TarifApercu
+            {
+                Nom = t.Tarif.Nom,
+                PrixAuKiloStandard = t.Tarif.PrixAuKiloStandard,
+                SeuilStandardKg = t.Tarif.SeuilStandardKg,
+                ForfaitLourd = t.Tarif.ForfaitLourd,
+                PrixAuKiloLourd = t.Tarif.PrixAuKiloLourd,
+                ForfaitHorsGabarit = t.Tarif.ForfaitHorsGabarit,
+                PrixAuKiloHorsGabarit = t.Tarif.PrixAuKiloHorsGabarit,
+                LongueurMaxStandardCm = t.Tarif.LongueurMaxStandardCm,
+                LargeurMaxStandardCm = t.Tarif.LargeurMaxStandardCm,
+                HauteurMaxStandardCm = t.Tarif.HauteurMaxStandardCm,
+            }
         };
     }
 
