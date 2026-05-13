@@ -16,7 +16,8 @@ public class EvenementColisConfiguration : IEntityTypeConfiguration<EvenementCol
         builder.Property(e => e.NouveauStatut).HasConversion<string>().HasMaxLength(48).IsRequired();
         builder.Property(e => e.DateHeure).IsRequired();
         builder.Property(e => e.Commentaire).HasMaxLength(2000);
-        builder.Property(e => e.PhotoChemin).HasMaxLength(512);
+        // Photo base64 inline (data:image/...) → peut faire plusieurs centaines de Ko, on utilise TEXT (illimité)
+        builder.Property(e => e.PhotoChemin).HasColumnType("text");
         builder.Property(e => e.Latitude).HasPrecision(9, 6);
         builder.Property(e => e.Longitude).HasPrecision(9, 6);
 
