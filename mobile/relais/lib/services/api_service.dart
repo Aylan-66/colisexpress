@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' as http_parser;
 import '../config.dart';
 
 typedef VoidCallback = void Function();
@@ -149,13 +150,44 @@ class ApiService {
       await _post('/api/relais/colis/$codeColis/refuser', {'motif': motif});
 
   Future<Map<String, dynamic>> uploadPhotoDepot(String codeColis, File photo) async {
-    final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/relais/colis/$codeColis/photo-depot');
-    final request = http.MultipartRequest('POST', uri);
-    request.headers['Authorization'] = 'Bearer $_accessToken';
-    request.files.add(await http.MultipartFile.fromPath('photo', photo.path));
-    final response = await request.send();
-    final body = await response.stream.bytesToString();
-    try { return jsonDecode(body); } catch (_) { return {'error': 'Réponse invalide'}; }
+    try {
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/relais/colis/$codeColis/photo-depot');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $_accessToken';
+      // Détermine le content-type depuis l'extension (Android n'envoie pas toujours le bon MIME)
+      final ext = photo.path.toLowerCase().split('.').last;
+      final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+      request.files.add(await http.MultipartFile.fromPath(
+        'photo', photo.path,
+        contentType: http_parser.MediaType.parse(mime),
+        filename: 'photo.$ext',
+      ));
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+
+      // Auth expirée → tente un refresh une fois
+      if (response.statusCode == 401) {
+        if (await refreshToken()) {
+          return uploadPhotoDepot(codeColis, photo);
+        }
+        await _handleExpiredSession();
+        return {'error': 'Session expirée'};
+      }
+
+      if (body.isEmpty) {
+        return {'error': 'Réponse vide du serveur (HTTP ${response.statusCode})'};
+      }
+      if (body.trimLeft().startsWith('<')) {
+        return {'error': 'Erreur serveur HTTP ${response.statusCode}'};
+      }
+      try {
+        return jsonDecode(body);
+      } catch (_) {
+        return {'error': 'Réponse non-JSON (HTTP ${response.statusCode}) : ${body.length > 100 ? body.substring(0, 100) : body}'};
+      }
+    } catch (e) {
+      return {'error': 'Échec upload : $e'};
+    }
   }
 
   // ============================================
