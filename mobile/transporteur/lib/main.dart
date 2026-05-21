@@ -57,9 +57,14 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   void _onSessionExpired() {
-    if (mounted) {
-      setState(() => _loggedIn = false);
-    }
+    if (!mounted) return;
+    // Pop tous les écrans empilés (détail colis, scan, etc.) pour revenir à la racine,
+    // sinon le LoginScreen reste caché sous les écrans poussés et l'app paraît bloquée.
+    navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    setState(() => _loggedIn = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Session expirée. Veuillez vous reconnecter.')),
+    );
   }
 
   @override

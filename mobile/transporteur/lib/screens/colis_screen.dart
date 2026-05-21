@@ -15,6 +15,18 @@ class _ColisScreenState extends State<ColisScreen> {
   final _codeCtrl = TextEditingController();
   List<dynamic> _commandes = [];
   bool _loading = true;
+  String _filtre = 'Tous';
+
+  // Filtres disponibles → liste de statuts correspondants
+  static const Map<String, List<String>> _filtres = {
+    'Tous': [],
+    'Déposé client': ['DeposeParClient'],
+    'En transit': ['ReceptionneParTransporteur', 'PhotoPriseEnChargeEnregistree', 'EnTransit'],
+    'Déposé relais': ['ArriveDansPaysDest', 'ReceptionneParPointRelais', 'DisponibleAuRetrait'],
+    'Récupéré client': ['RetireParDestinataire', 'LivraisonCloturee'],
+    'Incident': ['Incident', 'Endommage', 'Perdu', 'RetourExpediteur'],
+    'Refusé': ['Refuse'],
+  };
 
   @override
   void initState() {
@@ -25,7 +37,16 @@ class _ColisScreenState extends State<ColisScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     _commandes = await context.read<ApiService>().getMesCommandesTransporteur();
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
+  }
+
+  List<dynamic> get _filtered {
+    final statuts = _filtres[_filtre] ?? [];
+    if (statuts.isEmpty) return _commandes;
+    return _commandes.where((c) {
+      final s = (c['statutColis'] ?? '').toString();
+      return statuts.contains(s);
+    }).toList();
   }
 
   void _searchByCode() {
@@ -42,7 +63,7 @@ class _ColisScreenState extends State<ColisScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
               children: [
                 Expanded(
@@ -52,34 +73,50 @@ class _ColisScreenState extends State<ColisScreen> {
                       labelText: 'CODE COLIS',
                       hintText: 'COL-2026-0001',
                       prefixIcon: Icon(Icons.search, size: 20),
+                      isDense: true,
                     ),
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _searchByCode(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _searchByCode,
-                  child: const Text('Voir'),
-                ),
+                ElevatedButton(onPressed: _searchByCode, child: const Text('Voir')),
               ],
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: _filtres.keys.map((f) {
+                final selected = _filtre == f;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: ChoiceChip(
+                    label: Text(f),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _filtre = f),
+                  ),
+                );
+              }).toList(),
             ),
           ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _commandes.isEmpty
-                    ? const Center(
-                        child: Text('Aucun colis en cours',
-                            style: TextStyle(color: AppTheme.textMuted)),
+                : _filtered.isEmpty
+                    ? Center(
+                        child: Text(_filtre == 'Tous' ? 'Aucun colis en cours' : 'Aucun colis pour ce filtre',
+                            style: const TextStyle(color: AppTheme.textMuted)),
                       )
                     : RefreshIndicator(
                         onRefresh: _load,
                         child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _commandes.length,
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                          itemCount: _filtered.length,
                           itemBuilder: (ctx, i) {
-                            final c = _commandes[i];
+                            final c = _filtered[i] as Map<String, dynamic>;
                             return _ColisListItem(
                               commande: c,
                               onTap: () {
@@ -111,6 +148,17 @@ class _ColisListItem extends StatelessWidget {
     final statut = commande['statutColis']?.toString() ?? '—';
     final code = commande['codeColis'] ?? '—';
     final trajet = commande['trajet'] ?? '—';
+    final dateArr = commande['dateArriveePrevue']?.toString();
+    final (color, label) = _statutInfo(statut);
+
+    String? arriveeStr;
+    if (dateArr != null) {
+      final d = DateTime.tryParse(dateArr);
+      if (d != null) {
+        final l = d.toLocal();
+        arriveeStr = 'Arrivée prévue : ${l.day}/${l.month}/${l.year}';
+      }
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -120,24 +168,46 @@ class _ColisListItem extends StatelessWidget {
         leading: Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.inventory_2, color: AppTheme.primary, size: 22),
+          child: Icon(Icons.inventory_2, color: color, size: 22),
         ),
         title: Text(code,
             style: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'monospace', fontSize: 14)),
-        subtitle: Text(trajet, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(trajet, style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+            if (arriveeStr != null)
+              Text(arriveeStr, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+          ],
+        ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.1),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Text(statut,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+          child: Text(label,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
         ),
       ),
     );
   }
+
+  (Color, String) _statutInfo(String s) => switch (s) {
+        'EnAttenteValidationTransporteur' => (AppTheme.accent, 'À valider'),
+        'EnAttenteDepot' => (AppTheme.accent, 'Attente dépôt'),
+        'DeposeParClient' => (AppTheme.accent, 'Déposé client'),
+        'ReceptionneParTransporteur' || 'PhotoPriseEnChargeEnregistree' => (AppTheme.primary, 'Pris en charge'),
+        'EnTransit' => (AppTheme.primary, 'En transit'),
+        'ArriveDansPaysDest' => (AppTheme.primary, 'Arrivé'),
+        'ReceptionneParPointRelais' => (AppTheme.primary, 'Au relais'),
+        'DisponibleAuRetrait' => (AppTheme.success, 'Dispo retrait'),
+        'RetireParDestinataire' || 'LivraisonCloturee' => (AppTheme.success, 'Livré'),
+        'Incident' || 'Endommage' || 'Perdu' || 'RetourExpediteur' => (AppTheme.danger, 'Incident'),
+        'Refuse' => (AppTheme.danger, 'Refusé'),
+        _ => (AppTheme.textMuted, s),
+      };
 }

@@ -113,9 +113,33 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
   }
 
   /// Prise en charge avec photo obligatoire en une seule action.
-  /// Étape 1 : upload de la photo (le backend met le statut à PhotoPriseEnChargeEnregistree).
-  /// Étape 2 : passage à ReceptionneParTransporteur.
+  /// Si le colis est payé en espèces et pas encore encaissé, on demande d'abord la confirmation du paiement.
+  /// Puis : passage à ReceptionneParTransporteur + upload photo (→ PhotoPriseEnChargeEnregistree).
   Future<void> _prendreEnChargeAvecPhoto() async {
+    // Étape paiement espèces intégrée à la prise en charge
+    final mode = _colis?['modeReglement']?.toString();
+    final statutReglement = _colis?['statutReglement']?.toString();
+    final estEspecesNonPaye = mode == 'Especes' && statutReglement != 'Paye';
+    if (estEspecesNonPaye) {
+      final montant = _colis?['total']?.toString() ?? '—';
+      final okPaiement = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Encaissement espèces'),
+          content: Text('Ce colis est payé en espèces. Confirmez avoir reçu $montant € du client avant la prise en charge.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Paiement reçu'),
+            ),
+          ],
+        ),
+      );
+      if (okPaiement != true || !mounted) return;
+    }
+
     final picker = ImagePicker();
     final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 1200, imageQuality: 80);
     if (photo == null) {
@@ -131,7 +155,8 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
     final api = context.read<ApiService>();
 
     // 1) On passe d'abord à ReceptionneParTransporteur (sinon upload photo ne change rien)
-    final updateRes = await api.updateStatutColis(widget.codeColis, 'ReceptionneParTransporteur', 'Prise en charge');
+    final commentaire = estEspecesNonPaye ? 'Prise en charge + paiement espèces encaissé' : 'Prise en charge';
+    final updateRes = await api.updateStatutColis(widget.codeColis, 'ReceptionneParTransporteur', commentaire);
     if (updateRes.containsKey('error')) {
       setState(() { _error = updateRes['error']; _loading = false; });
       return;
@@ -142,40 +167,7 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
     if (res.containsKey('error')) {
       setState(() { _error = res['error']; _loading = false; });
     } else {
-      setState(() => _success = 'Colis pris en charge avec photo.');
-      await _load();
-    }
-  }
-
-  /// Confirmation manuelle d'un paiement en espèces (le transporteur encaisse).
-  /// L'utilisateur saisit le montant pour vérification visuelle, l'API marque la commande comme payée.
-  Future<void> _confirmerPaiement() async {
-    final montant = _colis?['total']?.toString() ?? '—';
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirmer l\'encaissement'),
-        content: Text('Confirmez avoir reçu $montant € en espèces de la part du client. Le statut du colis sera mis à jour.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirmer'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    setState(() { _loading = true; _success = null; _error = null; });
-    final res = await context.read<ApiService>().updateStatutColis(
-      widget.codeColis, 'ReservationConfirmee', 'Paiement espèces encaissé par le transporteur',
-    );
-    if (!mounted) return;
-    if (res.containsKey('error')) {
-      setState(() { _error = res['error']; _loading = false; });
-    } else {
-      setState(() => _success = 'Paiement confirmé.');
+      setState(() => _success = estEspecesNonPaye ? 'Paiement encaissé + colis pris en charge.' : 'Colis pris en charge avec photo.');
       await _load();
     }
   }
@@ -251,6 +243,12 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
                 _infoRow('Poids déclaré', '${_colis!['poidsDeclare'] ?? 0} kg'),
                 if (_colis!['dimensions'] != null) _infoRow('Dimensions', _colis!['dimensions']),
                 _infoRow('Code retrait', _colis!['codeRetrait'] ?? '—'),
+                if (_colis!['modeReglement'] != null)
+                  _infoRow('Paiement', '${_colis!['modeReglement']} • ${_colis!['statutReglement']}'),
+                if (_colis!['dateArriveeReelle'] != null)
+                  _infoRow('Arrivée réelle', _fmtDateTime(_colis!['dateArriveeReelle']))
+                else if (_colis!['dateArriveePrevue'] != null)
+                  _infoRow('Arrivée prévue', _fmtDateTime(_colis!['dateArriveePrevue'])),
               ],
             ),
           ),
@@ -266,20 +264,13 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text(_actionsHint(statut), style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: [
-                    _actionButton('Prendre en charge (photo obligatoire)', null, Icons.handshake, AppTheme.primary, onTap: _prendreEnChargeAvecPhoto),
-                    _actionButton('Confirmer paiement (espèces)', null, Icons.payments, AppTheme.success, onTap: _confirmerPaiement),
-                    _actionButton('En transit', 'EnTransit', Icons.local_shipping, AppTheme.primary),
-                    _actionButton('Arrivé destination', 'ArriveDansPaysDest', Icons.flag, AppTheme.success),
-                    _actionButton('Au point relais', 'ReceptionneParPointRelais', Icons.store, AppTheme.success),
-                    // Bouton "Disponible retrait" retiré : c'est le relais qui définit la disponibilité au retrait
-                    _actionButton('Signaler incident', 'Incident', Icons.warning, AppTheme.danger),
-                    _actionButton('Refuser le colis', null, Icons.block, AppTheme.danger, onTap: _refuserColis),
-                  ],
+                  children: _buildActions(statut),
                 ),
               ],
             ),
@@ -309,26 +300,98 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
     );
   }
 
-  Widget _actionButton(String label, String? statut, IconData icon, Color color, {VoidCallback? onTap}) {
+  /// Ordre logique des statuts pour gérer les transitions autorisées
+  int _ordre(String s) => const {
+        'Brouillon': 0,
+        'DemandeCreee': 1,
+        'EnAttenteReglement': 2,
+        'EnAttenteValidationTransporteur': 3,
+        'ReservationConfirmee': 4,
+        'CodeColisGenere': 5,
+        'EnAttenteDepot': 6,
+        'DeposeParClient': 7,
+        'ReceptionneParTransporteur': 8,
+        'PhotoPriseEnChargeEnregistree': 9,
+        'EnTransit': 10,
+        'ArriveDansPaysDest': 11,
+        'ReceptionneParPointRelais': 12,
+        'DisponibleAuRetrait': 13,
+        'RetireParDestinataire': 14,
+        'LivraisonCloturee': 15,
+      }[s] ??
+      -1;
+
+  String _actionsHint(String statut) {
+    final o = _ordre(statut);
+    if (statut == 'Refuse') return 'Ce colis a été refusé.';
+    if (statut == 'Annulee') return 'Cette commande a été annulée.';
+    if (o >= 12) return 'Ce colis est au point relais — la suite est gérée par le relais.';
+    if (o < 7) return 'En attente du dépôt du client au point relais.';
+    if (o == 7) return 'Le client a déposé le colis. Prenez-le en charge (photo obligatoire).';
+    if (o == 8 || o == 9) return 'Colis pris en charge. Vous pouvez le marquer "En transit".';
+    if (o == 10) return 'Colis en transit. Marquez "Arrivé destination" à l\'arrivée.';
+    if (o == 11) return 'Arrivé à destination. Le relais prendra le relais pour la mise à disposition.';
+    return '';
+  }
+
+  List<Widget> _buildActions(String statut) {
+    final o = _ordre(statut);
+    final estFinal = statut == 'Refuse' || statut == 'Annulee' || statut == 'LivraisonCloturee' || statut == 'RetireParDestinataire';
+
+    // Prise en charge : possible uniquement quand le client a déposé (DeposeParClient)
+    final canPriseEnCharge = o == 7;
+    // Pris en charge = a atteint au moins ReceptionneParTransporteur
+    final prisEnCharge = o >= 8;
+    // En transit : possible si pris en charge mais pas encore en transit
+    final canEnTransit = prisEnCharge && o < 10;
+    // Arrivé destination : possible uniquement si en transit
+    final canArrive = o == 10;
+    // Incident : possible une fois pris en charge et tant que pas livré
+    final canIncident = prisEnCharge && o < 14 && !estFinal;
+    // Refuser : uniquement AVANT prise en charge
+    final canRefuser = !prisEnCharge && !estFinal && o >= 3;
+
+    return [
+      _actionButton('Prendre en charge (photo obligatoire)', null, Icons.handshake, AppTheme.primary,
+          enabled: canPriseEnCharge, onTap: _prendreEnChargeAvecPhoto),
+      _actionButton('En transit', 'EnTransit', Icons.local_shipping, AppTheme.primary, enabled: canEnTransit),
+      _actionButton('Arrivé destination', 'ArriveDansPaysDest', Icons.flag, AppTheme.success, enabled: canArrive),
+      _actionButton('Signaler incident', 'Incident', Icons.warning, AppTheme.danger, enabled: canIncident),
+      _actionButton('Refuser le colis', null, Icons.block, AppTheme.danger, enabled: canRefuser, onTap: _refuserColis),
+    ];
+  }
+
+  Widget _actionButton(String label, String? statut, IconData icon, Color color, {bool enabled = true, VoidCallback? onTap}) {
+    final c = enabled ? color : AppTheme.textMuted.withValues(alpha: 0.4);
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        icon: Icon(icon, size: 18, color: color),
-        label: Text(label),
+        icon: Icon(icon, size: 18, color: c),
+        label: Text(label, style: TextStyle(color: c)),
         style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(color: color.withValues(alpha: 0.3)),
+          foregroundColor: c,
+          side: BorderSide(color: c.withValues(alpha: 0.3)),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
-        onPressed: () {
-          if (onTap != null) {
-            onTap();
-            return;
-          }
-          if (statut != null) _updateStatut(statut, label);
-        },
+        onPressed: !enabled
+            ? null
+            : () {
+                if (onTap != null) {
+                  onTap();
+                  return;
+                }
+                if (statut != null) _updateStatut(statut, label);
+              },
       ),
     );
+  }
+
+  String _fmtDateTime(dynamic iso) {
+    if (iso == null) return '—';
+    final d = DateTime.tryParse(iso.toString());
+    if (d == null) return iso.toString();
+    final l = d.toLocal();
+    return '${l.day}/${l.month}/${l.year} ${l.hour}:${l.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _infoRow(String label, String value) => Padding(
