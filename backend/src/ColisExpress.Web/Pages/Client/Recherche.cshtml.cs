@@ -1,10 +1,8 @@
 using ColisExpress.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace ColisExpress.Web.Pages.Client;
 
-[AllowAnonymous]
 public class RechercheModel : PageModel
 {
     private readonly IRechercheService _recherche;

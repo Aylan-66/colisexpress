@@ -22,9 +22,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Client/Inscription");
     options.Conventions.AllowAnonymousToPage("/Client/InscriptionTransporteur");
     options.Conventions.AllowAnonymousToPage("/Client/Connexion");
-    options.Conventions.AllowAnonymousToPage("/Client/Recherche");
-    options.Conventions.AllowAnonymousToPage("/Client/Resultats");
-    options.Conventions.AllowAnonymousToPage("/Client/Suivi");
+    // Recherche / Résultats / Suivi nécessitent désormais d'être connecté (demande client)
     options.Conventions.AllowAnonymousToPage("/Index");
     options.Conventions.AuthorizeFolder("/Admin", "EstAdmin");
 });

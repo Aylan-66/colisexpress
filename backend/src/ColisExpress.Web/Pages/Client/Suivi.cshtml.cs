@@ -1,12 +1,10 @@
 using ColisExpress.Application.DTOs.Colis;
 using ColisExpress.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace ColisExpress.Web.Pages.Client;
 
-[AllowAnonymous]
 public class SuiviModel : PageModel
 {
     private readonly IColisService _colis;

@@ -2,26 +2,49 @@
 @model IndexModel
 @{
     ViewData["Title"] = "Accueil";
+    var isAuth = User.Identity?.IsAuthenticated ?? false;
 }
 
-<section class="web-page">
-    <div style="text-align:center;padding:40px 16px 24px;">
-        <div style="display:inline-block;background:var(--accent);color:white;font-weight:800;font-size:12px;padding:6px 14px;border-radius:20px;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;">
-            France → Maghreb
-        </div>
-        <h1 style="font-size:44px;line-height:1.15;margin-bottom:16px;">
+<!-- HERO avec header visuel -->
+<section class="home-hero">
+    <div class="home-hero-inner">
+        <div class="home-hero-badge">France → Maghreb</div>
+        <h1 class="home-hero-title">
             Envoyez vos colis <span class="text-accent">simplement</span><br>vers le Maghreb
         </h1>
-        <p style="font-size:16px;color:var(--gray-500);max-width:560px;margin:0 auto 32px;">
+        <p class="home-hero-sub">
             Confiez vos colis à des transporteurs vérifiés. Suivi digital de bout en bout, de la France vers l'Algérie, le Maroc et la Tunisie.
         </p>
-        <div class="flex gap-2 items-center" style="justify-content:center;">
+        <div class="flex gap-2 items-center" style="justify-content:center;flex-wrap:wrap;">
             <a class="web-btn accent" asp-page="/Client/Recherche">Rechercher un transporteur →</a>
-            <a class="web-btn outline" asp-page="/Client/Suivi">Suivre un colis</a>
+            <a class="web-btn outline-light" asp-page="/Client/Suivi">Suivre un colis</a>
+        </div>
+    </div>
+</section>
+
+<section class="web-page">
+    <!-- BLOC MARKETING -->
+    <div class="home-features">
+        <div class="home-feature">
+            <div class="home-feature-icon">🔒</div>
+            <h3>Envoi & retrait sécurisés</h3>
+            <p>Code de retrait à 4 chiffres et QR code. Votre colis n'est remis qu'à la bonne personne.</p>
+        </div>
+        <div class="home-feature">
+            <div class="home-feature-icon">📍</div>
+            <h3>Suivi du colis en direct</h3>
+            <p>Une timeline en temps réel, de la prise en charge à la livraison, à chaque étape du trajet.</p>
+        </div>
+        <div class="home-feature">
+            <div class="home-feature-icon">💶</div>
+            <h3>Tarifs transparents</h3>
+            <p>Comparez les transporteurs, des prix clairs et une réservation en ligne en quelques clics.</p>
         </div>
     </div>
 
-    <div class="kpi-grid" style="margin-top:48px;">
+    <!-- ÉTAPES -->
+    <h2 class="home-section-title">Comment ça marche</h2>
+    <div class="kpi-grid">
         <div class="kpi-card text-center">
             <div class="kpi-label">Étape 1</div>
             <div style="font-size:32px;margin:8px 0;">🔎</div>
@@ -45,6 +68,40 @@
             <div style="font-size:32px;margin:8px 0;">✅</div>
             <div style="font-weight:700;color:var(--gray-800);">Livré</div>
             <div class="kpi-hint">Retrait par code sécurisé</div>
+        </div>
+    </div>
+
+    <!-- AVIS -->
+    <h2 class="home-section-title" id="avis">Ils nous font confiance</h2>
+    <div class="home-reviews">
+        <div class="home-review">
+            <div class="home-review-stars">★★★★★</div>
+            <p>"Colis envoyé à ma famille à Alger, suivi en direct et récupéré en 3 jours. Parfait."</p>
+            <div class="home-review-author">— Yacine, Paris</div>
+        </div>
+        <div class="home-review">
+            <div class="home-review-stars">★★★★★</div>
+            <p>"Tarif clair dès le départ, pas de surprise. Le transporteur était très sérieux."</p>
+            <div class="home-review-author">— Nadia, Lyon</div>
+        </div>
+        <div class="home-review">
+            <div class="home-review-stars">★★★★☆</div>
+            <p>"Pratique de choisir un point relais proche de chez moi. Je recommande."</p>
+            <div class="home-review-author">— Sofiane, Marseille</div>
+        </div>
+    </div>
+
+    <!-- QUI SOMMES-NOUS -->
+    <div class="home-about" id="qui-sommes-nous">
+        <h2 class="home-section-title" style="margin-top:0;">Qui sommes-nous</h2>
+        <p>
+            Colis Express met en relation des particuliers qui souhaitent envoyer un colis vers le Maghreb
+            avec des transporteurs vérifiés effectuant régulièrement le trajet. Notre mission : rendre l'envoi
+            de colis France → Maghreb simple, sûr et transparent, grâce au suivi digital, aux points relais
+            partenaires et à des tarifs clairs affichés avant toute réservation.
+        </p>
+        <div style="margin-top:20px;">
+            <a class="web-btn accent" asp-page="/Client/Recherche">Commencer un envoi →</a>
         </div>
     </div>
 </section>
