@@ -19,6 +19,9 @@ public class ProfilStatsResponse
 {
     public int EnvoisTotaux { get; init; }
     public int Livres { get; init; }
+    public int AValider { get; init; }
+    public int Deposes { get; init; }
+    public int EnTransit { get; init; }
     public DateTime MembreDepuis { get; init; }
     public decimal MontantAnneeEnCours { get; init; }
     public decimal PlafondCotransportage { get; init; }

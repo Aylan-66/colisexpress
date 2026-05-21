@@ -89,6 +89,12 @@ public class ProfilService : IProfilService
         {
             EnvoisTotaux = commandes.Count(c => c.Colis?.Statut != StatutColis.Annulee),
             Livres = commandes.Count(c => c.Colis?.Statut == StatutColis.LivraisonCloturee),
+            AValider = commandes.Count(c => c.Colis?.Statut == StatutColis.EnAttenteValidationTransporteur),
+            Deposes = commandes.Count(c => c.Colis?.Statut == StatutColis.DeposeParClient),
+            EnTransit = commandes.Count(c => c.Colis?.Statut == StatutColis.EnTransit
+                || c.Colis?.Statut == StatutColis.ReceptionneParTransporteur
+                || c.Colis?.Statut == StatutColis.PhotoPriseEnChargeEnregistree
+                || c.Colis?.Statut == StatutColis.ArriveDansPaysDest),
             MembreDepuis = utilisateur?.DateCreation ?? DateTime.UtcNow,
             MontantAnneeEnCours = montantAnnee,
             PlafondCotransportage = Domain.RulesMetier.Cotransportage.PlafondAnnuelEuros,

@@ -46,8 +46,10 @@
             }
             else
             {
-                <a class="web-btn outline sm" asp-page="/Client/Connexion">Connexion</a>
-                <a class="web-btn sm" asp-page="/Client/Inscription">Inscription</a>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <a class="web-btn outline sm" asp-page="/Client/Connexion">Connexion</a>
+                    <a class="web-btn sm" asp-page="/Client/Inscription">Inscription</a>
+                </div>
             }
         </div>
     </nav>
@@ -55,6 +57,36 @@
     <main>
         @RenderBody()
     </main>
+
+    <footer class="web-footer">
+        <div class="web-footer-grid">
+            <div>
+                <div class="web-footer-brand">
+                    <span class="web-nav-logo-icon">📦</span>
+                    <span>Colis Express</span>
+                </div>
+                <p class="web-footer-tagline">L'envoi de colis France → Maghreb, simple, suivi et au juste prix.</p>
+            </div>
+            <div>
+                <div class="web-footer-title">Services</div>
+                <a asp-page="/Client/Recherche">Rechercher un trajet</a>
+                <a asp-page="/Client/RelaisCarte">Points relais</a>
+                <a asp-page="/Client/Suivi">Suivre un colis</a>
+            </div>
+            <div>
+                <div class="web-footer-title">Garanties</div>
+                <span>🔒 Envoi & retrait sécurisés</span>
+                <span>📍 Suivi du colis en direct</span>
+                <span>💶 Tarifs transparents</span>
+            </div>
+            <div>
+                <div class="web-footer-title">À propos</div>
+                <a asp-page="/Index" asp-fragment="qui-sommes-nous">Qui sommes-nous</a>
+                <a asp-page="/Index" asp-fragment="avis">Avis clients</a>
+            </div>
+        </div>
+        <div class="web-footer-bottom">© @DateTime.UtcNow.Year Colis Express — Tous droits réservés.</div>
+    </footer>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
