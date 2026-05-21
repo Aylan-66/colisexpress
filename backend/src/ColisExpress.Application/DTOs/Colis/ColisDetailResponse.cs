@@ -16,6 +16,16 @@ public class ColisDetailResponse
     public string NomTransporteur { get; init; } = string.Empty;
     public string NomDestinataire { get; init; } = string.Empty;
     public DateTime DateCreation { get; init; }
+
+    // Paiement (gestion encaissement espèces dans la prise en charge)
+    public ModeReglement ModeReglement { get; init; }
+    public StatutReglement StatutReglement { get; init; }
+    public decimal Total { get; init; }
+
+    // Dates trajet
+    public DateTime? DateArriveePrevue { get; init; }
+    public DateTime? DateArriveeReelle { get; init; }
+
     public IReadOnlyList<EvenementColisResponse> Evenements { get; init; } = Array.Empty<EvenementColisResponse>();
 }
 

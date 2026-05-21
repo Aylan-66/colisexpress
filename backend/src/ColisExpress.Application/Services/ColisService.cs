@@ -34,6 +34,13 @@ public class ColisService : IColisService
             NomTransporteur = nomT,
             NomDestinataire = commande?.NomDestinataire ?? "—",
             DateCreation = colis.DateCreation,
+            ModeReglement = commande?.ModeReglement ?? default,
+            StatutReglement = commande?.StatutReglement ?? default,
+            Total = commande?.Total ?? 0,
+            DateArriveePrevue = commande?.Trajet?.DateEstimeeArrivee,
+            DateArriveeReelle = colis.Statut == Domain.Enums.StatutColis.LivraisonCloturee || colis.Statut == Domain.Enums.StatutColis.RetireParDestinataire
+                ? colis.Evenements.Where(e => e.NouveauStatut == Domain.Enums.StatutColis.RetireParDestinataire).Select(e => (DateTime?)e.DateHeure).FirstOrDefault()
+                : null,
             Evenements = colis.Evenements
                 .OrderBy(e => e.DateHeure)
                 .Select(e => new EvenementColisResponse

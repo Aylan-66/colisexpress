@@ -29,6 +29,7 @@ public class CommandeListItem
     public StatutColis StatutColis { get; init; }
     public decimal Total { get; init; }
     public DateTime DateCreation { get; init; }
+    public DateTime? DateArriveePrevue { get; init; }
 }
 
 public class CommandeDetailResponse

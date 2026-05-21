@@ -169,7 +169,8 @@ public class CommandeService : ICommandeService
                 NomTransporteur = nomT,
                 StatutColis = c.Colis?.Statut ?? StatutColis.Brouillon,
                 Total = c.Total,
-                DateCreation = c.DateCreation
+                DateCreation = c.DateCreation,
+                DateArriveePrevue = c.Trajet?.DateEstimeeArrivee
             });
         }
         return result;
@@ -360,7 +361,8 @@ public class CommandeService : ICommandeService
                 NomTransporteur = nomClient,
                 StatutColis = c.Colis?.Statut ?? StatutColis.Brouillon,
                 Total = c.Total,
-                DateCreation = c.DateCreation
+                DateCreation = c.DateCreation,
+                DateArriveePrevue = c.Trajet?.DateEstimeeArrivee
             });
         }
         return result;
