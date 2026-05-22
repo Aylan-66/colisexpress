@@ -45,7 +45,8 @@ public class TrajetsController : ControllerBase
             t.SupplementUrgent, t.SupplementFragile,
             t.PointDepot, t.Conditions,
             Statut = t.Statut.ToString(),
-            t.DateCreation
+            t.DateCreation,
+            t.DateDemarrageTournee
         }));
     }
 

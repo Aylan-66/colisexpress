@@ -128,6 +128,9 @@ class ApiService {
   Future<Map<String, dynamic>> lancerTournee(String trajetId) async =>
       await _post('/api/trajets/$trajetId/lancer', {});
 
+  Future<Map<String, dynamic>> suppressionMasse(List<String> trajetIds) async =>
+      await _post('/api/trajets/suppression-masse', {'trajetIds': trajetIds});
+
   Future<Map<String, dynamic>> marquerArrivee(String trajetId, String etapeId) async =>
       await _post('/api/trajets/$trajetId/etapes/$etapeId/arrivee', {});
 

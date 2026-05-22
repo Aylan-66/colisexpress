@@ -58,6 +58,25 @@ class _TrajetDetailScreenState extends State<TrajetDetailScreen> {
                     if (t['prixParColis'] != null) _info('Prix/colis', '${t['prixParColis']} €'),
                     if (t['prixAuKilo'] != null) _info('Prix/kg', '${t['prixAuKilo']} €'),
                     const SizedBox(height: 12),
+                    if (t['statut'] != 'Termine' && t['dateDemarrageTournee'] == null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.play_circle, size: 18),
+                          label: const Text('Démarrer la tournée'),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+                          onPressed: _demarrerTournee,
+                        ),
+                      ),
+                    if (t['dateDemarrageTournee'] != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppTheme.success.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                        child: const Text('✓ Tournée démarrée', textAlign: TextAlign.center,
+                            style: TextStyle(color: AppTheme.success, fontWeight: FontWeight.w700)),
+                      ),
+                    const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -154,6 +173,34 @@ class _TrajetDetailScreenState extends State<TrajetDetailScreen> {
       return sum + p;
     });
     return (cap - utilise).toStringAsFixed(1);
+  }
+
+  Future<void> _demarrerTournee() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Démarrer la tournée ?'),
+        content: const Text('Tous les colis pris en charge passeront en transit. Les clients seront notifiés (dès que les notifications seront activées).'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Démarrer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final res = await context.read<ApiService>().lancerTournee(widget.trajet['id']);
+    if (!mounted) return;
+    if (res.containsKey('error')) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['error'])));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message']?.toString() ?? 'Tournée démarrée')));
+      setState(() => widget.trajet['dateDemarrageTournee'] = DateTime.now().toIso8601String());
+      _load();
+    }
   }
 
   Future<void> _cloturer() async {

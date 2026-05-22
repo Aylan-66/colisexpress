@@ -17,6 +17,15 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
   bool _loading = true;
   String _filtre = 'Tous';   // Tous / Actif / Complet / Termine
   final _searchCtrl = TextEditingController();
+  DateTime? _filtreDate;     // filtre par date de départ (calendrier)
+
+  // Sélection multiple
+  bool _selectionMode = false;
+  final Set<String> _selected = {};
+
+  // Pagination
+  static const int _pageSize = 15;
+  int _visibleCount = _pageSize;
 
   @override
   void initState() {
@@ -34,7 +43,17 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
     setState(() => _loading = true);
     final api = context.read<ApiService>();
     _trajets = await api.getMesTrajets();
-    setState(() => _loading = false);
+    setState(() { _loading = false; _visibleCount = _pageSize; });
+  }
+
+  /// Dates (jour) ayant au moins un trajet — pour surligner dans le calendrier
+  Set<DateTime> get _joursAvecTrajet {
+    final set = <DateTime>{};
+    for (final tr in _trajets) {
+      final d = DateTime.tryParse((tr as Map)['dateDepart']?.toString() ?? '');
+      if (d != null) set.add(DateTime(d.year, d.month, d.day));
+    }
+    return set;
   }
 
   List<dynamic> get _trajetsFiltres {
@@ -42,12 +61,56 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
     return _trajets.where((tr) {
       final t = tr as Map<String, dynamic>;
       if (_filtre != 'Tous' && (t['statut']?.toString() ?? '') != _filtre) return false;
+      if (_filtreDate != null) {
+        final d = DateTime.tryParse(t['dateDepart']?.toString() ?? '');
+        if (d == null || d.year != _filtreDate!.year || d.month != _filtreDate!.month || d.day != _filtreDate!.day) {
+          return false;
+        }
+      }
       if (q.isEmpty) return true;
       final dep = (t['villeDepart'] ?? '').toString().toLowerCase();
       final arr = (t['villeArrivee'] ?? '').toString().toLowerCase();
       final date = (t['dateDepart'] ?? '').toString();
       return dep.contains(q) || arr.contains(q) || date.contains(q);
     }).toList();
+  }
+
+  Future<void> _pickFiltreDate() async {
+    final jours = _joursAvecTrajet;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _filtreDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Filtrer par date de départ',
+      selectableDayPredicate: jours.isEmpty ? null : (d) => jours.contains(DateTime(d.year, d.month, d.day)),
+    );
+    if (picked != null) setState(() => _filtreDate = picked);
+  }
+
+  Future<void> _supprimerSelection() async {
+    if (_selected.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Supprimer ${_selected.length} trajet(s) ?'),
+        content: const Text('Les trajets ayant des colis en cours seront ignorés. Cette action est irréversible.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final res = await context.read<ApiService>().suppressionMasse(_selected.toList());
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message']?.toString() ?? 'Supprimé')));
+    setState(() { _selectionMode = false; _selected.clear(); });
+    _load();
   }
 
   Future<void> _cloturer(String id) async {
@@ -91,17 +154,32 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mes trajets'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle, color: AppTheme.accent),
-            onPressed: () async {
-              final created = await Navigator.push<bool>(context,
-                  MaterialPageRoute(builder: (_) => const CreateTrajetScreen()));
-              if (created == true) _load();
-            },
-          ),
-        ],
+        title: Text(_selectionMode ? '${_selected.length} sélectionné(s)' : 'Mes trajets'),
+        leading: _selectionMode
+            ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() { _selectionMode = false; _selected.clear(); }))
+            : null,
+        actions: _selectionMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete, color: AppTheme.danger),
+                  onPressed: _selected.isEmpty ? null : _supprimerSelection,
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.checklist),
+                  tooltip: 'Sélection multiple',
+                  onPressed: () => setState(() => _selectionMode = true),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle, color: AppTheme.accent),
+                  onPressed: () async {
+                    final created = await Navigator.push<bool>(context,
+                        MaterialPageRoute(builder: (_) => const CreateTrajetScreen()));
+                    if (created == true) _load();
+                  },
+                ),
+              ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -109,21 +187,46 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher (ville, date)…',
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      isDense: true,
-                      suffixIcon: _searchCtrl.text.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () { _searchCtrl.clear(); setState(() {}); }),
-                    ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchCtrl,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: 'Rechercher (ville, date)…',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            isDense: true,
+                            suffixIcon: _searchCtrl.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: () { _searchCtrl.clear(); setState(() {}); }),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(Icons.calendar_month, color: _filtreDate != null ? AppTheme.accent : null),
+                        tooltip: 'Filtrer par date',
+                        onPressed: _pickFiltreDate,
+                      ),
+                    ],
                   ),
                 ),
+                if (_filtreDate != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        Chip(
+                          label: Text('${_filtreDate!.day}/${_filtreDate!.month}/${_filtreDate!.year}'),
+                          onDeleted: () => setState(() => _filtreDate = null),
+                          deleteIcon: const Icon(Icons.close, size: 16),
+                        ),
+                      ],
+                    ),
+                  ),
                 SizedBox(
                   height: 40,
                   child: ListView(
@@ -153,19 +256,43 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
     if (filtres.isEmpty) {
       return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Aucun trajet correspondant.', style: TextStyle(color: AppTheme.textMuted))));
     }
+    final visibles = filtres.take(_visibleCount).toList();
+    final hasMore = filtres.length > _visibleCount;
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: filtres.length,
-        itemBuilder: (ctx, i) => _TrajetCard(
-          trajet: filtres[i],
-          onDelete: () => _deleteTrajet(filtres[i]['id']),
-          onCloturer: () => _cloturer(filtres[i]['id']),
-          onDupliquer: () => _dupliquer(filtres[i] as Map<String, dynamic>),
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => TrajetDetailScreen(trajet: filtres[i]))),
-        ),
+        itemCount: visibles.length + (hasMore ? 1 : 0),
+        itemBuilder: (ctx, i) {
+          if (i >= visibles.length) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: OutlinedButton(
+                onPressed: () => setState(() => _visibleCount += _pageSize),
+                child: Text('Voir plus (${filtres.length - _visibleCount} restants)'),
+              ),
+            );
+          }
+          final t = visibles[i] as Map<String, dynamic>;
+          final id = t['id']?.toString() ?? '';
+          return _TrajetCard(
+            trajet: t,
+            selectionMode: _selectionMode,
+            selected: _selected.contains(id),
+            onToggleSelect: () => setState(() {
+              if (_selected.contains(id)) {
+                _selected.remove(id);
+              } else {
+                _selected.add(id);
+              }
+            }),
+            onDelete: () => _deleteTrajet(id),
+            onCloturer: () => _cloturer(id),
+            onDupliquer: () => _dupliquer(t),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => TrajetDetailScreen(trajet: t))),
+          );
+        },
       ),
     );
   }
@@ -225,6 +352,9 @@ class _TrajetCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onCloturer;
   final VoidCallback onDupliquer;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback onToggleSelect;
 
   const _TrajetCard({
     required this.trajet,
@@ -232,6 +362,9 @@ class _TrajetCard extends StatelessWidget {
     required this.onTap,
     required this.onCloturer,
     required this.onDupliquer,
+    this.selectionMode = false,
+    this.selected = false,
+    required this.onToggleSelect,
   });
 
   @override
@@ -247,8 +380,9 @@ class _TrajetCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      color: selected ? AppTheme.accent.withValues(alpha: 0.08) : null,
       child: InkWell(
-        onTap: onTap,
+        onTap: selectionMode ? onToggleSelect : onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
         padding: const EdgeInsets.all(16),
@@ -257,6 +391,12 @@ class _TrajetCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                if (selectionMode)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: selected ? AppTheme.accent : AppTheme.textMuted, size: 22),
+                  ),
                 Expanded(
                   child: Text(
                     '${trajet['villeDepart']} → ${trajet['villeArrivee']}',
@@ -294,19 +434,20 @@ class _TrajetCard extends StatelessWidget {
                   Text('${trajet['prixAuKilo']} €/kg',
                       style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.primary, fontSize: 15)),
                 const Spacer(),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 20),
-                  onSelected: (v) {
-                    if (v == 'dupliquer') onDupliquer();
-                    else if (v == 'cloturer') onCloturer();
-                    else if (v == 'supprimer') onDelete();
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'dupliquer', child: ListTile(leading: Icon(Icons.copy, size: 18), title: Text('Dupliquer'))),
-                    PopupMenuItem(value: 'cloturer', child: ListTile(leading: Icon(Icons.lock_outline, size: 18), title: Text('Clôturer'))),
-                    PopupMenuItem(value: 'supprimer', child: ListTile(leading: Icon(Icons.delete_outline, size: 18, color: AppTheme.danger), title: Text('Supprimer', style: TextStyle(color: AppTheme.danger)))),
-                  ],
-                ),
+                if (!selectionMode)
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onSelected: (v) {
+                      if (v == 'dupliquer') onDupliquer();
+                      else if (v == 'cloturer') onCloturer();
+                      else if (v == 'supprimer') onDelete();
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'dupliquer', child: ListTile(leading: Icon(Icons.copy, size: 18), title: Text('Dupliquer'))),
+                      PopupMenuItem(value: 'cloturer', child: ListTile(leading: Icon(Icons.lock_outline, size: 18), title: Text('Clôturer'))),
+                      PopupMenuItem(value: 'supprimer', child: ListTile(leading: Icon(Icons.delete_outline, size: 18, color: AppTheme.danger), title: Text('Supprimer', style: TextStyle(color: AppTheme.danger)))),
+                    ],
+                  ),
               ],
             ),
           ],
