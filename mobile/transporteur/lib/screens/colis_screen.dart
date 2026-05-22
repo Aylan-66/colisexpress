@@ -16,6 +16,8 @@ class _ColisScreenState extends State<ColisScreen> {
   List<dynamic> _commandes = [];
   bool _loading = true;
   String _filtre = 'Tous';
+  static const int _pageSize = 20;
+  int _visibleCount = _pageSize;
 
   // Filtres disponibles → liste de statuts correspondants
   static const Map<String, List<String>> _filtres = {
@@ -96,7 +98,7 @@ class _ColisScreenState extends State<ColisScreen> {
                   child: ChoiceChip(
                     label: Text(f),
                     selected: selected,
-                    onSelected: (_) => setState(() => _filtre = f),
+                    onSelected: (_) => setState(() { _filtre = f; _visibleCount = _pageSize; }),
                   ),
                 );
               }).toList(),
@@ -110,26 +112,40 @@ class _ColisScreenState extends State<ColisScreen> {
                         child: Text(_filtre == 'Tous' ? 'Aucun colis en cours' : 'Aucun colis pour ce filtre',
                             style: const TextStyle(color: AppTheme.textMuted)),
                       )
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                          itemCount: _filtered.length,
-                          itemBuilder: (ctx, i) {
-                            final c = _filtered[i] as Map<String, dynamic>;
-                            return _ColisListItem(
-                              commande: c,
-                              onTap: () {
-                                final code = c['codeColis'] ?? '';
-                                if (code.isNotEmpty) {
-                                  Navigator.push(context,
-                                      MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code)));
-                                }
-                              },
-                            );
-                          },
-                        ),
-                      ),
+                    : Builder(builder: (ctx) {
+                        final all = _filtered;
+                        final visibles = all.take(_visibleCount).toList();
+                        final hasMore = all.length > _visibleCount;
+                        return RefreshIndicator(
+                          onRefresh: _load,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                            itemCount: visibles.length + (hasMore ? 1 : 0),
+                            itemBuilder: (ctx, i) {
+                              if (i >= visibles.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  child: OutlinedButton(
+                                    onPressed: () => setState(() => _visibleCount += _pageSize),
+                                    child: Text('Voir plus (${all.length - _visibleCount} restants)'),
+                                  ),
+                                );
+                              }
+                              final c = visibles[i] as Map<String, dynamic>;
+                              return _ColisListItem(
+                                commande: c,
+                                onTap: () {
+                                  final code = c['codeColis'] ?? '';
+                                  if (code.isNotEmpty) {
+                                    Navigator.push(context,
+                                        MaterialPageRoute(builder: (_) => ColisDetailScreen(codeColis: code)));
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                        );
+                      }),
           ),
         ],
       ),

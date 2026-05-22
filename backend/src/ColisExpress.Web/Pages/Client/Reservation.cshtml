@@ -25,7 +25,7 @@
     }
 
     <div class="grid-2">
-        <form method="post" asp-route-trajetId="@Model.TrajetId" asp-route-poids="@Model.Poids" asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent" asp-route-segDepart="@Model.SegDepart" asp-route-segArrivee="@Model.SegArrivee">
+        <form method="post" enctype="multipart/form-data" asp-route-trajetId="@Model.TrajetId" asp-route-poids="@Model.Poids" asp-route-fragile="@Model.Fragile" asp-route-urgent="@Model.Urgent" asp-route-segDepart="@Model.SegDepart" asp-route-segArrivee="@Model.SegArrivee" asp-route-relaisDepartId="@Model.RelaisDepartId">
             <div class="web-card">
                 <h2>Destinataire</h2>
                 <div class="web-field-row">
@@ -87,6 +87,11 @@
                 <div class="web-field">
                     <label class="web-field-label">Instructions particulières (optionnel)</label>
                     <textarea class="web-field-textarea" asp-for="Input.InstructionsParticulieres"></textarea>
+                </div>
+                <div class="web-field">
+                    <label class="web-field-label">Photo du colis (optionnel)</label>
+                    <input type="file" accept="image/*" class="web-field-input" asp-for="PhotoColis" />
+                    <div class="text-muted" style="font-size:11px;margin-top:4px;">Aide le transporteur à valider votre colis (5 Mo max).</div>
                 </div>
             </div>
 

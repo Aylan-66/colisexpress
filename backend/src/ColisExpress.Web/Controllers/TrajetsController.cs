@@ -621,7 +621,7 @@ public class TrajetsController : ControllerBase
         if (transporteur is null) return Forbid();
 
         var commandes = await _db.Commandes
-            .Include(c => c.Colis)
+            .Include(c => c.Colis)!.ThenInclude(co => co!.Evenements)
             .Include(c => c.Trajet)
             .Include(c => c.Client)
             .Where(c => c.TransporteurId == transporteur.Id
@@ -635,6 +635,11 @@ public class TrajetsController : ControllerBase
             commandeId = c.Id,
             colisId = c.Colis!.Id,
             codeColis = c.Colis.CodeColis,
+            photoReservation = c.Colis.Evenements
+                .Where(e => e.PhotoChemin != null && e.Commentaire != null && e.Commentaire.Contains("réservation"))
+                .OrderByDescending(e => e.DateHeure)
+                .Select(e => e.PhotoChemin)
+                .FirstOrDefault(),
             trajetId = c.TrajetId,
             trajet = c.Trajet is null ? "—" : $"{c.Trajet.VilleDepart} → {c.Trajet.VilleArrivee}",
             dateDepart = c.Trajet?.DateDepart,

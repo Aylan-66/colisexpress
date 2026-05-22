@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
@@ -177,6 +179,22 @@ class _ValidationScreenState extends State<ValidationScreen> {
           _info('Poids / dimensions', '${c['poidsDeclare']} kg • $dim'),
           _info('Valeur déclarée', '${c['valeurDeclaree']} €'),
           _info('Paiement', c['modeReglement']?.toString() ?? '—'),
+          if (c['photoReservation'] != null) ...[
+            const SizedBox(height: 10),
+            const Text('Photo fournie par le client', style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: GestureDetector(
+                onTap: () => _voirPhoto(c['photoReservation'].toString()),
+                child: Image.memory(
+                  _decodePhoto(c['photoReservation'].toString()),
+                  height: 160, width: double.infinity, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -199,6 +217,23 @@ class _ValidationScreenState extends State<ValidationScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Uint8List _decodePhoto(String dataUri) {
+    final idx = dataUri.indexOf(',');
+    final b64 = idx >= 0 ? dataUri.substring(idx + 1) : dataUri;
+    return base64Decode(b64);
+  }
+
+  void _voirPhoto(String dataUri) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: InteractiveViewer(
+          child: Image.memory(_decodePhoto(dataUri), fit: BoxFit.contain),
+        ),
       ),
     );
   }
