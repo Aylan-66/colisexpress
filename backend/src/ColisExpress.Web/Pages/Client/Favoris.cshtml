@@ -1,0 +1,58 @@
+@page "/favoris"
+@model ColisExpress.Web.Pages.Client.FavorisModel
+@{
+    ViewData["Title"] = "Mes favoris";
+}
+
+<section class="web-page" style="max-width:900px;">
+    <h1>Mes favoris</h1>
+    <p class="subtitle">Vos points relais et transporteurs préférés, pour réserver plus vite.</p>
+
+    <h2 style="margin-top:24px;">Points relais (@Model.Relais.Count)</h2>
+    @if (!Model.Relais.Any())
+    {
+        <div class="web-card text-center" style="padding:32px;color:var(--gray-500);">
+            Aucun point relais en favori. Ajoutez-en depuis la page des résultats de recherche.
+        </div>
+    }
+    else
+    {
+        <div class="kpi-grid">
+            @foreach (var r in Model.Relais)
+            {
+                <div class="web-card">
+                    <div style="font-weight:800;color:var(--primary);">📍 @r.Nom</div>
+                    <div style="font-size:13px;color:var(--gray-500);margin:4px 0 12px;">@r.Adresse, @r.Ville (@r.Pays)</div>
+                    <form method="post" asp-page-handler="Supprimer" asp-route-favoriId="@r.FavoriId">
+                        <button type="submit" class="web-btn outline sm">Retirer</button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    <h2 style="margin-top:32px;">Transporteurs (@Model.Transporteurs.Count)</h2>
+    @if (!Model.Transporteurs.Any())
+    {
+        <div class="web-card text-center" style="padding:32px;color:var(--gray-500);">
+            Aucun transporteur en favori.
+        </div>
+    }
+    else
+    {
+        <div class="kpi-grid">
+            @foreach (var t in Model.Transporteurs)
+            {
+                <div class="web-card">
+                    <div style="font-weight:800;">@t.Nom</div>
+                    <div style="font-size:13px;color:var(--gray-500);margin:4px 0 12px;">
+                        ⭐ @t.Note.ToString("0.0") (@t.NbAvis avis) • @t.Vehicule
+                    </div>
+                    <form method="post" asp-page-handler="Supprimer" asp-route-favoriId="@t.FavoriId">
+                        <button type="submit" class="web-btn outline sm">Retirer</button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+</section>

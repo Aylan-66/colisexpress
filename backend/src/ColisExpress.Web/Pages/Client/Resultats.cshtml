@@ -22,6 +22,13 @@
     .relais-distance { font-size:12px; color:#1B4965; font-weight:700; }
     .leaflet-popup-content { font-family:inherit; min-width:200px; }
     .reso-empty-radius { padding:24px;text-align:center;color:#6b7280;background:#fff;border:1px dashed #d1d5db;border-radius:10px; }
+    .fav-btn { background:none; border:none; cursor:pointer; font-size:18px; color:#d1d5db; padding:0; line-height:1; transition:.15s; }
+    .fav-btn.fav-sm { font-size:14px; }
+    .fav-btn:hover { color:#f87171; }
+    .fav-btn.fav-on { color:#dc2626; }
+    .reso-badge { display:inline-block; font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; text-transform:uppercase; letter-spacing:.3px; }
+    .reso-badge-relais { background:#dcfce7; color:#166534; }
+    .reso-badge-transporteur { background:#fef3c7; color:#92400e; }
 </style>
 
 <section class="web-page" style="max-width:1200px;">
@@ -85,8 +92,13 @@
                          data-duree-h="@((offre.DateEstimeeArrivee - offre.DateDepart).TotalHours.ToString("0", inv))">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
                             <div style="flex:1;">
-                                <div style="font-weight:800;font-size:16px;color:#1B4965;">📍 @offre.RelaisDepartNom</div>
-                                <div style="font-size:13px;color:#6b7280;margin-top:2px;">@offre.RelaisDepartAdresse, @offre.RelaisDepartVille</div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span style="font-weight:800;font-size:16px;color:#1B4965;">📍 @offre.RelaisDepartNom</span>
+                                    <button type="button" class="fav-btn @(Model.FavorisRelais.Contains(offre.RelaisDepartId!.Value) ? "fav-on" : "")"
+                                            data-type="relais" data-id="@offre.RelaisDepartId" title="Ajouter aux favoris">♥</button>
+                                </div>
+                                <span class="reso-badge reso-badge-relais">Point relais officiel</span>
+                                <div style="font-size:13px;color:#6b7280;margin-top:4px;">@offre.RelaisDepartAdresse, @offre.RelaisDepartVille</div>
                                 <div class="relais-distance" data-distance-slot></div>
                             </div>
                             <div style="text-align:right;">
@@ -98,7 +110,11 @@
                         <div style="background:#F7F5F2;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
                             <div>
                                 <div style="font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;">Transporteur</div>
-                                <div style="font-weight:700;">@offre.NomTransporteur</div>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <span style="font-weight:700;">@offre.NomTransporteur</span>
+                                    <button type="button" class="fav-btn fav-sm @(Model.FavorisTransporteurs.Contains(offre.TransporteurId) ? "fav-on" : "")"
+                                            data-type="transporteur" data-id="@offre.TransporteurId" title="Transporteur favori">♥</button>
+                                </div>
                                 <div style="font-size:11px;color:#6b7280;">⭐ @offre.NoteMoyenne.ToString("0.0") (@offre.NombreAvis avis) • @offre.TypeVehicule</div>
                             </div>
                             <div style="text-align:right;">
@@ -129,8 +145,9 @@
                 @if (offresSansRelais.Any())
                 {
                     <div class="web-card" style="margin-top:24px;padding:18px;">
-                        <div style="font-size:13px;color:#6b7280;font-weight:700;margin-bottom:8px;">⚠ Trajets sans point relais associé (@offresSansRelais.Count)</div>
-                        <div style="font-size:12px;color:#6b7280;">Ces trajets historiques n'ont pas de relais de départ enregistré. Lien direct vers la réservation :</div>
+                        <div style="margin-bottom:8px;"><span class="reso-badge reso-badge-transporteur">Point transporteur</span></div>
+                        <div style="font-size:13px;color:#6b7280;font-weight:700;margin-bottom:8px;">Départ défini par le transporteur (@offresSansRelais.Count)</div>
+                        <div style="font-size:12px;color:#6b7280;">Ces trajets partent d'un point défini par le transporteur lui-même (pas un point relais officiel). Lien direct vers la réservation :</div>
                         <ul style="margin:8px 0 0;padding-left:18px;">
                             @foreach (var o in offresSansRelais)
                             {
@@ -153,6 +170,23 @@
 
 @section Scripts {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // Toggle favoris (relais / transporteur) en AJAX
+        document.querySelectorAll('.fav-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const type = btn.dataset.type;
+                const id = btn.dataset.id;
+                try {
+                    const r = await fetch(`/favoris/toggle-${type}/${id}`, { method: 'POST', headers: { 'RequestVerificationToken': '' } });
+                    if (r.ok) {
+                        const data = await r.json();
+                        btn.classList.toggle('fav-on', data.favori);
+                    }
+                } catch (_) {}
+            });
+        });
+    </script>
     <script>
         (function () {
             const villeDepart = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.VilleDepart));

@@ -415,9 +415,73 @@ public class TrajetsController : ControllerBase
             etapes[0].Statut = StatutEtape.EnCours;
 
         trajet.Statut = StatutTrajet.Actif;
+        trajet.DateDemarrageTournee = DateTime.UtcNow;
+
+        // Passer en transit tous les colis pris en charge / déposés du trajet
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var commandes = await _db.Commandes
+            .Include(c => c.Colis)
+            .Where(c => c.TrajetId == id && c.Colis != null)
+            .ToListAsync(ct);
+        var enTransitCount = 0;
+        foreach (var c in commandes)
+        {
+            var s = c.Colis!.Statut;
+            if (s is StatutColis.DeposeParClient or StatutColis.ReceptionneParTransporteur or StatutColis.PhotoPriseEnChargeEnregistree)
+            {
+                var ancien = c.Colis.Statut;
+                c.Colis.Statut = StatutColis.EnTransit;
+                await _uow.Colis.AddEvenementAsync(new EvenementColis
+                {
+                    ColisId = c.Colis.Id, AncienStatut = ancien, NouveauStatut = StatutColis.EnTransit,
+                    ActeurId = userId, Commentaire = "Tournée démarrée par le transporteur — colis en transit"
+                }, ct);
+                enTransitCount++;
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
 
-        return Ok(new { message = "Tournée lancée.", etapes = etapes.Count });
+        // TODO notifications : prévenir les clients que la tournée a démarré (en attente SMTP/push)
+        return Ok(new { message = "Tournée démarrée.", etapes = etapes.Count, colisEnTransit = enTransitCount });
+    }
+
+    /// Suppression en masse de plusieurs trajets (sélection multiple côté app)
+    [HttpPost("suppression-masse")]
+    public async Task<IActionResult> SuppressionMasse([FromBody] SuppressionMasseRequest body, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+        if (body.TrajetIds is null || body.TrajetIds.Count == 0)
+            return BadRequest(new { error = "Aucun trajet sélectionné." });
+
+        var trajets = await _db.Trajets
+            .Where(t => body.TrajetIds.Contains(t.Id) && t.TransporteurId == transporteur.Id)
+            .ToListAsync(ct);
+
+        // Refus de supprimer un trajet qui a des colis non terminés
+        var trajetIds = trajets.Select(t => t.Id).ToList();
+        var trajetsAvecColisActifs = await _db.Commandes
+            .Where(c => trajetIds.Contains(c.TrajetId) && c.Colis != null
+                && c.Colis.Statut != StatutColis.Annulee
+                && c.Colis.Statut != StatutColis.LivraisonCloturee
+                && c.Colis.Statut != StatutColis.Refuse)
+            .Select(c => c.TrajetId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var supprimables = trajets.Where(t => !trajetsAvecColisActifs.Contains(t.Id)).ToList();
+        _db.Trajets.RemoveRange(supprimables);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            supprimes = supprimables.Count,
+            ignores = trajets.Count - supprimables.Count,
+            message = trajetsAvecColisActifs.Any()
+                ? $"{supprimables.Count} trajet(s) supprimé(s). {trajetsAvecColisActifs.Count} ignoré(s) car ils ont des colis en cours."
+                : $"{supprimables.Count} trajet(s) supprimé(s)."
+        });
     }
 
     [HttpPost("{id:guid}/etapes/{etapeId:guid}/arrivee")]
@@ -812,6 +876,11 @@ public class DupliquerTrajetRequest
 public class BatchStatutRequest
 {
     public string NouveauStatut { get; set; } = string.Empty;
+}
+
+public class SuppressionMasseRequest
+{
+    public List<Guid> TrajetIds { get; set; } = new();
 }
 
 public class CreateTrajetApiRequest

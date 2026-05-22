@@ -37,6 +37,9 @@ public class Trajet
     public StatutTrajet Statut { get; set; } = StatutTrajet.Actif;
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 
+    // Démarrage de la tournée (null = pas encore démarrée). Sert aux alertes "date dépassée non démarré".
+    public DateTime? DateDemarrageTournee { get; set; }
+
     public Transporteur? Transporteur { get; set; }
     public ICollection<EtapeTrajet> Etapes { get; set; } = new List<EtapeTrajet>();
 }
