@@ -1,0 +1,75 @@
+@page "/qui-sommes-nous"
+@model ColisExpress.Web.Pages.Client.QuiSommesNousModel
+@{
+    ViewData["Title"] = "Qui sommes-nous";
+}
+
+<style>
+    .qsn-hero { background: linear-gradient(135deg, var(--primary) 0%, #2d6a8f 100%); color:#fff; padding:56px 24px; text-align:center; }
+    .qsn-hero-inner { max-width:640px; margin:0 auto; }
+    .qsn-block { margin-top:40px; }
+    .qsn-block h2 { font-size:24px; margin-bottom:12px; }
+    .qsn-block p { font-size:15px; color:var(--gray-600); line-height:1.7; }
+    .qsn-values { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:40px; }
+    .qsn-value { background:#fff; border:1px solid var(--gray-200); border-radius:14px; padding:24px; text-align:center; }
+    .qsn-value-icon { font-size:32px; margin-bottom:12px; }
+    .qsn-value h3 { font-size:17px; margin:0 0 8px; }
+    .qsn-value p { font-size:13px; color:var(--gray-500); line-height:1.6; margin:0; }
+    .qsn-cta { text-align:center; margin:48px 0 16px; padding:32px; background:var(--gray-50); border-radius:16px; }
+    .qsn-cta h2 { margin:0 0 16px; }
+    @@media (max-width:780px) { .qsn-values { grid-template-columns:1fr; } }
+</style>
+
+<section class="qsn-hero">
+    <div class="qsn-hero-inner">
+        <div class="home-hero-badge">Notre histoire</div>
+        <h1 class="home-hero-title">Qui sommes-nous</h1>
+        <p class="home-hero-sub">
+            Colis Express rapproche les familles en simplifiant l'envoi de colis entre la France et le Maghreb.
+        </p>
+    </div>
+</section>
+
+<section class="web-page" style="max-width:900px;">
+    <div class="qsn-block">
+        <h2>Notre mission</h2>
+        <p>
+            Envoyer un colis vers l'Algérie, le Maroc ou la Tunisie était souvent compliqué, cher et opaque.
+            Colis Express met en relation des particuliers qui souhaitent expédier un colis avec des
+            transporteurs vérifiés effectuant régulièrement le trajet France → Maghreb. Notre objectif :
+            rendre cet envoi <strong>simple, sûr et transparent</strong>, du dépôt jusqu'à la remise au destinataire.
+        </p>
+    </div>
+
+    <div class="qsn-values">
+        <div class="qsn-value">
+            <div class="qsn-value-icon">🔒</div>
+            <h3>Sécurité</h3>
+            <p>Transporteurs vérifiés (KYC), code de retrait à 4 chiffres et QR code : votre colis n'est remis qu'à la bonne personne.</p>
+        </div>
+        <div class="qsn-value">
+            <div class="qsn-value-icon">📍</div>
+            <h3>Transparence</h3>
+            <p>Suivi en temps réel à chaque étape et tarifs clairs affichés avant toute réservation, sans surprise.</p>
+        </div>
+        <div class="qsn-value">
+            <div class="qsn-value-icon">🤝</div>
+            <h3>Proximité</h3>
+            <p>Un réseau de points relais partenaires proches de chez vous pour déposer et récupérer facilement.</p>
+        </div>
+    </div>
+
+    <div class="qsn-block">
+        <h2>Comment ça marche</h2>
+        <p>
+            Vous recherchez un trajet, choisissez un point relais de départ proche de vous, réservez en ligne
+            et suivez votre colis en direct. Le transporteur prend en charge votre colis au point relais, le
+            transporte, et le destinataire le récupère dans un point relais de sa ville avec un code sécurisé.
+        </p>
+    </div>
+
+    <div class="qsn-cta">
+        <h2>Prêt à envoyer votre colis ?</h2>
+        <a class="web-btn accent" asp-page="/Client/Recherche">Rechercher un trajet →</a>
+    </div>
+</section>

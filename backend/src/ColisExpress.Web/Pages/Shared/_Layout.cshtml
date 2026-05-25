@@ -26,6 +26,7 @@
         <div class="web-nav-links">
             <a class="@NavClass("/recherche")" asp-page="/Client/Recherche">Rechercher</a>
             <a class="@NavClass("/relais-carte")" asp-page="/Client/RelaisCarte">Points relais</a>
+            <a class="@NavClass("/qui-sommes-nous")" asp-page="/Client/QuiSommesNous">Qui sommes-nous</a>
             @if (isAuth)
             {
                 <a class="@NavClass("/mes-commandes")" asp-page="/Client/MesCommandes">Mes commandes</a>
@@ -82,7 +83,7 @@
             </div>
             <div>
                 <div class="web-footer-title">À propos</div>
-                <a href="~/#qui-sommes-nous">Qui sommes-nous</a>
+                <a asp-page="/Client/QuiSommesNous">Qui sommes-nous</a>
                 <a href="~/#avis">Avis clients</a>
             </div>
         </div>

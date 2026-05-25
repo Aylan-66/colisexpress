@@ -29,6 +29,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Client/Connexion");
     // Recherche / Résultats / Suivi nécessitent désormais d'être connecté (demande client)
     options.Conventions.AllowAnonymousToPage("/Index");
+    options.Conventions.AllowAnonymousToPage("/Client/QuiSommesNous");
     options.Conventions.AuthorizeFolder("/Admin", "EstAdmin");
 });
 
