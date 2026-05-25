@@ -227,11 +227,17 @@ public class RelaisController : ControllerBase
     [HttpPost("colis/{codeColis}/confirmer-depot")]
     public async Task<IActionResult> ConfirmerDepot(string codeColis, CancellationToken ct)
     {
+        var relais = await GetRelaisAsync(ct);
+        if (relais is null) return NotFound(new { error = "Profil point relais introuvable." });
+
         var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
         if (colis is null) return NotFound(new { error = "Colis introuvable." });
 
         var commande = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
-        if (commande is not null && commande.ModeReglement == ModeReglement.Especes && commande.StatutReglement != StatutReglement.Paye)
+        if (commande is null) return BadRequest(new { error = "Commande introuvable." });
+        if (!ColisConcerneRelais(commande, relais))
+            return BadRequest(new { error = "Ce colis ne passe pas par votre point relais." });
+        if (commande.ModeReglement == ModeReglement.Especes && commande.StatutReglement != StatutReglement.Paye)
             return BadRequest(new { error = "Paiement espèces non confirmé.", commandeId = commande.Id });
 
         var ancien = colis.Statut;
@@ -250,8 +256,16 @@ public class RelaisController : ControllerBase
     [HttpPost("colis/{codeColis}/confirmer-retrait")]
     public async Task<IActionResult> ConfirmerRetrait(string codeColis, [FromBody] ConfirmerRetraitRequest request, CancellationToken ct)
     {
+        var relais = await GetRelaisAsync(ct);
+        if (relais is null) return NotFound(new { error = "Profil point relais introuvable." });
+
         var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
         if (colis is null) return NotFound(new { error = "Colis introuvable." });
+
+        var commandeR = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commandeR is null) return BadRequest(new { error = "Commande introuvable." });
+        if (!ColisConcerneRelais(commandeR, relais))
+            return BadRequest(new { error = "Ce colis ne passe pas par votre point relais." });
 
         if (colis.CodeRetrait != request.CodeRetrait)
             return BadRequest(new { error = "Code de retrait incorrect." });
@@ -279,18 +293,21 @@ public class RelaisController : ControllerBase
     [HttpPost("paiement/{commandeId:guid}/valider-especes")]
     public async Task<IActionResult> ValiderPaiementEspeces(Guid commandeId, CancellationToken ct)
     {
+        var relais = await GetRelaisAsync(ct);
+        if (relais is null) return NotFound(new { error = "Profil point relais introuvable." });
+
         var commande = await _db.Commandes
             .Include(c => c.Colis)
             .FirstOrDefaultAsync(c => c.Id == commandeId, ct);
 
         if (commande is null) return NotFound(new { error = "Commande introuvable." });
+        if (!ColisConcerneRelais(commande, relais))
+            return BadRequest(new { error = "Ce colis ne passe pas par votre point relais." });
 
         if (commande.StatutReglement == StatutReglement.Paye)
             return Ok(new { message = "Déjà payé." });
 
         commande.StatutReglement = StatutReglement.Paye;
-
-        var relais = await GetRelaisAsync(ct);
         var paiement = new Paiement
         {
             CommandeId = commande.Id,
@@ -325,8 +342,17 @@ public class RelaisController : ControllerBase
     [HttpPost("colis/{codeColis}/photo-depot")]
     public async Task<IActionResult> UploadPhotoDepot(string codeColis, IFormFile photo, CancellationToken ct)
     {
+        var relais = await GetRelaisAsync(ct);
+        if (relais is null) return NotFound(new { error = "Profil point relais introuvable." });
+
         var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
         if (colis is null) return NotFound(new { error = "Colis introuvable." });
+
+        var commandeP = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commandeP is null) return BadRequest(new { error = "Commande introuvable." });
+        if (!ColisConcerneRelais(commandeP, relais))
+            return BadRequest(new { error = "Ce colis ne passe pas par votre point relais." });
+
         if (photo is null || photo.Length == 0) return BadRequest(new { error = "Photo manquante." });
         if (photo.Length > 5 * 1024 * 1024) return BadRequest(new { error = "Photo trop volumineuse (5 Mo max)." });
 
@@ -473,6 +499,15 @@ public class RelaisController : ControllerBase
     {
         var userId = GetUserId();
         return await _db.PointsRelais.FirstOrDefaultAsync(p => p.UtilisateurId == userId, ct);
+    }
+
+    /// Vrai si le colis passe par ce relais (ville de départ, étape ou destination).
+    private static bool ColisConcerneRelais(Commande commande, PointRelais relais)
+    {
+        var ville = relais.Ville.ToLower();
+        return (commande.SegmentDepart?.ToLower() == ville)
+            || (commande.SegmentArrivee?.ToLower() == ville)
+            || (commande.VilleDestinataire?.ToLower() == ville);
     }
 
     private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
