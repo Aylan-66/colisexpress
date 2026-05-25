@@ -15,7 +15,12 @@ if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(o =>
+{
+    // Sérialise les enums en chaînes (ex: "DeposeParClient") au lieu d'entiers,
+    // pour que les apps mobiles filtrent et comparent les statuts par nom.
+    o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Client", "EstConnecte");
