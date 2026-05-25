@@ -45,10 +45,17 @@ public class ColisController : ControllerBase
         if (!Enum.TryParse<StatutColis>(request.NouveauStatut, true, out var nouveauStatut))
             return BadRequest(new { error = $"Statut invalide : {request.NouveauStatut}" });
 
+        // Sécurité : seul le transporteur assigné au trajet de ce colis peut changer son statut
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var commande = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commande is null) return BadRequest(new { error = "Commande introuvable." });
+        var transporteur = await _db.Transporteurs.FirstOrDefaultAsync(t => t.UtilisateurId == userId, ct);
+        if (transporteur is null || commande.TransporteurId != transporteur.Id)
+            return StatusCode(403, new { error = "Ce colis n'est pas sur l'un de vos trajets." });
+
         var ancien = colis.Statut;
         colis.Statut = nouveauStatut;
 
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _uow.Colis.AddEvenementAsync(new EvenementColis
         {
             ColisId = colis.Id,
@@ -77,11 +84,18 @@ public class ColisController : ControllerBase
         if (photo.Length > 5 * 1024 * 1024)
             return BadRequest(new { error = "Photo trop volumineuse (5 Mo max)." });
 
+        // Sécurité : seul le transporteur assigné au trajet peut uploader la photo de prise en charge
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var commande = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        if (commande is null) return BadRequest(new { error = "Commande introuvable." });
+        var transporteur = await _db.Transporteurs.FirstOrDefaultAsync(t => t.UtilisateurId == userId, ct);
+        if (transporteur is null || commande.TransporteurId != transporteur.Id)
+            return StatusCode(403, new { error = "Ce colis n'est pas sur l'un de vos trajets." });
+
         using var ms = new MemoryStream();
         await photo.CopyToAsync(ms, ct);
         var photoBase64 = Convert.ToBase64String(ms.ToArray());
 
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var ancien = colis.Statut;
 
         if (colis.Statut == StatutColis.ReceptionneParTransporteur)
