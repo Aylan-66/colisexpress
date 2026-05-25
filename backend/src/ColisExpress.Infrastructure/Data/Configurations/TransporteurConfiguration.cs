@@ -16,6 +16,8 @@ public class TransporteurConfiguration : IEntityTypeConfiguration<Transporteur>
         builder.Property(t => t.NoteMoyenne).HasPrecision(3, 2);
         builder.Property(t => t.TypeVehicule).HasMaxLength(100);
         builder.Property(t => t.CorridorsActifs).HasMaxLength(200);
+        builder.Property(t => t.FraisServiceType).HasConversion<string>().HasMaxLength(20);
+        builder.Property(t => t.FraisServiceValeur).HasPrecision(10, 2);
 
         builder.HasOne(t => t.Utilisateur)
             .WithOne()

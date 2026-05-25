@@ -60,7 +60,21 @@ public class CommandeService : ICommandeService
         {
             prixTransport = RechercheService.CalculerPrix(trajet, request.PoidsDeclare, request.Urgent, request.Fragile);
         }
-        const decimal fraisService = 5m;
+        // Frais de service : override du transporteur si défini, sinon défaut global plateforme
+        decimal fraisService;
+        var transp = await _uow.Transporteurs.GetByIdAsync(trajet.TransporteurId, ct);
+        if (transp?.FraisServiceType != null && transp.FraisServiceValeur != null)
+        {
+            fraisService = transp.FraisServiceType == Domain.Enums.TypeFraisService.Pourcentage
+                ? Math.Round(prixTransport * transp.FraisServiceValeur.Value / 100m, 2)
+                : transp.FraisServiceValeur.Value;
+        }
+        else
+        {
+            var param = await _uow.GetParametresPlateformeAsync(ct);
+            fraisService = param.CalculerFrais(prixTransport);
+        }
+
         var supplements = 0m;
         if (request.Urgent) supplements += trajet.SupplementUrgent ?? 0;
         if (request.Fragile) supplements += trajet.SupplementFragile ?? 0;

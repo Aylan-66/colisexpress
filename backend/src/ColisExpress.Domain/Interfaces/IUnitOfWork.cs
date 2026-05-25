@@ -9,5 +9,8 @@ public interface IUnitOfWork
     IColisRepository Colis { get; }
     IPaiementRepository Paiements { get; }
 
+    /// Récupère (ou crée) la ligne unique de paramètres plateforme.
+    Task<Entities.ParametrePlateforme> GetParametresPlateformeAsync(CancellationToken ct = default);
+
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

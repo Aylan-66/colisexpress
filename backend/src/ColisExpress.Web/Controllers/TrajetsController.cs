@@ -867,11 +867,60 @@ public class TrajetsController : ControllerBase
         }));
     }
 
+    /// Récupère les frais de service du transporteur (son override + le défaut global de la plateforme)
+    [HttpGet("/api/transporteur/frais-service")]
+    public async Task<IActionResult> GetFraisService(CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+        var param = await _uow.GetParametresPlateformeAsync(ct);
+        return Ok(new
+        {
+            utiliseDefaut = transporteur.FraisServiceType == null,
+            type = transporteur.FraisServiceType?.ToString(),
+            valeur = transporteur.FraisServiceValeur,
+            defautType = param.FraisServiceType.ToString(),
+            defautValeur = param.FraisServiceValeur
+        });
+    }
+
+    /// Définit (ou réinitialise) les frais de service du transporteur
+    [HttpPut("/api/transporteur/frais-service")]
+    public async Task<IActionResult> SetFraisService([FromBody] FraisServiceRequest body, CancellationToken ct)
+    {
+        var transporteur = await GetTransporteurAsync(ct);
+        if (transporteur is null) return Forbid();
+
+        if (body.UtiliseDefaut)
+        {
+            transporteur.FraisServiceType = null;
+            transporteur.FraisServiceValeur = null;
+        }
+        else
+        {
+            if (!Enum.TryParse<TypeFraisService>(body.Type, out var type))
+                return BadRequest(new { error = "Type invalide (Fixe ou Pourcentage)." });
+            if (body.Valeur is null || body.Valeur < 0)
+                return BadRequest(new { error = "Valeur invalide." });
+            transporteur.FraisServiceType = type;
+            transporteur.FraisServiceValeur = body.Valeur;
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { message = "Frais de service mis à jour." });
+    }
+
     private async Task<Transporteur?> GetTransporteurAsync(CancellationToken ct)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         return await _uow.Transporteurs.GetByUtilisateurIdAsync(userId, ct);
     }
+}
+
+public class FraisServiceRequest
+{
+    public bool UtiliseDefaut { get; set; }
+    public string? Type { get; set; }
+    public decimal? Valeur { get; set; }
 }
 
 public class DupliquerTrajetRequest

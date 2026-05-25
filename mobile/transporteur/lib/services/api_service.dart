@@ -131,6 +131,16 @@ class ApiService {
   Future<Map<String, dynamic>> suppressionMasse(List<String> trajetIds) async =>
       await _post('/api/trajets/suppression-masse', {'trajetIds': trajetIds});
 
+  Future<Map<String, dynamic>> getFraisService() async =>
+      await _get('/api/transporteur/frais-service');
+
+  Future<Map<String, dynamic>> setFraisService({required bool utiliseDefaut, String? type, double? valeur}) async =>
+      await _put('/api/transporteur/frais-service', {
+        'utiliseDefaut': utiliseDefaut,
+        if (type != null) 'type': type,
+        if (valeur != null) 'valeur': valeur,
+      });
+
   Future<Map<String, dynamic>> marquerArrivee(String trajetId, String etapeId) async =>
       await _post('/api/trajets/$trajetId/etapes/$etapeId/arrivee', {});
 

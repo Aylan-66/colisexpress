@@ -7,6 +7,7 @@ import '../main.dart';
 import 'tarifs_screen.dart';
 import 'relais_partenaires_screen.dart';
 import 'kyc_screen.dart';
+import 'frais_service_screen.dart';
 
 class ProfilScreen extends StatelessWidget {
   const ProfilScreen({super.key});
@@ -60,6 +61,8 @@ class ProfilScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     _menuTile(context, Icons.euro, 'Mes tarifs', 'Configurer mes templates de prix', const TarifsScreen()),
+                    const Divider(height: 1),
+                    _menuTile(context, Icons.receipt_long, 'Frais de service', 'Définir mes frais (ou défaut plateforme)', const FraisServiceScreen()),
                     const Divider(height: 1),
                     _menuTile(context, Icons.store, 'Mes points relais', 'Relais associés à mes trajets', const RelaisPartenairesScreen()),
                     const Divider(height: 1),

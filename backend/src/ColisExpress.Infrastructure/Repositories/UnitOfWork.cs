@@ -1,5 +1,7 @@
+using ColisExpress.Domain.Entities;
 using ColisExpress.Domain.Interfaces;
 using ColisExpress.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace ColisExpress.Infrastructure.Repositories;
 
@@ -31,6 +33,18 @@ public class UnitOfWork : IUnitOfWork
     public ICommandeRepository Commandes { get; }
     public IColisRepository Colis { get; }
     public IPaiementRepository Paiements { get; }
+
+    public async Task<ParametrePlateforme> GetParametresPlateformeAsync(CancellationToken ct = default)
+    {
+        var p = await _db.ParametresPlateforme.FirstOrDefaultAsync(ct);
+        if (p is null)
+        {
+            p = new ParametrePlateforme();
+            _db.ParametresPlateforme.Add(p);
+            await _db.SaveChangesAsync(ct);
+        }
+        return p;
+    }
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
 }

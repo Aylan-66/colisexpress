@@ -1,0 +1,41 @@
+@page "/admin/parametres"
+@model ColisExpress.Web.Pages.Admin.ParametresModel
+@{
+    ViewData["Title"] = "Paramètres";
+}
+
+<h1>Paramètres plateforme</h1>
+<p class="subtitle">Réglages globaux de la plateforme</p>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="admin-card" style="padding:14px 18px;margin-bottom:16px;border-left:4px solid #16a34a;color:#166534;">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="admin-card" style="padding:14px 18px;margin-bottom:16px;border-left:4px solid #dc2626;color:#991b1b;">@Model.Error</div>
+}
+
+<div class="admin-card" style="padding:24px;max-width:560px;">
+    <h2 style="margin-top:0;">Frais de service par défaut</h2>
+    <p style="font-size:13px;color:var(--admin-text-muted);">
+        Appliqué à chaque commande, sauf si le transporteur a défini ses propres frais.
+        En montant fixe (€) ou en pourcentage du prix de transport.
+    </p>
+    <form method="post" style="margin-top:16px;">
+        <div style="display:flex;gap:12px;align-items:flex-end;">
+            <div style="flex:1;">
+                <label class="admin-field-label" style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;">Type</label>
+                <select name="FraisServiceType" class="admin-field-input" style="width:100%;">
+                    <option value="Fixe" selected="@(Model.FraisServiceType == "Fixe")">Montant fixe (€)</option>
+                    <option value="Pourcentage" selected="@(Model.FraisServiceType == "Pourcentage")">Pourcentage (%)</option>
+                </select>
+            </div>
+            <div style="flex:1;">
+                <label class="admin-field-label" style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;">Valeur</label>
+                <input type="number" step="0.01" min="0" name="FraisServiceValeur" value="@Model.FraisServiceValeur.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="admin-field-input" style="width:100%;" required />
+            </div>
+        </div>
+        <button type="submit" class="admin-btn" style="margin-top:18px;">Enregistrer</button>
+    </form>
+</div>
