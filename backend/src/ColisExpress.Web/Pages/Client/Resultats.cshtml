@@ -141,6 +141,7 @@
                 <div id="reso-empty-msg" class="reso-empty-radius" style="display:none;">
                     Aucun point relais dans ce rayon. Augmentez le rayon ou désactivez-le.
                 </div>
+                <button type="button" id="reso-more" class="web-btn outline" style="display:none;width:100%;margin-top:8px;"></button>
 
                 @if (offresSansRelais.Any())
                 {
@@ -199,6 +200,8 @@
             const center = { lat: null, lng: null, label: null };
             let centerMarker = null;
             let radiusCircle = null;
+            const PAGE_SIZE = 8;
+            let pageLimit = PAGE_SIZE;
             const status = document.getElementById('reso-geoloc-status');
             const btn = document.getElementById('reso-geoloc');
 
@@ -284,8 +287,11 @@
                 else if (tri === 'Rapidite') visibles.sort((a, b) => a.dureeH - b.dureeH);
                 else visibles.sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
 
+                // Pagination côté client : on n'affiche que les `pageLimit` premiers (le filtre rayon reste appliqué à tout)
+                const pagines = visibles.slice(0, pageLimit);
+
                 cards.forEach(c => c.style.display = 'none');
-                visibles.forEach(v => { v.card.style.display = ''; list.insertBefore(v.card, empty); });
+                pagines.forEach(v => { v.card.style.display = ''; list.insertBefore(v.card, empty); });
 
                 const labelCentre = center.label || '';
                 items.forEach(i => {
@@ -295,9 +301,20 @@
                     else slot.textContent = '';
                 });
 
-                // Synchroniser markers visibles sur la carte
+                // Markers : on affiche tous les relais filtrés sur la carte (même non paginés dans la liste)
                 Object.keys(markers).forEach(id => map.removeLayer(markers[id]));
                 visibles.forEach(v => { if (markers[v.trajetId]) markers[v.trajetId].addTo(map); });
+
+                // Bouton "voir plus"
+                const moreBtn = document.getElementById('reso-more');
+                const reste = visibles.length - pagines.length;
+                if (reste > 0) {
+                    moreBtn.style.display = 'block';
+                    moreBtn.textContent = `Voir plus (${reste} restant${reste > 1 ? 's' : ''})`;
+                    list.insertBefore(moreBtn, empty);
+                } else {
+                    moreBtn.style.display = 'none';
+                }
 
                 drawRadiusCircle();
                 empty.style.display = visibles.length === 0 ? 'block' : 'none';
@@ -351,10 +368,18 @@
             }
 
             document.getElementById('reso-radius').addEventListener('change', () => {
+                pageLimit = PAGE_SIZE;
                 applyFiltersAndSort();
                 recenterMap();
             });
-            document.getElementById('reso-tri').addEventListener('change', applyFiltersAndSort);
+            document.getElementById('reso-tri').addEventListener('change', () => {
+                pageLimit = PAGE_SIZE;
+                applyFiltersAndSort();
+            });
+            document.getElementById('reso-more').addEventListener('click', () => {
+                pageLimit += PAGE_SIZE;
+                applyFiltersAndSort();
+            });
             btn.addEventListener('click', () => tryGeoloc(false));
 
             // Si les coords ont été fournies par l'autocomplétion, on les utilise directement (pas de géocodage)
