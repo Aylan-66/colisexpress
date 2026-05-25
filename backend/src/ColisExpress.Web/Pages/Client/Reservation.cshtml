@@ -157,6 +157,12 @@
                     </div>
                 }
 
+                var fraisInit = Model.Offre.FraisServiceType == "Pourcentage"
+                    ? System.Math.Round(Model.Offre.Prix * Model.Offre.FraisServiceValeur / 100m, 2)
+                    : Model.Offre.FraisServiceValeur;
+                var fraisLabel = Model.Offre.FraisServiceType == "Pourcentage"
+                    ? $"Frais de service ({Model.Offre.FraisServiceValeur.ToString("0.##")} %)"
+                    : "Frais de service";
                 <div class="web-card">
                     <h3>Récapitulatif</h3>
                     <div class="flex justify-between mb-2" style="font-size:13px;">
@@ -164,13 +170,13 @@
                         <span id="prix-transport" style="font-weight:700;">@Model.Offre.Prix.ToString("0.00") €</span>
                     </div>
                     <div class="flex justify-between mb-2" style="font-size:13px;">
-                        <span class="text-muted">Frais de service</span>
-                        <span style="font-weight:700;">5,00 €</span>
+                        <span class="text-muted" id="frais-label">@fraisLabel</span>
+                        <span id="prix-frais" style="font-weight:700;">@fraisInit.ToString("0.00") €</span>
                     </div>
                     <hr style="border:none;border-top:1px solid var(--gray-200);margin:12px 0;" />
                     <div class="flex justify-between" style="font-size:22px;font-weight:800;color:var(--primary);">
                         <span>Total</span>
-                        <span id="prix-total">@((Model.Offre.Prix + 5m).ToString("0.00")) €</span>
+                        <span id="prix-total">@((Model.Offre.Prix + fraisInit).ToString("0.00")) €</span>
                     </div>
                     @if (Model.Offre.Tarif is not null)
                     {
@@ -209,10 +215,13 @@
                 H: @(maxH?.ToString() ?? "null"),
                 kg: @(maxKg?.ToString(inv) ?? "null")
             };
-            const FRAIS = 5;
+            // Frais de service effectif (config admin/transporteur)
+            const fraisType = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Offre.FraisServiceType));
+            const fraisValeur = @Model.Offre.FraisServiceValeur.ToString(inv);
+            const calcFrais = (prix) => fraisType === 'Pourcentage' ? Math.round(prix * fraisValeur) / 100 : fraisValeur;
             const $ = id => document.getElementById(id);
             const poids = $('f-poids'), fL = $('f-l'), fla = $('f-la'), fH = $('f-h');
-            const transp = $('prix-transport'), total = $('prix-total');
+            const transp = $('prix-transport'), total = $('prix-total'), fraisEl = $('prix-frais');
             const pStd = $('palier-std'), pLourd = $('palier-lourd'), pHg = $('palier-hg');
             const formule = $('calcul-formule');
             const warning = $('calcul-warning');
@@ -275,17 +284,20 @@
                     formuleStr = `${tarif.std} €/kg × ${p} kg = <strong>${fmt(prix)}</strong>`;
                 }
 
+                const frais = calcFrais(prix);
+                const fraisTxt = fraisType === 'Pourcentage' ? `${fraisValeur} % (${fmt(frais)})` : fmt(frais);
                 setActif(palierActif);
                 formule.innerHTML = `
                     <div style="color:#6b7280;font-size:12px;font-family:inherit;">Pourquoi ce palier ?</div>
                     <div style="margin-bottom:8px;font-size:12px;font-family:inherit;">${raison}</div>
                     <div style="color:#6b7280;font-size:12px;font-family:inherit;">Calcul :</div>
                     <div>${formuleStr}</div>
-                    <div style="margin-top:8px;font-size:12px;font-family:inherit;color:#6b7280;">+ 5,00 € frais de service = <strong>${fmt(prix + FRAIS)} TTC</strong></div>
+                    <div style="margin-top:8px;font-size:12px;font-family:inherit;color:#6b7280;">+ ${fraisTxt} frais de service = <strong>${fmt(prix + frais)} TTC</strong></div>
                 `;
 
                 transp.textContent = fmt(prix);
-                total.textContent = fmt(prix + FRAIS);
+                if (fraisEl) fraisEl.textContent = fmt(frais);
+                total.textContent = fmt(prix + frais);
 
                 // Flash animation
                 transp.classList.remove('price-flash');

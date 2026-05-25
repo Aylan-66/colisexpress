@@ -24,7 +24,8 @@ public class RechercheService : IRechercheService
             request.Poids,
             ct);
 
-        var offres = trajets.Select(t => ToOffre(t, request.Poids, request.Urgent, request.Fragile, request.VilleDepart, request.VilleArrivee));
+        var param = await _uow.GetParametresPlateformeAsync(ct);
+        var offres = trajets.Select(t => ToOffre(t, request.Poids, request.Urgent, request.Fragile, request.VilleDepart, request.VilleArrivee, param.FraisServiceType.ToString(), param.FraisServiceValeur));
         offres = request.Tri switch
         {
             TriOffres.Prix => offres.OrderBy(o => o.Prix),
@@ -39,7 +40,8 @@ public class RechercheService : IRechercheService
     {
         var trajet = await _uow.Trajets.GetByIdAsync(trajetId, ct);
         if (trajet is null) return null;
-        return ToOffre(trajet, poids, false, false);
+        var param = await _uow.GetParametresPlateformeAsync(ct);
+        return ToOffre(trajet, poids, false, false, defautFraisType: param.FraisServiceType.ToString(), defautFraisValeur: param.FraisServiceValeur);
     }
 
     public async Task<(IReadOnlyList<string> Depart, IReadOnlyList<string> Arrivee)> GetVillesDispoAsync(CancellationToken ct = default)
@@ -50,7 +52,8 @@ public class RechercheService : IRechercheService
     }
 
     private static OffreResponse ToOffre(Trajet t, decimal poids, bool urgent, bool fragile,
-        string? rechercheDepart = null, string? rechercheArrivee = null)
+        string? rechercheDepart = null, string? rechercheArrivee = null,
+        string defautFraisType = "Fixe", decimal defautFraisValeur = 5m)
     {
         var transporteur = t.Transporteur;
         var utilisateur = transporteur?.Utilisateur;
@@ -126,6 +129,9 @@ public class RechercheService : IRechercheService
             LargeurMaxColisCm = t.LargeurMaxColisCm,
             HauteurMaxColisCm = t.HauteurMaxColisCm,
             PoidsMaxColisKg = t.PoidsMaxColisKg,
+            // Frais effectif : override transporteur si défini, sinon défaut global
+            FraisServiceType = transporteur?.FraisServiceType?.ToString() ?? defautFraisType,
+            FraisServiceValeur = transporteur?.FraisServiceValeur ?? defautFraisValeur,
             Tarif = t.Tarif is null ? null : new TarifApercu
             {
                 Nom = t.Tarif.Nom,

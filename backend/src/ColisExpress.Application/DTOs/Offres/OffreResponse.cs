@@ -34,6 +34,10 @@ public class OffreResponse
     public int? LargeurMaxColisCm { get; init; }
     public int? HauteurMaxColisCm { get; init; }
     public decimal? PoidsMaxColisKg { get; init; }
+
+    // Frais de service effectif pour cette offre (override transporteur ou défaut global)
+    public string FraisServiceType { get; init; } = "Fixe";   // "Fixe" ou "Pourcentage"
+    public decimal FraisServiceValeur { get; init; } = 5m;
 }
 
 public class TarifApercu
