@@ -87,7 +87,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _prendrePhotoDepot(String code) async {
     final picker = ImagePicker();
-    final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 1200, imageQuality: 80);
+    final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 1080, imageQuality: 70);
     if (!mounted) return;
     if (photo == null) {
       ScaffoldMessenger.of(context).showSnackBar(

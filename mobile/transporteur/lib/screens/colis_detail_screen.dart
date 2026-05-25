@@ -141,7 +141,7 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
     }
 
     final picker = ImagePicker();
-    final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 1200, imageQuality: 80);
+    final photo = await picker.pickImage(source: ImageSource.camera, maxWidth: 1080, imageQuality: 70);
     if (photo == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

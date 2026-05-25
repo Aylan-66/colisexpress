@@ -107,7 +107,7 @@ class _KycScreenState extends State<KycScreen> {
 
     if (source == null) return;
 
-    final file = await picker.pickImage(source: source, maxWidth: 1600, imageQuality: 85);
+    final file = await picker.pickImage(source: source, maxWidth: 1280, imageQuality: 75);
     if (file == null) return;
 
     setState(() { _uploadingType = typeDocument; _success = null; _error = null; });

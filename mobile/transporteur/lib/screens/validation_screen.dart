@@ -190,6 +190,9 @@ class _ValidationScreenState extends State<ValidationScreen> {
                 child: Image.memory(
                   _decodePhoto(c['photoReservation'].toString()),
                   height: 160, width: double.infinity, fit: BoxFit.cover,
+                  // Downsample en mémoire : évite de décoder l'image pleine résolution (crash mémoire iOS)
+                  cacheWidth: 600,
+                  gaplessPlayback: true,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
@@ -232,7 +235,7 @@ class _ValidationScreenState extends State<ValidationScreen> {
       context: context,
       builder: (ctx) => Dialog(
         child: InteractiveViewer(
-          child: Image.memory(_decodePhoto(dataUri), fit: BoxFit.contain),
+          child: Image.memory(_decodePhoto(dataUri), fit: BoxFit.contain, cacheWidth: 1200),
         ),
       ),
     );
