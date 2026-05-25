@@ -35,6 +35,25 @@ public class ColisController : ControllerBase
         return Ok(detail);
     }
 
+    /// Détail d'un colis pour le transporteur — vérifie l'ownership AVANT de renvoyer (403 sinon).
+    /// Utilisé par l'app transporteur au scan, pour ne pas ouvrir l'écran de gestion d'un colis qui n'est pas le sien.
+    [HttpGet("{codeColis}/transporteur")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public async Task<IActionResult> GetByCodeTransporteur(string codeColis, CancellationToken ct)
+    {
+        var colis = await _uow.Colis.GetByCodeAsync(codeColis, ct);
+        if (colis is null) return NotFound(new { error = "Colis introuvable." });
+
+        var commande = await _db.Commandes.FirstOrDefaultAsync(c => c.Id == colis.CommandeId, ct);
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var transporteur = await _db.Transporteurs.FirstOrDefaultAsync(t => t.UtilisateurId == userId, ct);
+        if (transporteur is null || commande is null || commande.TransporteurId != transporteur.Id)
+            return StatusCode(403, new { error = "Ce colis n'est pas sur l'un de vos trajets." });
+
+        var detail = await _colis.GetByCodeAsync(codeColis, ct);
+        return Ok(detail);
+    }
+
     [HttpPut("{codeColis}/statut")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public async Task<IActionResult> UpdateStatut(string codeColis, [FromBody] UpdateStatutApiRequest request, CancellationToken ct)

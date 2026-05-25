@@ -223,8 +223,9 @@ class ApiService {
   // COLIS
   // ============================================
 
+  // Endpoint transporteur : vérifie l'ownership avant de renvoyer le colis (403 si pas sur ses trajets)
   Future<Map<String, dynamic>> getColisByCode(String code) async =>
-      await _get('/api/colis/$code');
+      await _get('/api/colis/$code/transporteur');
 
   Future<Map<String, dynamic>> updateStatutColis(
       String code, String statut, String? commentaire,
