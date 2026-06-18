@@ -18,11 +18,14 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-    <nav class="web-nav">
+    <nav class="web-nav" id="webNav">
         <a class="web-nav-logo" asp-page="/Index">
             <span class="web-nav-logo-icon">📦</span>
             Colis Express
         </a>
+        <button type="button" class="web-nav-toggle" aria-label="Menu" onclick="document.getElementById('webNav').classList.toggle('nav-open')">
+            <span></span><span></span><span></span>
+        </button>
         <div class="web-nav-links">
             <a class="@NavClass("/recherche")" asp-page="/Client/Recherche">Rechercher</a>
             <a class="@NavClass("/relais-carte")" asp-page="/Client/RelaisCarte">Points relais</a>

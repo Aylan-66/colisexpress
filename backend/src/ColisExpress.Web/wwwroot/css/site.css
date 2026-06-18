@@ -499,3 +499,119 @@ h1, h2, h3, h4 { color: var(--gray-900); font-weight: 800; }
   .home-features, .home-reviews { grid-template-columns: 1fr; }
   .home-features { margin-top: 24px; }
 }
+
+/* ============================================
+   RESPONSIVE MOBILE (≤ 900px)
+   Desktop inchangé. Mobile : navbar hamburger + grilles 1 col + paddings réduits.
+   ============================================ */
+.web-nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  margin-left: auto;
+  flex-direction: column;
+  gap: 4px;
+}
+.web-nav-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: 0.2s;
+}
+
+@media (max-width: 900px) {
+  /* Navbar : hamburger qui révèle un menu vertical */
+  .web-nav {
+    padding: 14px 18px;
+    flex-wrap: wrap;
+  }
+  .web-nav-toggle { display: flex; }
+  .web-nav-links {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    margin-left: 0;
+    margin-top: 12px;
+    width: 100%;
+    padding-top: 12px;
+    border-top: 1px solid var(--gray-200);
+  }
+  .web-nav.nav-open .web-nav-links { display: flex; }
+  .web-nav-link {
+    padding: 10px 12px;
+    border-bottom: none;
+    border-radius: 6px;
+  }
+  .web-nav-link.active {
+    background: rgba(27,73,101,0.06);
+    border-bottom: none;
+  }
+  .web-nav-user {
+    flex-direction: row;
+    border-left: none;
+    border-top: 1px solid var(--gray-200);
+    padding-left: 0;
+    padding-top: 12px;
+    margin-left: 0;
+    margin-top: 4px;
+    justify-content: space-between;
+  }
+  .web-nav-toggle:hover span { background: var(--accent); }
+
+  /* Containers et cards : moins de padding */
+  .web-page { padding: 20px 14px; }
+  .web-page h1 { font-size: 22px; }
+  .web-card { padding: 18px; margin-bottom: 14px; border-radius: 12px; }
+  .web-card h2 { font-size: 16px; }
+
+  /* Forms : les rangées de champs passent en colonne */
+  .web-field-row { flex-direction: column; gap: 0; }
+
+  /* Boutons : un peu plus compacts */
+  .web-btn { padding: 11px 18px; font-size: 13px; }
+
+  /* Tables : scroll horizontal pour ne pas casser le layout */
+  .web-table { display: block; overflow-x: auto; white-space: nowrap; }
+
+  /* Hero / titres */
+  .home-hero { padding: 40px 18px 56px; }
+  .home-hero-title { font-size: 28px; }
+  .home-hero-sub { font-size: 14px; }
+  .home-section-title { font-size: 22px; margin: 40px 0 20px; }
+  .home-about { padding: 22px; }
+
+  /* Footer compact */
+  .web-footer { padding: 36px 18px 20px; margin-top: 40px; }
+  .web-footer-grid { gap: 22px; }
+  .web-footer-brand { font-size: 16px; }
+
+  /* KPI : auto-fit déjà mais on serre */
+  .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .kpi-card { padding: 14px; }
+  .kpi-value { font-size: 22px; }
+
+  /* Résultats : la map passe sous la liste (déjà via media 1024 dans Resultats.cshtml) */
+
+  /* Tarifs / paliers / récap : tailles ajustées */
+  .palier { padding: 8px 10px; }
+}
+
+@media (max-width: 480px) {
+  .web-nav-logo { font-size: 15px; }
+  .web-nav-logo-icon { width: 28px; height: 28px; font-size: 14px; }
+  .home-hero-title { font-size: 24px; }
+  .web-page h1 { font-size: 20px; }
+  .web-footer-grid { grid-template-columns: 1fr; }
+  .home-about p, .web-card p { font-size: 13px; }
+}
+
+/* Tables admin : scroll horizontal aussi */
+@media (max-width: 900px) {
+  .admin-table { display: block; overflow-x: auto; white-space: nowrap; }
+  .admin-content { padding: 18px 14px; }
+}
