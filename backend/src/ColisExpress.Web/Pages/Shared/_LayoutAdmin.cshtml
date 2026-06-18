@@ -18,7 +18,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
 </head>
-<body class="admin-body">
+<body class="admin-body" id="adminBody">
+    <div class="admin-sidebar-backdrop" onclick="document.getElementById('adminBody').classList.remove('sidebar-open')"></div>
     <aside class="admin-sidebar">
         <div class="admin-sidebar-logo">
             <div class="admin-sidebar-logo-icon">📦</div>
@@ -45,6 +46,9 @@
 
     <div class="admin-main">
         <header class="admin-topbar">
+            <button type="button" class="admin-sidebar-toggle" aria-label="Menu" onclick="document.getElementById('adminBody').classList.toggle('sidebar-open')">
+                <span></span><span></span><span></span>
+            </button>
             <form method="get" action="/admin/utilisateurs" style="flex:1;max-width:400px;">
                 <input type="text" name="search" class="admin-topbar-search" placeholder="🔎 Rechercher un utilisateur (nom, email)..." />
             </form>

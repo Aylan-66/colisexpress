@@ -323,3 +323,83 @@ body.admin-body h1, body.admin-body h2, body.admin-body h3, body.admin-body h4 {
 
 .admin-grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
 @media (max-width: 1000px) { .admin-grid-2 { grid-template-columns: 1fr; } }
+
+/* ============================================
+   ADMIN RESPONSIVE MOBILE (≤ 900px)
+   Desktop inchangé. Mobile : sidebar off-canvas + topbar compacte.
+   ============================================ */
+.admin-sidebar-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  margin-right: 8px;
+  flex-direction: column;
+  gap: 4px;
+}
+.admin-sidebar-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--admin-text);
+  border-radius: 2px;
+}
+.admin-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 49;
+}
+
+@media (max-width: 900px) {
+  /* Sidebar : sort en off-canvas, masquée par défaut */
+  .admin-sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    width: 240px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 50;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+    overflow-y: auto;
+  }
+  body.admin-body.sidebar-open .admin-sidebar { transform: translateX(0); }
+  body.admin-body.sidebar-open .admin-sidebar-backdrop { display: block; }
+
+  /* Le hamburger devient visible */
+  .admin-sidebar-toggle { display: flex; }
+
+  /* Topbar : recherche compacte, infos utilisateur masquées */
+  .admin-topbar {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .admin-topbar-search { font-size: 12px; padding: 8px 10px; }
+  .admin-topbar-right { gap: 8px; }
+  .admin-topbar-user > div:last-child { display: none; }  /* cache le nom+rôle, garde l'avatar */
+
+  /* Contenu : moins de padding */
+  .admin-content { padding: 18px 14px; }
+  .admin-content h1 { font-size: 22px; }
+
+  /* KPI : grille plus dense */
+  .admin-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .admin-kpi { padding: 14px; }
+  .admin-kpi-value { font-size: 22px; }
+
+  /* Cards et tableaux */
+  .admin-card { padding: 16px; }
+  .admin-table { display: block; overflow-x: auto; white-space: nowrap; }
+
+  /* Grille 2 colonnes éventuelle → 1 colonne */
+  .admin-grid-2 { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 480px) {
+  .admin-topbar { flex-wrap: wrap; }
+  .admin-topbar-search { width: 100%; max-width: none; }
+  .admin-content { padding: 14px 12px; }
+}
