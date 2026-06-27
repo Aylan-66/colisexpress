@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../widgets/pagination_bar.dart';
 
 class RelaisPartenairesScreen extends StatefulWidget {
   const RelaisPartenairesScreen({super.key});
@@ -13,8 +14,8 @@ class RelaisPartenairesScreen extends StatefulWidget {
 class _RelaisPartenairesScreenState extends State<RelaisPartenairesScreen> {
   List<dynamic>? _relais;
   bool _loading = true;
-  static const int _pageSize = 15;
-  int _visibleCount = _pageSize;
+  int _perPage = 20;
+  int _currentPage = 1;
 
   @override
   void initState() {
@@ -55,30 +56,42 @@ class _RelaisPartenairesScreenState extends State<RelaisPartenairesScreen> {
                     ),
                   ),
                 )
-              : Builder(builder: (_) {
-                  final total = _relais!.length;
-                  final visibles = _relais!.take(_visibleCount).toList();
-                  final hasMore = total > _visibleCount;
-                  return RefreshIndicator(
-                    onRefresh: _load,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: visibles.length + (hasMore ? 1 : 0),
-                      itemBuilder: (_, i) {
-                        if (i >= visibles.length) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: OutlinedButton(
-                              onPressed: () => setState(() => _visibleCount += _pageSize),
-                              child: Text('Voir plus (${total - _visibleCount} restants)'),
-                            ),
-                          );
-                        }
-                        return _card(visibles[i] as Map<String, dynamic>);
-                      },
+              : Column(
+                  children: [
+                    PerPageSelector(
+                      value: _perPage,
+                      totalItems: _relais!.length,
+                      onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
                     ),
-                  );
-                }),
+                    Expanded(
+                      child: Builder(builder: (_) {
+                        final all = _relais!;
+                        final totalPages = (all.length / _perPage).ceil().clamp(1, 9999);
+                        final page = _currentPage.clamp(1, totalPages);
+                        final start = (page - 1) * _perPage;
+                        final end = (start + _perPage).clamp(0, all.length);
+                        final visibles = all.sublist(start, end);
+                        return RefreshIndicator(
+                          onRefresh: _load,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: visibles.length + 1,
+                            itemBuilder: (_, i) {
+                              if (i >= visibles.length) {
+                                return PaginationControls(
+                                  currentPage: page,
+                                  totalPages: totalPages,
+                                  onPageChanged: (p) => setState(() => _currentPage = p),
+                                );
+                              }
+                              return _card(visibles[i] as Map<String, dynamic>);
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
     );
   }
 

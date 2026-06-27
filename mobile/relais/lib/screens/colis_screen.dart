@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../widgets/pagination_bar.dart';
 
 class ColisScreen extends StatefulWidget {
   const ColisScreen({super.key});
@@ -17,8 +18,8 @@ class _ColisScreenState extends State<ColisScreen> {
   String _search = '';
   String _filtre = 'Tous'; // Tous / Cote client / Cote transporteur / Disponible retrait
   DateTime? _filtreDate;   // filtre par date de dépôt ou retrait
-  static const int _pageSize = 20;
-  int _visibleCount = _pageSize;
+  int _perPage = 20;
+  int _currentPage = 1;
 
   @override
   void initState() {
@@ -87,7 +88,7 @@ class _ColisScreenState extends State<ColisScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       helpText: 'Filtrer par date (dépôt, retrait ou création)',
     );
-    if (picked != null) setState(() { _filtreDate = picked; _visibleCount = _pageSize; });
+    if (picked != null) setState(() { _filtreDate = picked; _currentPage = 1; });
   }
 
   Future<void> _confirmerDepot(String codeColis) async {
@@ -200,7 +201,7 @@ class _ColisScreenState extends State<ColisScreen> {
                       labelText: 'RECHERCHER', hintText: 'Code, destinataire, trajet...',
                       prefixIcon: Icon(Icons.search, size: 20),
                     ),
-                    onChanged: (v) => setState(() { _search = v; _visibleCount = _pageSize; }),
+                    onChanged: (v) => setState(() { _search = v; _currentPage = 1; }),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -237,12 +238,18 @@ class _ColisScreenState extends State<ColisScreen> {
                   child: ChoiceChip(
                     label: Text(f),
                     selected: selected,
-                    onSelected: (_) => setState(() { _filtre = f; _visibleCount = _pageSize; }),
+                    onSelected: (_) => setState(() { _filtre = f; _currentPage = 1; }),
                   ),
                 );
               }).toList(),
             ),
           ),
+          if (!_loading && _filtered.isNotEmpty)
+            PerPageSelector(
+              value: _perPage,
+              totalItems: _filtered.length,
+              onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+            ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -261,25 +268,25 @@ class _ColisScreenState extends State<ColisScreen> {
                       )
                     : Builder(builder: (ctx) {
                         final all = _filtered;
-                        final visibles = all.take(_visibleCount).toList();
-                        final hasMore = all.length > _visibleCount;
+                        final totalPages = (all.length / _perPage).ceil().clamp(1, 9999);
+                        final page = _currentPage.clamp(1, totalPages);
+                        final start = (page - 1) * _perPage;
+                        final end = (start + _perPage).clamp(0, all.length);
+                        final visibles = all.sublist(start, end);
                         return RefreshIndicator(
                           onRefresh: _load,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
-                            itemCount: visibles.length + (hasMore ? 1 : 0),
+                            itemCount: visibles.length + 1,
                             itemBuilder: (ctx, i) {
                               if (i >= visibles.length) {
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  child: OutlinedButton(
-                                    onPressed: () => setState(() => _visibleCount += _pageSize),
-                                    child: Text('Voir plus (${all.length - _visibleCount} restants)'),
-                                  ),
+                                return PaginationControls(
+                                  currentPage: page,
+                                  totalPages: totalPages,
+                                  onPageChanged: (p) => setState(() => _currentPage = p),
                                 );
                               }
-                              final colis = visibles[i] as Map<String, dynamic>;
-                              return _ColisCard(colis: colis);
+                              return _ColisCard(colis: visibles[i] as Map<String, dynamic>);
                             },
                           ),
                         );

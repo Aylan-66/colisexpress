@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../widgets/pagination_bar.dart';
 import 'create_trajet_screen.dart';
 import 'trajet_detail_screen.dart';
 
@@ -24,8 +25,8 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
   final Set<String> _selected = {};
 
   // Pagination
-  static const int _pageSize = 15;
-  int _visibleCount = _pageSize;
+  int _perPage = 20;
+  int _currentPage = 1;
 
   @override
   void initState() {
@@ -43,7 +44,7 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
     setState(() => _loading = true);
     final api = context.read<ApiService>();
     _trajets = await api.getMesTrajets();
-    setState(() { _loading = false; _visibleCount = _pageSize; });
+    setState(() { _loading = false; _currentPage = 1; });
   }
 
   /// Dates (jour) ayant au moins un trajet — pour surligner dans le calendrier
@@ -256,44 +257,56 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
     if (filtres.isEmpty) {
       return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Aucun trajet correspondant.', style: TextStyle(color: AppTheme.textMuted))));
     }
-    final visibles = filtres.take(_visibleCount).toList();
-    final hasMore = filtres.length > _visibleCount;
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: visibles.length + (hasMore ? 1 : 0),
-        itemBuilder: (ctx, i) {
-          if (i >= visibles.length) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: OutlinedButton(
-                onPressed: () => setState(() => _visibleCount += _pageSize),
-                child: Text('Voir plus (${filtres.length - _visibleCount} restants)'),
-              ),
-            );
-          }
-          final t = visibles[i] as Map<String, dynamic>;
-          final id = t['id']?.toString() ?? '';
-          return _TrajetCard(
-            trajet: t,
-            selectionMode: _selectionMode,
-            selected: _selected.contains(id),
-            onToggleSelect: () => setState(() {
-              if (_selected.contains(id)) {
-                _selected.remove(id);
-              } else {
-                _selected.add(id);
-              }
-            }),
-            onDelete: () => _deleteTrajet(id),
-            onCloturer: () => _cloturer(id),
-            onDupliquer: () => _dupliquer(t),
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => TrajetDetailScreen(trajet: t))),
-          );
-        },
-      ),
+    final totalPages = (filtres.length / _perPage).ceil().clamp(1, 9999);
+    final page = _currentPage.clamp(1, totalPages);
+    final start = (page - 1) * _perPage;
+    final end = (start + _perPage).clamp(0, filtres.length);
+    final visibles = filtres.sublist(start, end);
+    return Column(
+      children: [
+        PerPageSelector(
+          value: _perPage,
+          totalItems: filtres.length,
+          onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: visibles.length + 1,
+              itemBuilder: (ctx, i) {
+                if (i >= visibles.length) {
+                  return PaginationControls(
+                    currentPage: page,
+                    totalPages: totalPages,
+                    onPageChanged: (p) => setState(() => _currentPage = p),
+                  );
+                }
+                final t = visibles[i] as Map<String, dynamic>;
+                final id = t['id']?.toString() ?? '';
+                return _TrajetCard(
+                  trajet: t,
+                  selectionMode: _selectionMode,
+                  selected: _selected.contains(id),
+                  onToggleSelect: () => setState(() {
+                    if (_selected.contains(id)) {
+                      _selected.remove(id);
+                    } else {
+                      _selected.add(id);
+                    }
+                  }),
+                  onDelete: () => _deleteTrajet(id),
+                  onCloturer: () => _cloturer(id),
+                  onDupliquer: () => _dupliquer(t),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => TrajetDetailScreen(trajet: t))),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
