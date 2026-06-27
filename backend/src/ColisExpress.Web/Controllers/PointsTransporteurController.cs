@@ -24,16 +24,33 @@ public class PointsTransporteurController : ControllerBase
     }
 
     /// Géocode une adresse via Nominatim (OpenStreetMap, gratuit, sans clé API).
-    /// Retourne (lat, lng) ou null si non trouvé. Best-effort : on n'échoue pas l'enregistrement.
+    /// Cascade : (1) adresse complète → (2) CP + Ville + Pays → (3) Ville + Pays.
+    /// Retourne (lat, lng) ou null si vraiment rien trouvé.
     private async Task<(double Lat, double Lng)?> GeocodeAsync(string adresse, string? codePostal, string ville, string pays, CancellationToken ct)
+    {
+        var tentatives = new[]
+        {
+            // 1. Adresse complète (la plus précise)
+            string.Join(", ", new[] { adresse, codePostal, ville, pays }.Where(s => !string.IsNullOrWhiteSpace(s))),
+            // 2. CP + Ville + Pays (fallback : centre du quartier / ville)
+            string.Join(", ", new[] { codePostal, ville, pays }.Where(s => !string.IsNullOrWhiteSpace(s))),
+            // 3. Ville + Pays seul (centre ville)
+            string.Join(", ", new[] { ville, pays }.Where(s => !string.IsNullOrWhiteSpace(s))),
+        };
+
+        foreach (var query in tentatives)
+        {
+            if (string.IsNullOrWhiteSpace(query)) continue;
+            var coords = await TryGeocodeAsync(query, ct);
+            if (coords.HasValue) return coords;
+        }
+        return null;
+    }
+
+    private async Task<(double Lat, double Lng)?> TryGeocodeAsync(string query, CancellationToken ct)
     {
         try
         {
-            var query = string.Join(", ",
-                new[] { adresse, codePostal, ville, pays }
-                    .Where(s => !string.IsNullOrWhiteSpace(s)));
-            if (string.IsNullOrWhiteSpace(query)) return null;
-
             var http = _httpFactory.CreateClient();
             http.DefaultRequestHeaders.UserAgent.ParseAdd("ColisExpress/1.0 (geocoding)");
             http.Timeout = TimeSpan.FromSeconds(5);
