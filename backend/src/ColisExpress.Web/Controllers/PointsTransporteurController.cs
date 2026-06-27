@@ -1,3 +1,5 @@
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using ColisExpress.Domain.Entities;
 using ColisExpress.Infrastructure.Data;
@@ -14,7 +16,42 @@ namespace ColisExpress.Web.Controllers;
 public class PointsTransporteurController : ControllerBase
 {
     private readonly ColisExpressDbContext _db;
-    public PointsTransporteurController(ColisExpressDbContext db) => _db = db;
+    private readonly IHttpClientFactory _httpFactory;
+    public PointsTransporteurController(ColisExpressDbContext db, IHttpClientFactory httpFactory)
+    {
+        _db = db;
+        _httpFactory = httpFactory;
+    }
+
+    /// Géocode une adresse via Nominatim (OpenStreetMap, gratuit, sans clé API).
+    /// Retourne (lat, lng) ou null si non trouvé. Best-effort : on n'échoue pas l'enregistrement.
+    private async Task<(double Lat, double Lng)?> GeocodeAsync(string adresse, string? codePostal, string ville, string pays, CancellationToken ct)
+    {
+        try
+        {
+            var query = string.Join(", ",
+                new[] { adresse, codePostal, ville, pays }
+                    .Where(s => !string.IsNullOrWhiteSpace(s)));
+            if (string.IsNullOrWhiteSpace(query)) return null;
+
+            var http = _httpFactory.CreateClient();
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("ColisExpress/1.0 (geocoding)");
+            http.Timeout = TimeSpan.FromSeconds(5);
+
+            var url = $"https://nominatim.openstreetmap.org/search?format=json&limit=1&q={Uri.EscapeDataString(query)}";
+            var res = await http.GetFromJsonAsync<NominatimResult[]>(url, ct);
+            if (res is null || res.Length == 0) return null;
+            if (double.TryParse(res[0].lat, System.Globalization.CultureInfo.InvariantCulture, out var lat)
+                && double.TryParse(res[0].lon, System.Globalization.CultureInfo.InvariantCulture, out var lon))
+            {
+                return (lat, lon);
+            }
+            return null;
+        }
+        catch { return null; }
+    }
+
+    private record NominatimResult(string lat, string lon);
 
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken ct)
@@ -52,6 +89,12 @@ public class PointsTransporteurController : ControllerBase
             Latitude = body.Latitude,
             Longitude = body.Longitude
         };
+        // Géocodage best-effort si pas de coords fournies
+        if (!p.Latitude.HasValue || !p.Longitude.HasValue)
+        {
+            var coords = await GeocodeAsync(p.Adresse, p.CodePostal, p.Ville, p.Pays, ct);
+            if (coords.HasValue) { p.Latitude = coords.Value.Lat; p.Longitude = coords.Value.Lng; }
+        }
         _db.PointsTransporteur.Add(p);
         await _db.SaveChangesAsync(ct);
         return Created($"/api/transporteur/points/{p.Id}", Map(p));
@@ -69,6 +112,7 @@ public class PointsTransporteurController : ControllerBase
         var err = Validate(body);
         if (err != null) return BadRequest(new { error = err });
 
+        var ancienneAdresse = $"{p.Adresse}|{p.CodePostal}|{p.Ville}|{p.Pays}";
         p.Nom = body.Nom!.Trim();
         p.Adresse = body.Adresse!.Trim();
         p.CodePostal = body.CodePostal?.Trim();
@@ -79,6 +123,14 @@ public class PointsTransporteurController : ControllerBase
         p.Instructions = body.Instructions?.Trim();
         p.Latitude = body.Latitude;
         p.Longitude = body.Longitude;
+
+        // Géocodage best-effort si adresse modifiée ou si coords absentes
+        var nouvelleAdresse = $"{p.Adresse}|{p.CodePostal}|{p.Ville}|{p.Pays}";
+        if (!p.Latitude.HasValue || !p.Longitude.HasValue || ancienneAdresse != nouvelleAdresse)
+        {
+            var coords = await GeocodeAsync(p.Adresse, p.CodePostal, p.Ville, p.Pays, ct);
+            if (coords.HasValue) { p.Latitude = coords.Value.Lat; p.Longitude = coords.Value.Lng; }
+        }
         await _db.SaveChangesAsync(ct);
         return Ok(Map(p));
     }

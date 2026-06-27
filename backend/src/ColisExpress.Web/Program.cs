@@ -36,6 +36,7 @@ builder.Services.AddRazorPages(options =>
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddHttpClient(); // pour IHttpClientFactory (géocodage Nominatim)
 
 var jwtKey = builder.Configuration["Jwt:SecretKey"];
 if (string.IsNullOrWhiteSpace(jwtKey)) jwtKey = "ColisExpressDefaultDevKeyMinimum32Chars!!";
