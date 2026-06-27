@@ -88,9 +88,9 @@ public class RelaisController : ControllerBase
 
         var ville = relais.Ville.ToLower();
 
-        // Tous les colis qui passent par ce relais (départ ou arrivée)
+        // Tous les colis qui passent par ce relais (départ ou arrivée) avec les événements pour les dates
         var allCommandes = await _db.Commandes
-            .Include(c => c.Colis)
+            .Include(c => c.Colis)!.ThenInclude(co => co!.Evenements)
             .Include(c => c.Trajet)
             .Include(c => c.Client)
             .Where(c => c.Colis != null && (
@@ -101,20 +101,38 @@ public class RelaisController : ControllerBase
             .OrderByDescending(c => c.DateCreation)
             .ToListAsync(ct);
 
-        return Ok(allCommandes.Where(c => c.Colis is not null).Select(c => new
+        return Ok(allCommandes.Where(c => c.Colis is not null).Select(c =>
         {
-            commandeId = c.Id,
-            codeColis = c.Colis!.CodeColis,
-            statut = c.Colis.Statut.ToString(),
-            nomDestinataire = c.NomDestinataire,
-            telephoneDestinataire = c.TelephoneDestinataire,
-            villeDestinataire = c.VilleDestinataire,
-            codeRetrait = c.Colis.CodeRetrait,
-            poidsDeclare = c.PoidsDeclare,
-            total = c.Total,
-            trajet = c.Trajet is null ? "—" : $"{c.Trajet.VilleDepart} → {c.Trajet.VilleArrivee}",
-            client = c.Client is null ? "—" : $"{c.Client.Prenom} {c.Client.Nom}",
-            dateCreation = c.DateCreation
+            var evs = c.Colis!.Evenements;
+            // Date où le client a déposé le colis au relais
+            var dateDepotClient = evs.Where(e => e.NouveauStatut == StatutColis.DeposeParClient)
+                .OrderBy(e => e.DateHeure).Select(e => (DateTime?)e.DateHeure).FirstOrDefault();
+            // Date où le transporteur a réceptionné/déposé le colis ici (réception au relais arrivée)
+            var dateDepotTransp = evs.Where(e => e.NouveauStatut == StatutColis.ArriveDansPaysDest
+                || e.NouveauStatut == StatutColis.ReceptionneParPointRelais
+                || e.NouveauStatut == StatutColis.DisponibleAuRetrait)
+                .OrderBy(e => e.DateHeure).Select(e => (DateTime?)e.DateHeure).FirstOrDefault();
+            // Date de retrait par le destinataire
+            var dateRetrait = evs.Where(e => e.NouveauStatut == StatutColis.RetireParDestinataire)
+                .OrderBy(e => e.DateHeure).Select(e => (DateTime?)e.DateHeure).FirstOrDefault();
+            return new
+            {
+                commandeId = c.Id,
+                codeColis = c.Colis.CodeColis,
+                statut = c.Colis.Statut.ToString(),
+                nomDestinataire = c.NomDestinataire,
+                telephoneDestinataire = c.TelephoneDestinataire,
+                villeDestinataire = c.VilleDestinataire,
+                codeRetrait = c.Colis.CodeRetrait,
+                poidsDeclare = c.PoidsDeclare,
+                total = c.Total,
+                trajet = c.Trajet is null ? "—" : $"{c.Trajet.VilleDepart} → {c.Trajet.VilleArrivee}",
+                client = c.Client is null ? "—" : $"{c.Client.Prenom} {c.Client.Nom}",
+                dateCreation = c.DateCreation,
+                dateDepotClient,
+                dateDepotTransporteur = dateDepotTransp,
+                dateRetrait
+            };
         }));
     }
 

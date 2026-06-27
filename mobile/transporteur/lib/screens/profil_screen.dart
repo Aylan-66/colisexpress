@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../theme.dart';
 import '../main.dart';
 import 'tarifs_screen.dart';
+import 'mes_points_screen.dart';
 import 'relais_partenaires_screen.dart';
 import 'kyc_screen.dart';
 import 'frais_service_screen.dart';
@@ -65,6 +66,8 @@ class ProfilScreen extends StatelessWidget {
                     _menuTile(context, Icons.receipt_long, 'Frais de service', 'Définir mes frais (ou défaut plateforme)', const FraisServiceScreen()),
                     const Divider(height: 1),
                     _menuTile(context, Icons.store, 'Mes points relais', 'Relais associés à mes trajets', const RelaisPartenairesScreen()),
+                    const Divider(height: 1),
+                    _menuTile(context, Icons.place, 'Mes points perso', 'Mes lieux de dépôt/récupération personnels', const MesPointsScreen()),
                     const Divider(height: 1),
                     _menuTile(context, Icons.verified, 'KYC', 'Mes documents', KycScreen(onKycValidated: () {})),
                   ],

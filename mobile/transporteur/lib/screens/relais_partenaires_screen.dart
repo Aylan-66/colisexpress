@@ -13,6 +13,8 @@ class RelaisPartenairesScreen extends StatefulWidget {
 class _RelaisPartenairesScreenState extends State<RelaisPartenairesScreen> {
   List<dynamic>? _relais;
   bool _loading = true;
+  static const int _pageSize = 15;
+  int _visibleCount = _pageSize;
 
   @override
   void initState() {
@@ -53,14 +55,30 @@ class _RelaisPartenairesScreenState extends State<RelaisPartenairesScreen> {
                     ),
                   ),
                 )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _relais!.length,
-                    itemBuilder: (_, i) => _card(_relais![i] as Map<String, dynamic>),
-                  ),
-                ),
+              : Builder(builder: (_) {
+                  final total = _relais!.length;
+                  final visibles = _relais!.take(_visibleCount).toList();
+                  final hasMore = total > _visibleCount;
+                  return RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: visibles.length + (hasMore ? 1 : 0),
+                      itemBuilder: (_, i) {
+                        if (i >= visibles.length) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: OutlinedButton(
+                              onPressed: () => setState(() => _visibleCount += _pageSize),
+                              child: Text('Voir plus (${total - _visibleCount} restants)'),
+                            ),
+                          );
+                        }
+                        return _card(visibles[i] as Map<String, dynamic>);
+                      },
+                    ),
+                  );
+                }),
     );
   }
 

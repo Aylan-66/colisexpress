@@ -3,6 +3,7 @@ using System;
 using ColisExpress.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ColisExpress.Infrastructure.Migrations
 {
     [DbContext(typeof(ColisExpressDbContext))]
-    partial class ColisExpressDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260627163019_AjoutPeriodeTarif")]
+    partial class AjoutPeriodeTarif
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -582,50 +585,6 @@ namespace ColisExpress.Infrastructure.Migrations
                     b.ToTable("points_relais", (string)null);
                 });
 
-            modelBuilder.Entity("ColisExpress.Domain.Entities.PointTransporteur", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Adresse")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("DateCreation")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("Latitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("Longitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Nom")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Pays")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Telephone")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("TransporteurId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Ville")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TransporteurId");
-
-                    b.ToTable("PointsTransporteur");
-                });
-
             modelBuilder.Entity("ColisExpress.Domain.Entities.Tarif", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1099,17 +1058,6 @@ namespace ColisExpress.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Utilisateur");
-                });
-
-            modelBuilder.Entity("ColisExpress.Domain.Entities.PointTransporteur", b =>
-                {
-                    b.HasOne("ColisExpress.Domain.Entities.Transporteur", "Transporteur")
-                        .WithMany()
-                        .HasForeignKey("TransporteurId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Transporteur");
                 });
 
             modelBuilder.Entity("ColisExpress.Domain.Entities.Tarif", b =>

@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../config.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 
@@ -243,6 +245,8 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
                 _infoRow('Poids déclaré', '${_colis!['poidsDeclare'] ?? 0} kg'),
                 if (_colis!['dimensions'] != null) _infoRow('Dimensions', _colis!['dimensions']),
                 _infoRow('Code retrait', _colis!['codeRetrait'] ?? '—'),
+                if (_colis!['total'] != null)
+                  _infoRow('Prix total', '${_colis!['total']} €'),
                 if (_colis!['modeReglement'] != null)
                   _infoRow('Paiement', '${_colis!['modeReglement']} • ${_colis!['statutReglement']}'),
                 if (_colis!['dateArriveeReelle'] != null)
@@ -358,7 +362,20 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
       _actionButton('Arrivé destination', 'ArriveDansPaysDest', Icons.flag, AppTheme.success, enabled: canArrive),
       _actionButton('Signaler incident', 'Incident', Icons.warning, AppTheme.danger, enabled: canIncident),
       _actionButton('Refuser le colis', null, Icons.block, AppTheme.danger, enabled: canRefuser, onTap: _refuserColis),
+      // Reçu de dépôt disponible dès que le colis a été pris en charge
+      _actionButton('Voir / partager le reçu', null, Icons.receipt, AppTheme.accent,
+          enabled: prisEnCharge, onTap: _ouvrirRecu),
     ];
+  }
+
+  Future<void> _ouvrirRecu() async {
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/recu/${widget.codeColis}');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir le reçu.')),
+      );
+    }
   }
 
   Widget _actionButton(String label, String? statut, IconData icon, Color color, {bool enabled = true, VoidCallback? onTap}) {

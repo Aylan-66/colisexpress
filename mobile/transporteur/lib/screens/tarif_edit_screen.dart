@@ -26,6 +26,10 @@ class _TarifEditScreenState extends State<TarifEditScreen> {
   final _largeurMax = TextEditingController(text: '40');
   final _hauteurMax = TextEditingController(text: '40');
 
+  // Période de validité (haute/basse saison)
+  DateTime? _dateDebut;
+  DateTime? _dateFin;
+
   // Simulation
   final _simPoids = TextEditingController(text: '5');
   final _simL = TextEditingController();
@@ -51,12 +55,16 @@ class _TarifEditScreenState extends State<TarifEditScreen> {
       _longueurMax.text = t['longueurMaxStandardCm']?.toString() ?? '';
       _largeurMax.text = t['largeurMaxStandardCm']?.toString() ?? '';
       _hauteurMax.text = t['hauteurMaxStandardCm']?.toString() ?? '';
+      _dateDebut = DateTime.tryParse(t['dateDebut']?.toString() ?? '');
+      _dateFin = DateTime.tryParse(t['dateFin']?.toString() ?? '');
     }
   }
 
   Map<String, dynamic> _buildPayload() => {
         'nom': _nom.text.trim(),
         'description': _description.text.trim(),
+        if (_dateDebut != null) 'dateDebut': _dateDebut!.toIso8601String(),
+        if (_dateFin != null) 'dateFin': _dateFin!.toIso8601String(),
         'prixAuKiloStandard': double.tryParse(_prixStd.text) ?? 0,
         'seuilStandardKg': double.tryParse(_seuilStd.text) ?? 0,
         'forfaitLourd': double.tryParse(_forfaitLourd.text) ?? 0,
@@ -117,6 +125,17 @@ class _TarifEditScreenState extends State<TarifEditScreen> {
               decoration: const InputDecoration(labelText: 'Description (optionnel)'),
               maxLines: 2,
             ),
+            const SizedBox(height: 20),
+
+            _section('Période de validité (haute/basse saison)'),
+            const Text('Optionnel — laissez vide pour un tarif permanent. Sert à organiser plusieurs tarifs par saison.',
+                style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: _datePickerField('Du', _dateDebut, (d) => setState(() => _dateDebut = d))),
+              const SizedBox(width: 8),
+              Expanded(child: _datePickerField('Au', _dateFin, (d) => setState(() => _dateFin = d))),
+            ]),
             const SizedBox(height: 24),
 
             _section('Palier standard'),
@@ -199,6 +218,32 @@ class _TarifEditScreenState extends State<TarifEditScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _datePickerField(String label, DateTime? value, ValueChanged<DateTime?> onChanged) {
+    final txt = value != null
+        ? '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}'
+        : '—';
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: value ?? DateTime.now(),
+          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+          lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+        );
+        if (picked != null) onChanged(picked);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: value != null
+              ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => onChanged(null))
+              : const Icon(Icons.calendar_today, size: 18),
+        ),
+        child: Text(txt, style: const TextStyle(fontSize: 14)),
       ),
     );
   }

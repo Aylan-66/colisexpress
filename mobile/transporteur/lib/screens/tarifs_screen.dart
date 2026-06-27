@@ -142,6 +142,7 @@ class _TarifsScreenState extends State<TarifsScreen> {
                   child: Text(t['description'].toString(),
                       style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
                 ),
+              _periodeBadge(t),
               const Divider(height: 16),
               _line('Standard', '${t['prixAuKiloStandard']} €/kg jusqu\'à ${t['seuilStandardKg']} kg'),
               _line('Lourd', 'forfait ${t['forfaitLourd']} € + ${t['prixAuKiloLourd']} €/kg au-delà'),
@@ -150,6 +151,36 @@ class _TarifsScreenState extends State<TarifsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _periodeBadge(Map<String, dynamic> t) {
+    final dd = DateTime.tryParse(t['dateDebut']?.toString() ?? '');
+    final df = DateTime.tryParse(t['dateFin']?.toString() ?? '');
+    if (dd == null && df == null) return const SizedBox.shrink();
+    String fmt(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    final txt = dd != null && df != null
+        ? 'Du ${fmt(dd)} au ${fmt(df)}'
+        : dd != null
+            ? 'À partir du ${fmt(dd)}'
+            : 'Jusqu\'au ${fmt(df!)}';
+    final now = DateTime.now();
+    final actif = (dd == null || !now.isBefore(dd)) && (df == null || !now.isAfter(df));
+    final color = actif ? AppTheme.accent : AppTheme.textMuted;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.calendar_today, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(txt, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+        ]),
       ),
     );
   }

@@ -31,6 +31,10 @@ public class Tarif
     public bool EstActif { get; set; } = true;
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 
+    // Période de validité (haute/basse saison). null = pas de borne.
+    public DateTime? DateDebut { get; set; }
+    public DateTime? DateFin { get; set; }
+
     public Transporteur? Transporteur { get; set; }
 
     /// <summary>Calcule le prix d'un colis en fonction de son poids et de ses dimensions.</summary>

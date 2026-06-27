@@ -195,6 +195,21 @@ class ApiService {
       await _getList('/api/transporteur/relais-partenaires');
 
   // ============================================
+  // Points perso transporteur
+  // ============================================
+  Future<List<dynamic>> getMesPoints() async =>
+      await _getList('/api/transporteur/points');
+
+  Future<Map<String, dynamic>> createPoint(Map<String, dynamic> data) async =>
+      await _post('/api/transporteur/points', data);
+
+  Future<Map<String, dynamic>> updatePoint(String id, Map<String, dynamic> data) async =>
+      await _put('/api/transporteur/points/$id', data);
+
+  Future<void> deletePoint(String id) async =>
+      await _delete('/api/transporteur/points/$id');
+
+  // ============================================
   // KYC
   // ============================================
 

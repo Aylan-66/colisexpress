@@ -63,6 +63,8 @@ public class TarifsController : ControllerBase
             LongueurMaxStandardCm = body.LongueurMaxStandardCm,
             LargeurMaxStandardCm = body.LargeurMaxStandardCm,
             HauteurMaxStandardCm = body.HauteurMaxStandardCm,
+            DateDebut = body.DateDebut?.Date is DateTime dd ? DateTime.SpecifyKind(dd, DateTimeKind.Utc) : null,
+            DateFin = body.DateFin?.Date is DateTime df ? DateTime.SpecifyKind(df, DateTimeKind.Utc) : null,
             EstActif = true
         };
         _db.Tarifs.Add(tarif);
@@ -93,6 +95,8 @@ public class TarifsController : ControllerBase
         tarif.LongueurMaxStandardCm = body.LongueurMaxStandardCm;
         tarif.LargeurMaxStandardCm = body.LargeurMaxStandardCm;
         tarif.HauteurMaxStandardCm = body.HauteurMaxStandardCm;
+        tarif.DateDebut = body.DateDebut?.Date is DateTime dd2 ? DateTime.SpecifyKind(dd2, DateTimeKind.Utc) : null;
+        tarif.DateFin = body.DateFin?.Date is DateTime df2 ? DateTime.SpecifyKind(df2, DateTimeKind.Utc) : null;
         if (body.EstActif.HasValue) tarif.EstActif = body.EstActif.Value;
 
         await _db.SaveChangesAsync(ct);
@@ -151,6 +155,7 @@ public class TarifsController : ControllerBase
         t.ForfaitLourd, t.PrixAuKiloLourd,
         t.ForfaitHorsGabarit, t.PrixAuKiloHorsGabarit,
         t.LongueurMaxStandardCm, t.LargeurMaxStandardCm, t.HauteurMaxStandardCm,
+        t.DateDebut, t.DateFin,
         t.EstActif, t.DateCreation
     };
 
@@ -174,6 +179,8 @@ public class TarifRequest
     public int LongueurMaxStandardCm { get; set; }
     public int LargeurMaxStandardCm { get; set; }
     public int HauteurMaxStandardCm { get; set; }
+    public DateTime? DateDebut { get; set; }
+    public DateTime? DateFin { get; set; }
     public bool? EstActif { get; set; }
 }
 

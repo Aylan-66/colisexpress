@@ -1,0 +1,131 @@
+@page "/recu/{code}"
+@model ColisExpress.Web.Pages.Client.RecuModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Reçu de dépôt";
+    var c = Model.Commande!;
+    var co = Model.Colis!;
+    var tr = Model.Trajet;
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reçu de dépôt — @co.CodeColis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F7F5F2; color: #1F1B16; margin: 0; padding: 24px; }
+        .receipt { max-width: 640px; margin: 0 auto; background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1B4965; padding-bottom: 16px; margin-bottom: 24px; }
+        .brand { font-size: 22px; font-weight: 800; color: #1B4965; }
+        .brand-sub { font-size: 12px; color: #78716C; }
+        .badge { background: #2A9D8F; color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+        h2 { font-size: 14px; text-transform: uppercase; color: #78716C; letter-spacing: 0.5px; margin: 24px 0 8px; }
+        .code { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 800; color: #1B4965; letter-spacing: 1px; }
+        .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #E7E5E4; font-size: 14px; }
+        .row .lbl { color: #78716C; font-weight: 600; }
+        .row .val { font-weight: 700; text-align: right; }
+        .total { background: #FDF6EE; padding: 16px; border-radius: 8px; margin-top: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .total .lbl { font-size: 12px; color: #78716C; text-transform: uppercase; font-weight: 700; }
+        .total .val { font-size: 26px; font-weight: 800; color: #F4A261; }
+        .footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #E7E5E4; text-align: center; font-size: 11px; color: #78716C; }
+        .actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+        .btn { padding: 10px 18px; border-radius: 8px; border: 1px solid #1B4965; color: #1B4965; background: white; font-weight: 700; cursor: pointer; text-decoration: none; font-size: 13px; }
+        .btn.primary { background: #1B4965; color: white; }
+        @@media print {
+            body { background: white; padding: 0; }
+            .receipt { box-shadow: none; max-width: 100%; }
+            .actions { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="header">
+            <div>
+                <div class="brand">📦 Colis Express</div>
+                <div class="brand-sub">Reçu de dépôt — preuve de prise en charge</div>
+            </div>
+            <span class="badge">@co.Statut</span>
+        </div>
+
+        <h2>Code colis</h2>
+        <div class="code">@co.CodeColis</div>
+        @if (!string.IsNullOrEmpty(co.CodeRetrait))
+        {
+            <div style="margin-top: 8px; font-size: 13px; color: #78716C;">Code de retrait : <strong style="color:#1F1B16;font-family:JetBrains Mono,monospace;">@co.CodeRetrait</strong></div>
+        }
+
+        <h2>Trajet</h2>
+        <div class="row">
+            <span class="lbl">Départ</span>
+            <span class="val">@(tr?.VilleDepart ?? c.SegmentDepart) @(Model.RelaisDepart != null ? $"— {Model.RelaisDepart.NomRelais}" : "")</span>
+        </div>
+        <div class="row">
+            <span class="lbl">Arrivée</span>
+            <span class="val">@(tr?.VilleArrivee ?? c.VilleDestinataire) @(Model.RelaisArrivee != null ? $"— {Model.RelaisArrivee.NomRelais}" : "")</span>
+        </div>
+        @if (tr != null)
+        {
+            <div class="row">
+                <span class="lbl">Date prévue</span>
+                <span class="val">@tr.DateDepart.ToLocalTime().ToString("dd/MM/yyyy")</span>
+            </div>
+        }
+
+        <h2>Destinataire</h2>
+        <div class="row"><span class="lbl">Nom</span><span class="val">@c.NomDestinataire</span></div>
+        <div class="row"><span class="lbl">Téléphone</span><span class="val">@c.TelephoneDestinataire</span></div>
+        <div class="row"><span class="lbl">Ville</span><span class="val">@c.VilleDestinataire</span></div>
+
+        <h2>Colis</h2>
+        <div class="row"><span class="lbl">Poids déclaré</span><span class="val">@c.PoidsDeclare kg</span></div>
+        @if (!string.IsNullOrEmpty(c.Dimensions))
+        {
+            <div class="row"><span class="lbl">Dimensions</span><span class="val">@c.Dimensions</span></div>
+        }
+        <div class="row"><span class="lbl">Contenu</span><span class="val">@c.DescriptionContenu</span></div>
+        @if (c.ValeurDeclaree > 0)
+        {
+            <div class="row"><span class="lbl">Valeur déclarée</span><span class="val">@c.ValeurDeclaree.ToString("0.##") €</span></div>
+        }
+
+        <h2>Transporteur</h2>
+        @if (Model.TransporteurUser != null)
+        {
+            <div class="row"><span class="lbl">Nom</span><span class="val">@Model.TransporteurUser.Prenom @Model.TransporteurUser.Nom</span></div>
+            <div class="row"><span class="lbl">Téléphone</span><span class="val">@Model.TransporteurUser.Telephone</span></div>
+        }
+        @if (Model.Transporteur != null && !string.IsNullOrEmpty(Model.Transporteur.TypeVehicule))
+        {
+            <div class="row"><span class="lbl">Véhicule</span><span class="val">@Model.Transporteur.TypeVehicule</span></div>
+        }
+
+        @if (Model.DateDepotClient.HasValue)
+        {
+            <h2>Dépôt</h2>
+            <div class="row"><span class="lbl">Date / heure</span><span class="val">@Model.DateDepotClient.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div>
+        }
+
+        <div class="total">
+            <span class="lbl">Total payé</span>
+            <span class="val">@c.Total.ToString("0.##") €</span>
+        </div>
+        <div style="font-size: 11px; color: #78716C; margin-top: 4px; text-align: right;">
+            Mode : @c.ModeReglement • Statut : @c.StatutReglement
+        </div>
+
+        <div class="actions">
+            <a class="btn primary" href="javascript:window.print()">🖨 Imprimer / PDF</a>
+            <a class="btn" href="/suivi/@co.CodeColis">Suivre le colis</a>
+        </div>
+
+        <div class="footer">
+            Ce reçu sert de preuve de prise en charge.<br/>
+            Colis Express — Conservez ce document jusqu'à la livraison.
+        </div>
+    </div>
+</body>
+</html>

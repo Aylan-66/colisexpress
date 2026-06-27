@@ -16,6 +16,9 @@ class _ColisScreenState extends State<ColisScreen> {
   final _searchCtrl = TextEditingController();
   String _search = '';
   String _filtre = 'Tous'; // Tous / Cote client / Cote transporteur / Disponible retrait
+  DateTime? _filtreDate;   // filtre par date de dépôt ou retrait
+  static const int _pageSize = 20;
+  int _visibleCount = _pageSize;
 
   @override
   void initState() {
@@ -29,6 +32,20 @@ class _ColisScreenState extends State<ColisScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  bool _matchDate(Map<String, dynamic> c, DateTime jour) {
+    bool sameDay(String? iso) {
+      if (iso == null) return false;
+      final d = DateTime.tryParse(iso);
+      if (d == null) return false;
+      final l = d.toLocal();
+      return l.year == jour.year && l.month == jour.month && l.day == jour.day;
+    }
+    return sameDay(c['dateDepotClient']?.toString())
+        || sameDay(c['dateDepotTransporteur']?.toString())
+        || sameDay(c['dateRetrait']?.toString())
+        || sameDay(c['dateCreation']?.toString());
+  }
+
   List<dynamic> get _filtered {
     final q = _search.toLowerCase();
     return _colisList.where((c) {
@@ -36,7 +53,6 @@ class _ColisScreenState extends State<ColisScreen> {
       final dest = (c['nomDestinataire'] ?? '').toString().toLowerCase();
       final statut = (c['statut'] ?? '').toString();
       final trajet = (c['trajet'] ?? '').toString().toLowerCase();
-      final date = (c['dateCreation'] ?? '').toString();
 
       // Filtre par catégorie
       const cotClient = {'EnAttenteDepot', 'EnAttenteReglement', 'DeposeParClient', 'DemandeCreee', 'ReservationConfirmee', 'CodeColisGenere', 'EnAttenteValidationTransporteur'};
@@ -55,10 +71,23 @@ class _ColisScreenState extends State<ColisScreen> {
           break;
       }
 
+      if (_filtreDate != null && !_matchDate(c as Map<String, dynamic>, _filtreDate!)) return false;
+
       if (q.isEmpty) return true;
       return code.contains(q) || dest.contains(q) || statut.toLowerCase().contains(q)
-          || trajet.contains(q) || date.contains(q);
+          || trajet.contains(q);
     }).toList();
+  }
+
+  Future<void> _pickFiltreDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _filtreDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Filtrer par date (dépôt, retrait ou création)',
+    );
+    if (picked != null) setState(() { _filtreDate = picked; _visibleCount = _pageSize; });
   }
 
   Future<void> _confirmerDepot(String codeColis) async {
@@ -162,15 +191,40 @@ class _ColisScreenState extends State<ColisScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
-              controller: _searchCtrl,
-              decoration: const InputDecoration(
-                labelText: 'RECHERCHER', hintText: 'Code, destinataire, trajet, date...',
-                prefixIcon: Icon(Icons.search, size: 20),
-              ),
-              onChanged: (v) => setState(() => _search = v),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'RECHERCHER', hintText: 'Code, destinataire, trajet...',
+                      prefixIcon: Icon(Icons.search, size: 20),
+                    ),
+                    onChanged: (v) => setState(() { _search = v; _visibleCount = _pageSize; }),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.calendar_month, color: _filtreDate != null ? AppTheme.accent : null),
+                  tooltip: 'Filtrer par date',
+                  onPressed: _pickFiltreDate,
+                ),
+              ],
             ),
           ),
+          if (_filtreDate != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Chip(
+                    label: Text('${_filtreDate!.day}/${_filtreDate!.month}/${_filtreDate!.year}'),
+                    onDeleted: () => setState(() => _filtreDate = null),
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                  ),
+                ],
+              ),
+            ),
           SizedBox(
             height: 44,
             child: ListView(
@@ -183,7 +237,7 @@ class _ColisScreenState extends State<ColisScreen> {
                   child: ChoiceChip(
                     label: Text(f),
                     selected: selected,
-                    onSelected: (_) => setState(() => _filtre = f),
+                    onSelected: (_) => setState(() { _filtre = f; _visibleCount = _pageSize; }),
                   ),
                 );
               }).toList(),
@@ -205,17 +259,31 @@ class _ColisScreenState extends State<ColisScreen> {
                           ],
                         ),
                       )
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _filtered.length,
-                          itemBuilder: (ctx, i) {
-                            final colis = _filtered[i] as Map<String, dynamic>;
-                            return _ColisCard(colis: colis);
-                          },
-                        ),
-                      ),
+                    : Builder(builder: (ctx) {
+                        final all = _filtered;
+                        final visibles = all.take(_visibleCount).toList();
+                        final hasMore = all.length > _visibleCount;
+                        return RefreshIndicator(
+                          onRefresh: _load,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: visibles.length + (hasMore ? 1 : 0),
+                            itemBuilder: (ctx, i) {
+                              if (i >= visibles.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  child: OutlinedButton(
+                                    onPressed: () => setState(() => _visibleCount += _pageSize),
+                                    child: Text('Voir plus (${all.length - _visibleCount} restants)'),
+                                  ),
+                                );
+                              }
+                              final colis = visibles[i] as Map<String, dynamic>;
+                              return _ColisCard(colis: colis);
+                            },
+                          ),
+                        );
+                      }),
           ),
         ],
       ),
@@ -305,11 +373,34 @@ class _ColisCard extends StatelessWidget {
               ],
             ),
 
+            // Dates clés
+            _dateLine(Icons.download_done, 'Dépôt client', colis['dateDepotClient']),
+            _dateLine(Icons.local_shipping, 'Dépôt transporteur', colis['dateDepotTransporteur']),
+            _dateLine(Icons.outbox, 'Retrait destinataire', colis['dateRetrait']),
+
             const SizedBox(height: 8),
-            Text('Utilisez l\'onglet Scanner pour changer le statut',
+            const Text('Utilisez l\'onglet Scanner pour changer le statut',
                 style: TextStyle(fontSize: 11, color: AppTheme.textMuted, fontStyle: FontStyle.italic)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _dateLine(IconData icon, String label, dynamic iso) {
+    if (iso == null) return const SizedBox.shrink();
+    final d = DateTime.tryParse(iso.toString());
+    if (d == null) return const SizedBox.shrink();
+    final l = d.toLocal();
+    final dateStr = '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year} ${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: AppTheme.textMuted),
+          const SizedBox(width: 6),
+          Text('$label : $dateStr', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+        ],
       ),
     );
   }

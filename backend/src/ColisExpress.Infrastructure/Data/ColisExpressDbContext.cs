@@ -22,6 +22,7 @@ public class ColisExpressDbContext : DbContext
     public DbSet<Tarif> Tarifs => Set<Tarif>();
     public DbSet<Favori> Favoris => Set<Favori>();
     public DbSet<ParametrePlateforme> ParametresPlateforme => Set<ParametrePlateforme>();
+    public DbSet<PointTransporteur> PointsTransporteur => Set<PointTransporteur>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
