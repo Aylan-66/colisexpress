@@ -3,8 +3,10 @@
 @using System.Globalization
 @{
     ViewData["Title"] = "Choix du point relais de départ";
-    var offresAvecRelais = Model.Offres.Where(o => o.RelaisDepartId.HasValue && o.RelaisDepartLatitude.HasValue && o.RelaisDepartLongitude.HasValue).ToList();
-    var offresSansRelais = Model.Offres.Where(o => !o.RelaisDepartId.HasValue || !o.RelaisDepartLatitude.HasValue).ToList();
+    // Toutes les offres avec coords (relais officiel OU point perso transporteur) → carte + liste unifiée
+    var offresAvecCoords = Model.Offres.Where(o => o.RelaisDepartLatitude.HasValue && o.RelaisDepartLongitude.HasValue).ToList();
+    // Offres sans aucune coord — section fallback
+    var offresSansCoords = Model.Offres.Where(o => !o.RelaisDepartLatitude.HasValue).ToList();
     var inv = CultureInfo.InvariantCulture;
 }
 
@@ -80,8 +82,9 @@
 
         <div class="reso-grid">
             <div id="reso-list">
-                @foreach (var offre in offresAvecRelais)
+                @foreach (var offre in offresAvecCoords)
                 {
+                    var estPerso = offre.TypePointDepart == "perso";
                     <div class="relais-card"
                          data-id="@offre.RelaisDepartId"
                          data-trajet-id="@offre.TrajetId"
@@ -89,15 +92,26 @@
                          data-lng="@(offre.RelaisDepartLongitude!.Value.ToString(inv))"
                          data-prix="@offre.Prix.ToString(inv)"
                          data-note="@offre.NoteMoyenne.ToString(inv)"
+                         data-type="@offre.TypePointDepart"
                          data-duree-h="@((offre.DateEstimeeArrivee - offre.DateDepart).TotalHours.ToString("0", inv))">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
                             <div style="flex:1;">
                                 <div style="display:flex;align-items:center;gap:8px;">
                                     <span style="font-weight:800;font-size:16px;color:#1B4965;">📍 @offre.RelaisDepartNom</span>
-                                    <button type="button" class="fav-btn @(Model.FavorisRelais.Contains(offre.RelaisDepartId!.Value) ? "fav-on" : "")"
-                                            data-type="relais" data-id="@offre.RelaisDepartId" title="Ajouter aux favoris">♥</button>
+                                    @if (!estPerso && offre.RelaisDepartId.HasValue)
+                                    {
+                                        <button type="button" class="fav-btn @(Model.FavorisRelais.Contains(offre.RelaisDepartId.Value) ? "fav-on" : "")"
+                                                data-type="relais" data-id="@offre.RelaisDepartId" title="Ajouter aux favoris">♥</button>
+                                    }
                                 </div>
-                                <span class="reso-badge reso-badge-relais">Point relais officiel</span>
+                                @if (estPerso)
+                                {
+                                    <span class="reso-badge reso-badge-transporteur" title="Point appartenant au transporteur, pas un relais officiel">Point perso transporteur</span>
+                                }
+                                else
+                                {
+                                    <span class="reso-badge reso-badge-relais">Point relais officiel</span>
+                                }
                                 <div style="font-size:13px;color:#6b7280;margin-top:4px;">@offre.RelaisDepartAdresse, @offre.RelaisDepartVille</div>
                                 <div class="relais-distance" data-distance-slot></div>
                             </div>
@@ -132,27 +146,27 @@
                                asp-route-urgent="@Model.Urgent"
                                asp-route-segDepart="@offre.VilleDepart"
                                asp-route-segArrivee="@offre.VilleArrivee"
-                               asp-route-relaisDepartId="@offre.RelaisDepartId">
-                                Choisir ce point relais →
+                               asp-route-relaisDepartId="@(estPerso ? null : offre.RelaisDepartId)">
+                                @(estPerso ? "Choisir ce point →" : "Choisir ce point relais →")
                             </a>
                         </div>
                     </div>
                 }
                 <div id="reso-empty-msg" class="reso-empty-radius" style="display:none;">
-                    Aucun point relais dans ce rayon.
+                    Aucun point dans ce rayon.
                     <button type="button" id="reso-expand-radius" class="web-btn outline sm" style="margin-left:8px;">Élargir à 200 km</button>
                     ou <button type="button" id="reso-clear-radius" class="web-btn outline sm" style="margin-left:4px;">Voir tous</button>
                 </div>
                 <button type="button" id="reso-more" class="web-btn outline" style="display:none;width:100%;margin-top:8px;"></button>
 
-                @if (offresSansRelais.Any())
+                @if (offresSansCoords.Any())
                 {
                     <div class="web-card" style="margin-top:24px;padding:18px;">
-                        <div style="margin-bottom:8px;"><span class="reso-badge reso-badge-transporteur">Point transporteur</span></div>
-                        <div style="font-size:13px;color:#6b7280;font-weight:700;margin-bottom:8px;">Départ défini par le transporteur (@offresSansRelais.Count)</div>
-                        <div style="font-size:12px;color:#6b7280;">Ces trajets partent d'un point défini par le transporteur lui-même (pas un point relais officiel). Lien direct vers la réservation :</div>
+                        <div style="margin-bottom:8px;"><span class="reso-badge reso-badge-transporteur">Sans point de départ géolocalisé</span></div>
+                        <div style="font-size:13px;color:#6b7280;font-weight:700;margin-bottom:8px;">@offresSansCoords.Count trajet(s) sans coordonnées GPS sur le point de départ</div>
+                        <div style="font-size:12px;color:#6b7280;">Ces trajets n'ont pas de coordonnées géographiques (ni relais officiel, ni point perso géolocalisé). Réservation directe :</div>
                         <ul style="margin:8px 0 0;padding-left:18px;">
-                            @foreach (var o in offresSansRelais)
+                            @foreach (var o in offresSansCoords)
                             {
                                 <li style="margin-bottom:4px;font-size:13px;">
                                     @o.NomTransporteur — @o.DateDepart.ToString("dd MMM") — @o.Prix.ToString("0.00") €
@@ -207,16 +221,32 @@
             const status = document.getElementById('reso-geoloc-status');
             const btn = document.getElementById('reso-geoloc');
 
+            // Icônes différenciées : bleu = relais officiel, orange = point perso transporteur
+            const iconOfficiel = L.divIcon({
+                className: 'reso-marker reso-marker-officiel',
+                html: '<div style="background:#1B4965;color:white;border-radius:50% 50% 50% 0;width:28px;height:28px;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.3);"><span style="transform:rotate(45deg);font-size:14px;">📍</span></div>',
+                iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -28]
+            });
+            const iconPerso = L.divIcon({
+                className: 'reso-marker reso-marker-perso',
+                html: '<div style="background:#F4A261;color:white;border-radius:50% 50% 50% 0;width:28px;height:28px;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.3);"><span style="transform:rotate(45deg);font-size:14px;">🚚</span></div>',
+                iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -28]
+            });
+
             // Création des markers (cachés par défaut, on les ajoute/enlève selon le filtre)
             cards.forEach(c => {
                 const lat = parseFloat(c.dataset.lat), lng = parseFloat(c.dataset.lng);
                 const id = c.dataset.trajetId;
+                const type = c.dataset.type || 'officiel';
                 const titre = c.querySelector('div[style*="font-weight:800"]')?.textContent || 'Relais';
                 const ligneAdr = c.querySelectorAll('div[style*="color:#6b7280"]')[0]?.textContent || '';
                 const transp = c.querySelector('div[style*="background:#F7F5F2"] div[style*="font-weight:700"]')?.textContent || '';
                 const prix = c.dataset.prix;
-                const m = L.marker([lat, lng]);
-                m.bindPopup(`<strong>${titre}</strong><br>${ligneAdr}<br><span style="color:#6b7280;font-size:12px;">Transporteur : ${transp}</span><br><strong style="color:#1B4965;">${prix} €</strong>`);
+                const m = L.marker([lat, lng], { icon: type === 'perso' ? iconPerso : iconOfficiel });
+                const badge = type === 'perso'
+                    ? '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:800;padding:2px 6px;border-radius:8px;">Point perso transporteur</span>'
+                    : '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:800;padding:2px 6px;border-radius:8px;">Point relais officiel</span>';
+                m.bindPopup(`${badge}<br><strong>${titre}</strong><br>${ligneAdr}<br><span style="color:#6b7280;font-size:12px;">Transporteur : ${transp}</span><br><strong style="color:#1B4965;">${prix} €</strong>`);
                 markers[id] = m;
             });
 

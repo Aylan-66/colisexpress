@@ -78,14 +78,16 @@ public class RechercheService : IRechercheService
             var arr = rechercheArrivee.ToLowerInvariant();
             var etapesOrdonnees = t.Etapes.OrderBy(e => e.Ordre).ToList();
 
-            // Trouver l'étape de départ
+            // Trouver l'étape de départ (relais officiel OU point perso)
             if (t.VilleDepart.ToLowerInvariant() != dep)
             {
-                var etapeDep = etapesOrdonnees.FirstOrDefault(e => e.PointRelais?.Ville.ToLowerInvariant() == dep);
+                var etapeDep = etapesOrdonnees.FirstOrDefault(e =>
+                    e.PointRelais?.Ville.ToLowerInvariant() == dep
+                    || e.PointTransporteur?.Ville.ToLowerInvariant() == dep);
                 if (etapeDep is not null)
                 {
                     dateDepart = etapeDep.HeureEstimeeArrivee;
-                    villeDepart = etapeDep.PointRelais?.Ville ?? villeDepart;
+                    villeDepart = etapeDep.PointRelais?.Ville ?? etapeDep.PointTransporteur?.Ville ?? villeDepart;
                     relaisDepart = etapeDep.PointRelais;
                 }
             }
@@ -93,14 +95,34 @@ public class RechercheService : IRechercheService
             // Trouver l'étape d'arrivée
             if (t.VilleArrivee.ToLowerInvariant() != arr)
             {
-                var etapeArr = etapesOrdonnees.FirstOrDefault(e => e.PointRelais?.Ville.ToLowerInvariant() == arr);
+                var etapeArr = etapesOrdonnees.FirstOrDefault(e =>
+                    e.PointRelais?.Ville.ToLowerInvariant() == arr
+                    || e.PointTransporteur?.Ville.ToLowerInvariant() == arr);
                 if (etapeArr is not null)
                 {
                     dateArrivee = etapeArr.HeureEstimeeArrivee;
-                    villeArrivee = etapeArr.PointRelais?.Ville ?? villeArrivee;
+                    villeArrivee = etapeArr.PointRelais?.Ville ?? etapeArr.PointTransporteur?.Ville ?? villeArrivee;
                 }
             }
         }
+
+        // Si pas de relais officiel en départ, fallback sur le 1er point perso présent dans les étapes
+        // (cas trajet créé avec un point perso comme étape de départ)
+        PointTransporteur? pointPerso = null;
+        if (relaisDepart is null && t.Etapes != null)
+        {
+            var premiereEtape = t.Etapes.OrderBy(e => e.Ordre).FirstOrDefault();
+            if (premiereEtape?.PointTransporteur != null)
+                pointPerso = premiereEtape.PointTransporteur;
+        }
+
+        var typePoint = relaisDepart != null ? "officiel" : (pointPerso != null ? "perso" : "trajet");
+        var pointId = relaisDepart?.Id ?? pointPerso?.Id;
+        var pointNom = relaisDepart?.NomRelais ?? pointPerso?.Nom;
+        var pointAdresse = relaisDepart?.Adresse ?? pointPerso?.Adresse;
+        var pointVille = relaisDepart?.Ville ?? pointPerso?.Ville;
+        var pointLat = relaisDepart?.Latitude ?? pointPerso?.Latitude;
+        var pointLng = relaisDepart?.Longitude ?? pointPerso?.Longitude;
 
         return new OffreResponse
         {
@@ -119,12 +141,13 @@ public class RechercheService : IRechercheService
             TypeVehicule = transporteur?.TypeVehicule ?? "Non spécifié",
             Prix = prix,
             PoidsRecherche = poids,
-            RelaisDepartId = relaisDepart?.Id,
-            RelaisDepartNom = relaisDepart?.NomRelais,
-            RelaisDepartAdresse = relaisDepart?.Adresse,
-            RelaisDepartVille = relaisDepart?.Ville,
-            RelaisDepartLatitude = relaisDepart?.Latitude,
-            RelaisDepartLongitude = relaisDepart?.Longitude,
+            RelaisDepartId = pointId,
+            RelaisDepartNom = pointNom,
+            RelaisDepartAdresse = pointAdresse,
+            RelaisDepartVille = pointVille,
+            RelaisDepartLatitude = pointLat,
+            RelaisDepartLongitude = pointLng,
+            TypePointDepart = typePoint,
             LongueurMaxColisCm = t.LongueurMaxColisCm,
             LargeurMaxColisCm = t.LargeurMaxColisCm,
             HauteurMaxColisCm = t.HauteurMaxColisCm,

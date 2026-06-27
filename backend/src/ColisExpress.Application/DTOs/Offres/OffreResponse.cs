@@ -18,13 +18,15 @@ public class OffreResponse
     public decimal Prix { get; init; }
     public decimal PoidsRecherche { get; init; }
 
-    // Relais de départ rattaché au trajet (optionnel)
+    // Point de départ rattaché au trajet (relais officiel OU point perso du transporteur)
     public Guid? RelaisDepartId { get; init; }
     public string? RelaisDepartNom { get; init; }
     public string? RelaisDepartAdresse { get; init; }
     public string? RelaisDepartVille { get; init; }
     public double? RelaisDepartLatitude { get; init; }
     public double? RelaisDepartLongitude { get; init; }
+    /// "officiel" | "perso" | "trajet" (texte libre, sans coords précises)
+    public string TypePointDepart { get; init; } = "officiel";
 
     // Tarif paramétrable du trajet (les 3 paliers) — si null, le trajet utilise les anciens prix
     public TarifApercu? Tarif { get; init; }
