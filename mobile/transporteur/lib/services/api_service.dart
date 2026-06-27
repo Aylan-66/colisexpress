@@ -116,9 +116,10 @@ class ApiService {
   Future<List<dynamic>> getEtapesTrajet(String trajetId) async =>
       await _getList('/api/trajets/$trajetId/etapes');
 
-  Future<Map<String, dynamic>> addEtape(String trajetId, String relaisId, String heureEstimee) async =>
+  /// Ajoute une étape — fournir SOIT relaisId (officiel) SOIT pointTransporteurId (perso).
+  Future<Map<String, dynamic>> addEtape(String trajetId, String relaisId, String heureEstimee, {bool perso = false}) async =>
       await _post('/api/trajets/$trajetId/etapes', {
-        'pointRelaisId': relaisId,
+        if (perso) 'pointTransporteurId': relaisId else 'pointRelaisId': relaisId,
         'heureEstimeeArrivee': heureEstimee,
       });
 

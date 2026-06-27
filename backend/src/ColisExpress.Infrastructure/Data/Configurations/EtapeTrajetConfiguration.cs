@@ -27,6 +27,11 @@ public class EtapeTrajetConfiguration : IEntityTypeConfiguration<EtapeTrajet>
             .HasForeignKey(e => e.PointRelaisId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(e => e.PointTransporteur)
+            .WithMany()
+            .HasForeignKey(e => e.PointTransporteurId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(e => new { e.TrajetId, e.Ordre });
     }
 }

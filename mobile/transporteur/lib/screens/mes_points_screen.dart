@@ -94,11 +94,22 @@ class _MesPointsScreenState extends State<MesPointsScreen> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('${p['adresse'] ?? ''}, ${p['ville'] ?? ''}'),
+                              Text('${p['adresse'] ?? ''}'),
+                              Text('${p['codePostal'] ?? ''} ${p['ville'] ?? ''} — ${p['pays'] ?? ''}',
+                                  style: const TextStyle(fontSize: 12)),
                               if ((p['telephone'] ?? '').toString().isNotEmpty)
                                 Text('☎ ${p['telephone']}', style: const TextStyle(fontSize: 12)),
+                              if ((p['horaires'] ?? '').toString().isNotEmpty)
+                                Text('🕒 ${p['horaires']}', style: const TextStyle(fontSize: 12)),
+                              if ((p['instructions'] ?? '').toString().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text('ℹ ${p['instructions']}',
+                                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+                                ),
                             ],
                           ),
+                          isThreeLine: true,
                           trailing: PopupMenuButton<String>(
                             onSelected: (v) {
                               if (v == 'edit') _editer(existant: p);
@@ -130,9 +141,12 @@ class _PointEditScreenState extends State<_PointEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nom = TextEditingController();
   final _adresse = TextEditingController();
+  final _codePostal = TextEditingController();
   final _ville = TextEditingController();
   final _pays = TextEditingController(text: 'France');
   final _telephone = TextEditingController();
+  final _horaires = TextEditingController();
+  final _instructions = TextEditingController();
   bool _saving = false;
 
   @override
@@ -142,9 +156,12 @@ class _PointEditScreenState extends State<_PointEditScreen> {
     if (p != null) {
       _nom.text = p['nom']?.toString() ?? '';
       _adresse.text = p['adresse']?.toString() ?? '';
+      _codePostal.text = p['codePostal']?.toString() ?? '';
       _ville.text = p['ville']?.toString() ?? '';
       _pays.text = p['pays']?.toString() ?? 'France';
       _telephone.text = p['telephone']?.toString() ?? '';
+      _horaires.text = p['horaires']?.toString() ?? '';
+      _instructions.text = p['instructions']?.toString() ?? '';
     }
   }
 
@@ -155,9 +172,12 @@ class _PointEditScreenState extends State<_PointEditScreen> {
     final data = {
       'nom': _nom.text.trim(),
       'adresse': _adresse.text.trim(),
+      'codePostal': _codePostal.text.trim(),
       'ville': _ville.text.trim(),
       'pays': _pays.text.trim(),
       'telephone': _telephone.text.trim(),
+      'horaires': _horaires.text.trim(),
+      'instructions': _instructions.text.trim(),
     };
     final res = widget.point == null
         ? await api.createPoint(data)
@@ -189,11 +209,20 @@ class _PointEditScreenState extends State<_PointEditScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _adresse,
-              decoration: const InputDecoration(labelText: 'Adresse *'),
+              decoration: const InputDecoration(labelText: 'Adresse *', hintText: '12 rue de la Paix'),
               validator: (v) => v == null || v.trim().isEmpty ? 'Adresse requise' : null,
             ),
             const SizedBox(height: 12),
             Row(children: [
+              SizedBox(
+                width: 120,
+                child: TextFormField(
+                  controller: _codePostal,
+                  decoration: const InputDecoration(labelText: 'CP'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: TextFormField(
                   controller: _ville,
@@ -201,19 +230,34 @@ class _PointEditScreenState extends State<_PointEditScreen> {
                   validator: (v) => v == null || v.trim().isEmpty ? 'Ville requise' : null,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  controller: _pays,
-                  decoration: const InputDecoration(labelText: 'Pays'),
-                ),
-              ),
             ]),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _pays,
+              decoration: const InputDecoration(labelText: 'Pays'),
+            ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _telephone,
               decoration: const InputDecoration(labelText: 'Téléphone (optionnel)'),
               keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _horaires,
+              decoration: const InputDecoration(
+                labelText: 'Horaires (optionnel)',
+                hintText: 'Ex: Lun-Ven 9h-18h, Sam 10h-13h',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _instructions,
+              decoration: const InputDecoration(
+                labelText: 'Instructions d\'accès (optionnel)',
+                hintText: 'Digicode, étage, bât, signalement…',
+              ),
+              maxLines: 3,
             ),
             const SizedBox(height: 24),
             ElevatedButton(

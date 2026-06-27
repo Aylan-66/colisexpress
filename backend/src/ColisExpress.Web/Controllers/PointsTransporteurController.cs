@@ -43,9 +43,12 @@ public class PointsTransporteurController : ControllerBase
             TransporteurId = t.Id,
             Nom = body.Nom!.Trim(),
             Adresse = body.Adresse!.Trim(),
+            CodePostal = body.CodePostal?.Trim(),
             Ville = body.Ville!.Trim(),
             Pays = string.IsNullOrWhiteSpace(body.Pays) ? "France" : body.Pays!.Trim(),
             Telephone = body.Telephone?.Trim(),
+            Horaires = body.Horaires?.Trim(),
+            Instructions = body.Instructions?.Trim(),
             Latitude = body.Latitude,
             Longitude = body.Longitude
         };
@@ -68,9 +71,12 @@ public class PointsTransporteurController : ControllerBase
 
         p.Nom = body.Nom!.Trim();
         p.Adresse = body.Adresse!.Trim();
+        p.CodePostal = body.CodePostal?.Trim();
         p.Ville = body.Ville!.Trim();
         p.Pays = string.IsNullOrWhiteSpace(body.Pays) ? "France" : body.Pays!.Trim();
         p.Telephone = body.Telephone?.Trim();
+        p.Horaires = body.Horaires?.Trim();
+        p.Instructions = body.Instructions?.Trim();
         p.Latitude = body.Latitude;
         p.Longitude = body.Longitude;
         await _db.SaveChangesAsync(ct);
@@ -100,7 +106,8 @@ public class PointsTransporteurController : ControllerBase
 
     private static object Map(PointTransporteur p) => new
     {
-        p.Id, p.Nom, p.Adresse, p.Ville, p.Pays, p.Telephone,
+        p.Id, p.Nom, p.Adresse, p.CodePostal, p.Ville, p.Pays, p.Telephone,
+        p.Horaires, p.Instructions,
         p.Latitude, p.Longitude, p.DateCreation
     };
 
@@ -115,9 +122,12 @@ public class PointTransporteurRequest
 {
     public string? Nom { get; set; }
     public string? Adresse { get; set; }
+    public string? CodePostal { get; set; }
     public string? Ville { get; set; }
     public string? Pays { get; set; }
     public string? Telephone { get; set; }
+    public string? Horaires { get; set; }
+    public string? Instructions { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
 }

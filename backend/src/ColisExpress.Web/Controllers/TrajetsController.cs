@@ -180,8 +180,10 @@ public class TrajetsController : ControllerBase
 
         var etape = await _db.EtapesTrajets
             .Include(e => e.PointRelais)
+            .Include(e => e.PointTransporteur)
             .FirstOrDefaultAsync(e => e.Id == etapeId && e.TrajetId == id, ct);
-        if (etape?.PointRelais is null) return NotFound(new { error = "Étape introuvable." });
+        if (etape is null || (etape.PointRelais is null && etape.PointTransporteur is null))
+            return NotFound(new { error = "Étape introuvable." });
 
         var allEtapes = await _db.EtapesTrajets
             .Where(e => e.TrajetId == id)
@@ -194,7 +196,10 @@ public class TrajetsController : ControllerBase
         var commandes = await _uow.Commandes.GetByTransporteurIdAsync(transporteur.Id, ct);
         var colisTrajet = commandes.Where(c => c.TrajetId == id && c.Colis is not null).ToList();
 
-        var villeEtape = etape.PointRelais.Ville.ToLowerInvariant();
+        var (nomEtape, villeEtapeMixedCase) = etape.PointRelais != null
+            ? (etape.PointRelais.NomRelais, etape.PointRelais.Ville)
+            : (etape.PointTransporteur!.Nom, etape.PointTransporteur.Ville);
+        var villeEtape = villeEtapeMixedCase.ToLowerInvariant();
 
         // À déposer ici = colis dont le SegmentArrivee match cette étape
         var aDeposer = colisTrajet
@@ -229,8 +234,8 @@ public class TrajetsController : ControllerBase
         return Ok(new
         {
             etapeId,
-            relais = etape.PointRelais.NomRelais,
-            ville = etape.PointRelais.Ville,
+            relais = nomEtape,
+            ville = villeEtapeMixedCase,
             type = isFirst ? "depart" : isLast ? "arrivee" : "intermediaire",
             aDeposer,
             aRecuperer,
@@ -289,30 +294,44 @@ public class TrajetsController : ControllerBase
         if (trajet is null || trajet.TransporteurId != transporteur.Id)
             return NotFound(new { error = "Trajet introuvable." });
 
-        var etapes = await _db.EtapesTrajets
+        var etapesRaw = await _db.EtapesTrajets
             .Include(e => e.PointRelais)
+            .Include(e => e.PointTransporteur)
             .Where(e => e.TrajetId == id)
             .OrderBy(e => e.Ordre)
-            .Select(e => new
-            {
-                e.Id,
-                e.Ordre,
-                e.HeureEstimeeArrivee,
-                e.HeureReelleArrivee,
-                e.RelaisOuvertALArrivee,
-                statut = e.Statut.ToString(),
-                relais = new
+            .ToListAsync(ct);
+
+        var etapes = etapesRaw.Select(e => new
+        {
+            e.Id,
+            e.Ordre,
+            e.HeureEstimeeArrivee,
+            e.HeureReelleArrivee,
+            e.RelaisOuvertALArrivee,
+            statut = e.Statut.ToString(),
+            type = e.PointTransporteur != null ? "perso" : "officiel",
+            relais = e.PointRelais != null
+                ? (object)new
                 {
-                    e.PointRelais!.Id,
-                    e.PointRelais.NomRelais,
+                    e.PointRelais.Id,
+                    nom = e.PointRelais.NomRelais,
                     e.PointRelais.Ville,
                     e.PointRelais.Pays,
                     joursOuverture = e.PointRelais.JoursOuverture ?? "",
                     heureOuverture = e.PointRelais.HeureOuverture.HasValue ? e.PointRelais.HeureOuverture.Value.ToString("HH:mm") : null,
                     heureFermeture = e.PointRelais.HeureFermeture.HasValue ? e.PointRelais.HeureFermeture.Value.ToString("HH:mm") : null,
                 }
-            })
-            .ToListAsync(ct);
+                : new
+                {
+                    e.PointTransporteur!.Id,
+                    nom = e.PointTransporteur.Nom,
+                    e.PointTransporteur.Ville,
+                    e.PointTransporteur.Pays,
+                    joursOuverture = "",
+                    heureOuverture = (string?)null,
+                    heureFermeture = (string?)null,
+                }
+        });
 
         return Ok(etapes);
     }
@@ -327,15 +346,37 @@ public class TrajetsController : ControllerBase
         if (trajet is null || trajet.TransporteurId != transporteur.Id)
             return NotFound(new { error = "Trajet introuvable." });
 
-        var relais = await _db.PointsRelais.FirstOrDefaultAsync(p => p.Id == request.PointRelaisId && p.EstActif, ct);
-        if (relais is null) return BadRequest(new { error = "Point relais introuvable ou inactif." });
+        // Soit relais officiel, soit point perso transporteur — exactement un des deux
+        var aRelais = request.PointRelaisId.HasValue;
+        var aPerso = request.PointTransporteurId.HasValue;
+        if (aRelais == aPerso) return BadRequest(new { error = "Sélectionnez soit un relais officiel, soit un de vos points perso." });
+
+        PointRelais? relais = null;
+        PointTransporteur? perso = null;
+        string nomEtape;
+        string villeEtape;
+
+        if (aRelais)
+        {
+            relais = await _db.PointsRelais.FirstOrDefaultAsync(p => p.Id == request.PointRelaisId!.Value && p.EstActif, ct);
+            if (relais is null) return BadRequest(new { error = "Point relais introuvable ou inactif." });
+            nomEtape = relais.NomRelais;
+            villeEtape = relais.Ville;
+        }
+        else
+        {
+            perso = await _db.PointsTransporteur.FirstOrDefaultAsync(p => p.Id == request.PointTransporteurId!.Value && p.TransporteurId == transporteur.Id, ct);
+            if (perso is null) return BadRequest(new { error = "Point perso introuvable." });
+            nomEtape = perso.Nom;
+            villeEtape = perso.Ville;
+        }
 
         var heureArrivee = DateTime.SpecifyKind(request.HeureEstimeeArrivee, DateTimeKind.Utc);
 
-        // Vérifier si le relais est ouvert à l'heure estimée
+        // Pour les points perso, on considère toujours "ouvert" (le transporteur gère lui-même)
         var jour = heureArrivee.DayOfWeek;
         var heure = TimeOnly.FromDateTime(heureArrivee);
-        var ouvert = relais.EstOuvert(jour, heure);
+        var ouvert = relais?.EstOuvert(jour, heure) ?? true;
 
         var maxOrdre = await _db.EtapesTrajets
             .Where(e => e.TrajetId == id)
@@ -345,6 +386,7 @@ public class TrajetsController : ControllerBase
         {
             TrajetId = id,
             PointRelaisId = request.PointRelaisId,
+            PointTransporteurId = request.PointTransporteurId,
             Ordre = maxOrdre + 1,
             HeureEstimeeArrivee = heureArrivee,
             RelaisOuvertALArrivee = ouvert,
@@ -360,9 +402,9 @@ public class TrajetsController : ControllerBase
             etape.Ordre,
             etape.HeureEstimeeArrivee,
             relaisOuvert = ouvert,
-            relaisNom = relais.NomRelais,
-            relaisVille = relais.Ville,
-            warning = ouvert ? null : $"Attention : {relais.NomRelais} sera fermé à cette heure."
+            relaisNom = nomEtape,
+            relaisVille = villeEtape,
+            warning = ouvert ? null : $"Attention : {nomEtape} sera fermé à cette heure."
         });
     }
 
@@ -761,6 +803,7 @@ public class TrajetsController : ControllerBase
             {
                 TrajetId = nouveau.Id,
                 PointRelaisId = e.PointRelaisId,
+                PointTransporteurId = e.PointTransporteurId,
                 Ordre = e.Ordre,
                 HeureEstimeeArrivee = e.HeureEstimeeArrivee + decalage,
                 RelaisOuvertALArrivee = e.RelaisOuvertALArrivee,
@@ -965,7 +1008,9 @@ public class CreateTrajetApiRequest
 
 public class AddEtapeRequest
 {
-    public Guid PointRelaisId { get; set; }
+    // L'un OU l'autre, pas les deux.
+    public Guid? PointRelaisId { get; set; }
+    public Guid? PointTransporteurId { get; set; }
     public DateTime HeureEstimeeArrivee { get; set; }
 }
 

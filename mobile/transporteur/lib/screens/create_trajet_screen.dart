@@ -79,11 +79,26 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
   Future<Map<String, dynamic>?> _selectRelais({String? label}) async {
     final api = context.read<ApiService>();
     final relais = await api.getRelaisDisponibles();
-    if (!mounted || relais.isEmpty) { setState(() => _error = 'Aucun point relais disponible.'); return null; }
-
+    final perso = await api.getMesPoints();
+    if (!mounted) return null;
+    // Tag chaque item avec son type pour pouvoir router à la création
+    final relaisTagged = relais.map((r) => {...r as Map<String, dynamic>, 'type': 'officiel'}).toList();
+    final persoTagged = perso.map((p) => {
+          ...p as Map<String, dynamic>,
+          'type': 'perso',
+          'nomRelais': p['nom'], // pour réutiliser le rendu existant
+        }).toList();
+    if (relaisTagged.isEmpty && persoTagged.isEmpty) {
+      setState(() => _error = 'Aucun point disponible (créez d\'abord un point perso ou demandez des relais).');
+      return null;
+    }
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context, isScrollControlled: true,
-      builder: (ctx) => _RelaisPickerSheet(relaisList: relais, label: label ?? 'Sélectionner un relais'),
+      builder: (ctx) => _RelaisPickerSheet(
+        relaisList: relaisTagged,
+        persoList: persoTagged,
+        label: label ?? 'Sélectionner un point',
+      ),
     );
   }
 
@@ -136,7 +151,8 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
       if (!_utiliserTarif && (_modeTarif == 'PrixParColis' || _modeTarif == 'Forfait')) 'prixParColis': double.tryParse(_prixCtrl.text) ?? 0,
       if (!_utiliserTarif && (_modeTarif == 'PrixAuKilo' || _modeTarif == 'Forfait')) 'prixAuKilo': double.tryParse(_prixCtrl.text) ?? 0,
       if (_utiliserTarif && _tarifId != null) 'tarifId': _tarifId,
-      'relaisDepartId': _relaisDepart?['id'],
+      // RelaisDepartId : seulement si on a choisi un relais OFFICIEL (sinon laissé null pour départ depuis point perso)
+      if (_relaisDepart != null && _relaisDepart!['type'] != 'perso') 'relaisDepartId': _relaisDepart!['id'],
       if (_longueurMaxCtrl.text.isNotEmpty) 'longueurMaxColisCm': int.tryParse(_longueurMaxCtrl.text),
       if (_largeurMaxCtrl.text.isNotEmpty) 'largeurMaxColisCm': int.tryParse(_largeurMaxCtrl.text),
       if (_hauteurMaxCtrl.text.isNotEmpty) 'hauteurMaxColisCm': int.tryParse(_hauteurMaxCtrl.text),
@@ -153,19 +169,23 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
 
     // Ajouter étape départ
     final depDt = DateTime(_dateDepart.year, _dateDepart.month, _dateDepart.day, _heureDepart.hour, _heureDepart.minute);
-    await api.addEtape(trajetId, _relaisDepart!['id'], depDt.toUtc().toIso8601String());
+    final depPerso = _relaisDepart!['type'] == 'perso';
+    await api.addEtape(trajetId, _relaisDepart!['id'], depDt.toUtc().toIso8601String(), perso: depPerso);
 
     // Ajouter étapes intermédiaires
     for (final e in _etapes) {
       final h = e['heure'] as TimeOfDay;
       final d = e['date'] as DateTime? ?? _dateDepart;
       final dt = DateTime(d.year, d.month, d.day, h.hour, h.minute);
-      await api.addEtape(trajetId, e['relais']['id'], dt.toUtc().toIso8601String());
+      final r = e['relais'] as Map<String, dynamic>;
+      final perso = r['type'] == 'perso';
+      await api.addEtape(trajetId, r['id'], dt.toUtc().toIso8601String(), perso: perso);
     }
 
     // Ajouter étape arrivée
     final arrDt = DateTime(_dateArrivee.year, _dateArrivee.month, _dateArrivee.day, _heureArrivee.hour, _heureArrivee.minute);
-    await api.addEtape(trajetId, _relaisArrivee!['id'], arrDt.toUtc().toIso8601String());
+    final arrPerso = _relaisArrivee!['type'] == 'perso';
+    await api.addEtape(trajetId, _relaisArrivee!['id'], arrDt.toUtc().toIso8601String(), perso: arrPerso);
 
     setState(() => _loading = false);
     if (mounted) {
@@ -465,31 +485,47 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
 
 class _RelaisPickerSheet extends StatefulWidget {
   final List<dynamic> relaisList;
+  final List<dynamic> persoList;
   final String label;
-  const _RelaisPickerSheet({required this.relaisList, required this.label});
+  const _RelaisPickerSheet({required this.relaisList, required this.persoList, required this.label});
 
   @override
   State<_RelaisPickerSheet> createState() => _RelaisPickerSheetState();
 }
 
-class _RelaisPickerSheetState extends State<_RelaisPickerSheet> {
+class _RelaisPickerSheetState extends State<_RelaisPickerSheet> with SingleTickerProviderStateMixin {
   String _search = '';
+  late TabController _tabCtrl;
 
-  List<dynamic> get _filtered {
-    if (_search.isEmpty) return widget.relaisList;
+  @override
+  void initState() {
+    super.initState();
+    // Si pas de relais officiels, on ouvre direct sur l'onglet perso
+    final initialIndex = widget.relaisList.isEmpty && widget.persoList.isNotEmpty ? 1 : 0;
+    _tabCtrl = TabController(length: 2, vsync: this, initialIndex: initialIndex);
+  }
+
+  @override
+  void dispose() { _tabCtrl.dispose(); super.dispose(); }
+
+  List<dynamic> _filter(List<dynamic> source) {
+    if (_search.isEmpty) return source;
     final q = _search.toLowerCase();
-    return widget.relaisList.where((r) {
-      final nom = (r['nomRelais'] ?? '').toString().toLowerCase();
-      final ville = (r['ville'] ?? '').toString().toLowerCase();
-      final dept = (r['departement'] ?? '').toString().toLowerCase();
-      final region = (r['region'] ?? '').toString().toLowerCase();
-      final pays = (r['pays'] ?? '').toString().toLowerCase();
+    return source.where((r) {
+      final m = r as Map<String, dynamic>;
+      final nom = (m['nomRelais'] ?? m['nom'] ?? '').toString().toLowerCase();
+      final ville = (m['ville'] ?? '').toString().toLowerCase();
+      final dept = (m['departement'] ?? '').toString().toLowerCase();
+      final region = (m['region'] ?? '').toString().toLowerCase();
+      final pays = (m['pays'] ?? '').toString().toLowerCase();
       return nom.contains(q) || ville.contains(q) || dept.contains(q) || region.contains(q) || pays.contains(q);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final relaisFiltered = _filter(widget.relaisList);
+    final persoFiltered = _filter(widget.persoList);
     return DraggableScrollableSheet(
       initialChildSize: 0.8, maxChildSize: 0.95, minChildSize: 0.5, expand: false,
       builder: (ctx, scrollCtrl) => Container(
@@ -500,42 +536,104 @@ class _RelaisPickerSheetState extends State<_RelaisPickerSheet> {
                 decoration: BoxDecoration(color: AppTheme.border, borderRadius: BorderRadius.circular(2))),
             Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(widget.label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
             const SizedBox(height: 10),
+            TabBar(
+              controller: _tabCtrl,
+              labelColor: AppTheme.primary,
+              unselectedLabelColor: AppTheme.textMuted,
+              tabs: [
+                Tab(text: 'Relais officiels (${widget.relaisList.length})'),
+                Tab(text: 'Mes points perso (${widget.persoList.length})'),
+              ],
+            ),
+            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
-                decoration: const InputDecoration(labelText: 'RECHERCHER', hintText: 'Ville, département, région...', prefixIcon: Icon(Icons.search, size: 20)),
+                decoration: const InputDecoration(labelText: 'RECHERCHER', hintText: 'Nom, ville, département...', prefixIcon: Icon(Icons.search, size: 20)),
                 onChanged: (v) => setState(() => _search = v),
               ),
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: ListView.builder(
-                controller: scrollCtrl, padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _filtered.length,
-                itemBuilder: (ctx, i) {
-                  final r = _filtered[i] as Map<String, dynamic>;
-                  final horaires = r['heureOuverture'] != null ? '${r['heureOuverture']} — ${r['heureFermeture']}' : 'Horaires non définis';
-                  return Card(
-                    child: ListTile(
-                      onTap: () => Navigator.pop(context, r),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      leading: const Icon(Icons.store, color: AppTheme.primary),
-                      title: Text(r['nomRelais'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${r['ville']}, ${r['departement'] ?? ''} — ${r['pays']}', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                          Text(horaires, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+              child: TabBarView(
+                controller: _tabCtrl,
+                children: [
+                  _buildRelaisList(relaisFiltered, scrollCtrl),
+                  _buildPersoList(persoFiltered, scrollCtrl),
+                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRelaisList(List<dynamic> items, ScrollController scrollCtrl) {
+    if (items.isEmpty) {
+      return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Aucun relais officiel correspondant.', style: TextStyle(color: AppTheme.textMuted))));
+    }
+    return ListView.builder(
+      controller: scrollCtrl, padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: items.length,
+      itemBuilder: (ctx, i) {
+        final r = items[i] as Map<String, dynamic>;
+        final horaires = r['heureOuverture'] != null ? '${r['heureOuverture']} — ${r['heureFermeture']}' : 'Horaires non définis';
+        return Card(
+          child: ListTile(
+            onTap: () => Navigator.pop(context, r),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            leading: const Icon(Icons.store, color: AppTheme.primary),
+            title: Text(r['nomRelais'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${r['ville']}, ${r['departement'] ?? ''} — ${r['pays']}', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                Text(horaires, style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPersoList(List<dynamic> items, ScrollController scrollCtrl) {
+    if (items.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Aucun point perso.\n\nCréez-en depuis Profil → Mes points perso pour utiliser vos lieux personnels (garage, atelier…) comme étape de trajet.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textMuted),
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      controller: scrollCtrl, padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: items.length,
+      itemBuilder: (ctx, i) {
+        final p = items[i] as Map<String, dynamic>;
+        return Card(
+          child: ListTile(
+            onTap: () => Navigator.pop(context, p),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            leading: const Icon(Icons.place, color: AppTheme.accent),
+            title: Text(p['nom'] ?? p['nomRelais'] ?? '—', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${p['adresse'] ?? ''}', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                Text('${p['codePostal'] ?? ''} ${p['ville']} — ${p['pays']}', style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                if ((p['horaires'] ?? '').toString().isNotEmpty)
+                  Text('🕒 ${p['horaires']}', style: const TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

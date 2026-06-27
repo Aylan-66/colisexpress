@@ -10,9 +10,12 @@ public class PointTransporteur
     public Guid TransporteurId { get; set; }
     public string Nom { get; set; } = string.Empty;
     public string Adresse { get; set; } = string.Empty;
+    public string? CodePostal { get; set; }
     public string Ville { get; set; } = string.Empty;
     public string Pays { get; set; } = "France";
     public string? Telephone { get; set; }
+    public string? Horaires { get; set; } // ex: "Lun-Ven 9h-18h, Sam 10h-13h"
+    public string? Instructions { get; set; } // accès, digicode, étage, signalement
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
