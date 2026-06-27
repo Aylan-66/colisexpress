@@ -141,6 +141,7 @@ public class RechercheService : IRechercheService
             TypeVehicule = transporteur?.TypeVehicule ?? "Non spécifié",
             Prix = prix,
             PoidsRecherche = poids,
+            PrixDynamique = t.Tarif is not null,
             RelaisDepartId = pointId,
             RelaisDepartNom = pointNom,
             RelaisDepartAdresse = pointAdresse,
@@ -173,13 +174,24 @@ public class RechercheService : IRechercheService
 
     public static decimal CalculerPrix(Trajet t, decimal poids, bool urgent, bool fragile)
     {
-        decimal basePrix = t.ModeTarification switch
+        // Si un Tarif paramétrable est associé, on l'utilise en priorité (3 paliers).
+        // Sinon fallback sur les anciens champs PrixParColis / PrixAuKilo.
+        decimal basePrix;
+        if (t.Tarif is not null)
         {
-            ModeTarification.PrixParColis => t.PrixParColis ?? 0,
-            ModeTarification.PrixAuKilo => (t.PrixAuKilo ?? 0) * poids,
-            ModeTarification.Forfait => (t.PrixParColis ?? 0) + (t.PrixAuKilo ?? 0) * poids,
-            _ => 0
-        };
+            // Sans dimensions on calcule sur palier standard / lourd (pas de hors gabarit possible)
+            basePrix = t.Tarif.CalculerPrix(poids, null, null, null);
+        }
+        else
+        {
+            basePrix = t.ModeTarification switch
+            {
+                ModeTarification.PrixParColis => t.PrixParColis ?? 0,
+                ModeTarification.PrixAuKilo => (t.PrixAuKilo ?? 0) * poids,
+                ModeTarification.Forfait => (t.PrixParColis ?? 0) + (t.PrixAuKilo ?? 0) * poids,
+                _ => 0
+            };
+        }
 
         if (urgent) basePrix += t.SupplementUrgent ?? 0;
         if (fragile) basePrix += t.SupplementFragile ?? 0;

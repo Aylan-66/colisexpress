@@ -342,14 +342,24 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
     final o = _ordre(statut);
     final estFinal = statut == 'Refuse' || statut == 'Annulee' || statut == 'LivraisonCloturee' || statut == 'RetireParDestinataire';
 
-    // Prise en charge : possible uniquement quand le client a déposé (DeposeParClient)
-    final canPriseEnCharge = o == 7;
+    // Détection point perso (le transporteur fait tout sans relais officiel)
+    final departPerso = _colis?['departEstPointPerso'] == true;
+    final arriveePerso = _colis?['arriveeEstPointPerso'] == true;
+
+    // Prise en charge : normalement quand le client a déposé (DeposeParClient, o=7).
+    // Si le départ est un point perso, le transporteur reçoit directement du client → autorisé dès CodeColisGenere (o>=5)
+    final canPriseEnCharge = o == 7 || (departPerso && o >= 5 && o < 8);
     // Pris en charge = a atteint au moins ReceptionneParTransporteur
     final prisEnCharge = o >= 8;
     // En transit : possible si pris en charge mais pas encore en transit
     final canEnTransit = prisEnCharge && o < 10;
     // Arrivé destination : possible uniquement si en transit
     final canArrive = o == 10;
+    // Disponible au retrait : SEULEMENT si arrivée = point perso (sinon c'est le relais qui le fait)
+    // → après ArriveDansPaysDest et avant RetireParDestinataire
+    final canDispoRetrait = arriveePerso && o >= 11 && o < 13;
+    // Confirmer retrait par destinataire : si point perso, le transporteur le fait
+    final canConfirmerRetrait = arriveePerso && o == 13;
     // Incident : possible une fois pris en charge et tant que pas livré
     final canIncident = prisEnCharge && o < 14 && !estFinal;
     // Refuser : uniquement AVANT prise en charge
@@ -360,12 +370,73 @@ class _ColisDetailScreenState extends State<ColisDetailScreen> {
           enabled: canPriseEnCharge, onTap: _prendreEnChargeAvecPhoto),
       _actionButton('En transit', 'EnTransit', Icons.local_shipping, AppTheme.primary, enabled: canEnTransit),
       _actionButton('Arrivé destination', 'ArriveDansPaysDest', Icons.flag, AppTheme.success, enabled: canArrive),
+      if (arriveePerso)
+        _actionButton('Disponible au retrait (point perso)', 'DisponibleAuRetrait', Icons.check_circle_outline, AppTheme.accent,
+            enabled: canDispoRetrait),
+      if (arriveePerso)
+        _actionButton('Confirmer retrait par destinataire', null, Icons.verified_user, AppTheme.success,
+            enabled: canConfirmerRetrait, onTap: _confirmerRetraitPerso),
       _actionButton('Signaler incident', 'Incident', Icons.warning, AppTheme.danger, enabled: canIncident),
       _actionButton('Refuser le colis', null, Icons.block, AppTheme.danger, enabled: canRefuser, onTap: _refuserColis),
       // Reçu de dépôt disponible dès que le colis a été pris en charge
       _actionButton('Voir / partager le reçu', null, Icons.receipt, AppTheme.accent,
           enabled: prisEnCharge, onTap: _ouvrirRecu),
     ];
+  }
+
+  Future<void> _confirmerRetraitPerso() async {
+    final codeAttendu = _colis?['codeRetrait']?.toString() ?? '';
+    final codeCtrl = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmer retrait par destinataire'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Demande au destinataire son code de retrait (4 chiffres).'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: codeCtrl,
+              decoration: const InputDecoration(labelText: 'Code de retrait', hintText: '____'),
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, codeCtrl.text.trim()),
+            child: const Text('Vérifier'),
+          ),
+        ],
+      ),
+    );
+    if (code == null || code.isEmpty) return;
+    if (code != codeAttendu) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Code de retrait incorrect.'), backgroundColor: AppTheme.danger),
+      );
+      return;
+    }
+    final api = context.read<ApiService>();
+    if (!mounted) return;
+    final res = await api.updateStatutColis(widget.codeColis, 'RetireParDestinataire', null);
+    if (!mounted) return;
+    if (res.containsKey('error')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res['error']), backgroundColor: AppTheme.danger),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Retrait confirmé. Colis livré ✓'), backgroundColor: AppTheme.success),
+      );
+      _load();
+    }
   }
 
   Future<void> _ouvrirRecu() async {

@@ -91,6 +91,7 @@
                          data-lat="@(offre.RelaisDepartLatitude!.Value.ToString(inv))"
                          data-lng="@(offre.RelaisDepartLongitude!.Value.ToString(inv))"
                          data-prix="@offre.Prix.ToString(inv)"
+                         data-prix-dynamique="@(offre.PrixDynamique.ToString().ToLowerInvariant())"
                          data-note="@offre.NoteMoyenne.ToString(inv)"
                          data-type="@offre.TypePointDepart"
                          data-duree-h="@((offre.DateEstimeeArrivee - offre.DateDepart).TotalHours.ToString("0", inv))">
@@ -116,8 +117,22 @@
                                 <div class="relais-distance" data-distance-slot></div>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:22px;font-weight:800;color:#1B4965;">@offre.Prix.ToString("0.00") €</div>
-                                <div style="font-size:11px;color:#6b7280;">prix transport</div>
+                                @if (offre.PrixDynamique && offre.Prix > 0)
+                                {
+                                    <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;">Dès</div>
+                                    <div style="font-size:22px;font-weight:800;color:#1B4965;">@offre.Prix.ToString("0.00") €</div>
+                                    <div style="font-size:11px;color:#6b7280;" title="Le prix final dépend des dimensions et du poids réel saisis à la réservation">prix indicatif</div>
+                                }
+                                else if (offre.Prix > 0)
+                                {
+                                    <div style="font-size:22px;font-weight:800;color:#1B4965;">@offre.Prix.ToString("0.00") €</div>
+                                    <div style="font-size:11px;color:#6b7280;">prix transport</div>
+                                }
+                                else
+                                {
+                                    <div style="font-size:16px;font-weight:800;color:#F4A261;">Tarif dynamique</div>
+                                    <div style="font-size:11px;color:#6b7280;">selon dimensions</div>
+                                }
                             </div>
                         </div>
 
@@ -241,12 +256,16 @@
                 const titre = c.querySelector('div[style*="font-weight:800"]')?.textContent || 'Relais';
                 const ligneAdr = c.querySelectorAll('div[style*="color:#6b7280"]')[0]?.textContent || '';
                 const transp = c.querySelector('div[style*="background:#F7F5F2"] div[style*="font-weight:700"]')?.textContent || '';
-                const prix = c.dataset.prix;
+                const prix = parseFloat(c.dataset.prix);
+                const prixDyn = c.dataset.prixDynamique === 'true';
                 const m = L.marker([lat, lng], { icon: type === 'perso' ? iconPerso : iconOfficiel });
                 const badge = type === 'perso'
                     ? '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:800;padding:2px 6px;border-radius:8px;">Point perso transporteur</span>'
                     : '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:800;padding:2px 6px;border-radius:8px;">Point relais officiel</span>';
-                m.bindPopup(`${badge}<br><strong>${titre}</strong><br>${ligneAdr}<br><span style="color:#6b7280;font-size:12px;">Transporteur : ${transp}</span><br><strong style="color:#1B4965;">${prix} €</strong>`);
+                const prixHtml = prix > 0
+                    ? `<strong style="color:#1B4965;">${prixDyn ? 'Dès ' : ''}${prix.toFixed(2)} €</strong>${prixDyn ? '<br><span style="color:#6b7280;font-size:11px;">prix selon dimensions</span>' : ''}`
+                    : `<strong style="color:#F4A261;">Tarif dynamique</strong><br><span style="color:#6b7280;font-size:11px;">selon dimensions</span>`;
+                m.bindPopup(`${badge}<br><strong>${titre}</strong><br>${ligneAdr}<br><span style="color:#6b7280;font-size:12px;">Transporteur : ${transp}</span><br>${prixHtml}`);
                 markers[id] = m;
             });
 

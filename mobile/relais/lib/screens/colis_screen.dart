@@ -20,6 +20,7 @@ class _ColisScreenState extends State<ColisScreen> {
   DateTime? _filtreDate;   // filtre par date de dépôt ou retrait
   int _perPage = 20;
   int _currentPage = 1;
+  bool _sortDescendant = true; // true = plus récent en premier (par défaut)
 
   @override
   void initState() {
@@ -77,7 +78,12 @@ class _ColisScreenState extends State<ColisScreen> {
       if (q.isEmpty) return true;
       return code.contains(q) || dest.contains(q) || statut.toLowerCase().contains(q)
           || trajet.contains(q);
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        final da = DateTime.tryParse(a['dateCreation']?.toString() ?? '') ?? DateTime(1970);
+        final db = DateTime.tryParse(b['dateCreation']?.toString() ?? '') ?? DateTime(1970);
+        return _sortDescendant ? db.compareTo(da) : da.compareTo(db);
+      });
   }
 
   Future<void> _pickFiltreDate() async {
@@ -245,10 +251,24 @@ class _ColisScreenState extends State<ColisScreen> {
             ),
           ),
           if (!_loading && _filtered.isNotEmpty)
-            PerPageSelector(
-              value: _perPage,
-              totalItems: _filtered.length,
-              onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+            Row(
+              children: [
+                Expanded(
+                  child: PerPageSelector(
+                    value: _perPage,
+                    totalItems: _filtered.length,
+                    onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: ActionChip(
+                    avatar: Icon(_sortDescendant ? Icons.arrow_downward : Icons.arrow_upward, size: 16),
+                    label: Text(_sortDescendant ? 'Récents' : 'Anciens', style: const TextStyle(fontSize: 12)),
+                    onPressed: () => setState(() => _sortDescendant = !_sortDescendant),
+                  ),
+                ),
+              ],
             ),
           Expanded(
             child: _loading

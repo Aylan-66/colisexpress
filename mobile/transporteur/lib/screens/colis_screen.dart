@@ -18,6 +18,7 @@ class _ColisScreenState extends State<ColisScreen> {
   bool _loading = true;
   String _filtre = 'Tous';
   int _perPage = 20;
+  bool _sortDescendant = true;
   int _currentPage = 1;
 
   // Filtres disponibles → liste de statuts correspondants
@@ -45,11 +46,15 @@ class _ColisScreenState extends State<ColisScreen> {
 
   List<dynamic> get _filtered {
     final statuts = _filtres[_filtre] ?? [];
-    if (statuts.isEmpty) return _commandes;
-    return _commandes.where((c) {
-      final s = (c['statutColis'] ?? '').toString();
-      return statuts.contains(s);
-    }).toList();
+    final list = statuts.isEmpty
+        ? List<dynamic>.from(_commandes)
+        : _commandes.where((c) => statuts.contains((c['statutColis'] ?? '').toString())).toList();
+    list.sort((a, b) {
+      final da = DateTime.tryParse((a['dateCreation'] ?? '').toString()) ?? DateTime(1970);
+      final db = DateTime.tryParse((b['dateCreation'] ?? '').toString()) ?? DateTime(1970);
+      return _sortDescendant ? db.compareTo(da) : da.compareTo(db);
+    });
+    return list;
   }
 
   void _searchByCode() {
@@ -106,10 +111,24 @@ class _ColisScreenState extends State<ColisScreen> {
             ),
           ),
           if (!_loading && _filtered.isNotEmpty)
-            PerPageSelector(
-              value: _perPage,
-              totalItems: _filtered.length,
-              onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+            Row(
+              children: [
+                Expanded(
+                  child: PerPageSelector(
+                    value: _perPage,
+                    totalItems: _filtered.length,
+                    onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: ActionChip(
+                    avatar: Icon(_sortDescendant ? Icons.arrow_downward : Icons.arrow_upward, size: 16),
+                    label: Text(_sortDescendant ? 'Récents' : 'Anciens', style: const TextStyle(fontSize: 12)),
+                    onPressed: () => setState(() => _sortDescendant = !_sortDescendant),
+                  ),
+                ),
+              ],
             ),
           Expanded(
             child: _loading

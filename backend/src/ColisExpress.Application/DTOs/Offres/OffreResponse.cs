@@ -17,6 +17,8 @@ public class OffreResponse
     public string TypeVehicule { get; init; } = string.Empty;
     public decimal Prix { get; init; }
     public decimal PoidsRecherche { get; init; }
+    /// true si le trajet utilise un Tarif paramétrable (prix final dépend des dimensions saisies à la réservation)
+    public bool PrixDynamique { get; init; }
 
     // Point de départ rattaché au trajet (relais officiel OU point perso du transporteur)
     public Guid? RelaisDepartId { get; init; }

@@ -21,6 +21,12 @@ public class ColisRepository : IColisRepository
         _db.Colis
             .Include(c => c.Commande)
                 .ThenInclude(cmd => cmd!.Trajet)
+                    .ThenInclude(t => t!.Etapes)
+                        .ThenInclude(e => e.PointRelais)
+            .Include(c => c.Commande)
+                .ThenInclude(cmd => cmd!.Trajet)
+                    .ThenInclude(t => t!.Etapes)
+                        .ThenInclude(e => e.PointTransporteur)
             .Include(c => c.Evenements.OrderBy(e => e.DateHeure))
             .FirstOrDefaultAsync(c => c.CodeColis == codeColis, ct);
 

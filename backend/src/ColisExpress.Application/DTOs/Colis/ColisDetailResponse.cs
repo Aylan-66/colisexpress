@@ -26,6 +26,11 @@ public class ColisDetailResponse
     public DateTime? DateArriveePrevue { get; init; }
     public DateTime? DateArriveeReelle { get; init; }
 
+    // Type de point relais aux extrémités du segment du client (officiel vs perso du transporteur)
+    // Quand c'est un point perso, c'est le transporteur lui-même qui marque la réception/disponibilité au retrait
+    public bool DepartEstPointPerso { get; init; }
+    public bool ArriveeEstPointPerso { get; init; }
+
     public IReadOnlyList<EvenementColisResponse> Evenements { get; init; } = Array.Empty<EvenementColisResponse>();
 }
 

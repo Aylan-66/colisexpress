@@ -17,6 +17,18 @@ class _ValidationScreenState extends State<ValidationScreen> {
   List<dynamic>? _colis;
   bool _loading = true;
   int _perPage = 20;
+  bool _sortDescendant = true;
+
+  List<dynamic> get _colisTrie {
+    if (_colis == null) return const [];
+    final list = List<dynamic>.from(_colis!);
+    list.sort((a, b) {
+      final da = DateTime.tryParse((a['dateCreation'] ?? '').toString()) ?? DateTime(1970);
+      final db = DateTime.tryParse((b['dateCreation'] ?? '').toString()) ?? DateTime(1970);
+      return _sortDescendant ? db.compareTo(da) : da.compareTo(db);
+    });
+    return list;
+  }
   int _currentPage = 1;
 
   @override
@@ -136,14 +148,28 @@ class _ValidationScreenState extends State<ValidationScreen> {
                 )
               : Column(
                   children: [
-                    PerPageSelector(
-                      value: _perPage,
-                      totalItems: _colis!.length,
-                      onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PerPageSelector(
+                            value: _perPage,
+                            totalItems: _colisTrie.length,
+                            onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: ActionChip(
+                            avatar: Icon(_sortDescendant ? Icons.arrow_downward : Icons.arrow_upward, size: 16),
+                            label: Text(_sortDescendant ? 'Récents' : 'Anciens', style: const TextStyle(fontSize: 12)),
+                            onPressed: () => setState(() => _sortDescendant = !_sortDescendant),
+                          ),
+                        ),
+                      ],
                     ),
                     Expanded(
                       child: Builder(builder: (_) {
-                        final all = _colis!;
+                        final all = _colisTrie;
                         final totalPages = (all.length / _perPage).ceil().clamp(1, 9999);
                         final page = _currentPage.clamp(1, totalPages);
                         final start = (page - 1) * _perPage;

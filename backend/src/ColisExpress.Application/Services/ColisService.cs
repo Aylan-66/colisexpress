@@ -20,6 +20,19 @@ public class ColisService : IColisService
         var utilisateur = transporteur is null ? null : await _uow.Utilisateurs.GetByIdAsync(transporteur.UtilisateurId, ct);
         var nomT = utilisateur is null ? "—" : $"{utilisateur.Prenom} {utilisateur.Nom}";
 
+        // Détection point perso départ/arrivée : on cherche l'étape dont la ville match le segment du client
+        var etapes = commande?.Trajet?.Etapes?.OrderBy(e => e.Ordre).ToList() ?? new();
+        var villeDep = (commande?.SegmentDepart ?? commande?.Trajet?.VilleDepart ?? "").ToLowerInvariant();
+        var villeArr = (commande?.SegmentArrivee ?? commande?.Trajet?.VilleArrivee ?? "").ToLowerInvariant();
+        var etapeDep = etapes.FirstOrDefault(e =>
+            (e.PointRelais?.Ville?.ToLowerInvariant() == villeDep)
+            || (e.PointTransporteur?.Ville?.ToLowerInvariant() == villeDep));
+        var etapeArr = etapes.FirstOrDefault(e =>
+            (e.PointRelais?.Ville?.ToLowerInvariant() == villeArr)
+            || (e.PointTransporteur?.Ville?.ToLowerInvariant() == villeArr));
+        var departEstPerso = etapeDep?.PointTransporteurId.HasValue == true;
+        var arriveeEstPerso = etapeArr?.PointTransporteurId.HasValue == true;
+
         return new ColisDetailResponse
         {
             Id = colis.Id,
@@ -41,6 +54,8 @@ public class ColisService : IColisService
             DateArriveeReelle = colis.Statut == Domain.Enums.StatutColis.LivraisonCloturee || colis.Statut == Domain.Enums.StatutColis.RetireParDestinataire
                 ? colis.Evenements.Where(e => e.NouveauStatut == Domain.Enums.StatutColis.RetireParDestinataire).Select(e => (DateTime?)e.DateHeure).FirstOrDefault()
                 : null,
+            DepartEstPointPerso = departEstPerso,
+            ArriveeEstPointPerso = arriveeEstPerso,
             Evenements = colis.Evenements
                 .OrderBy(e => e.DateHeure)
                 .Select(e => new EvenementColisResponse

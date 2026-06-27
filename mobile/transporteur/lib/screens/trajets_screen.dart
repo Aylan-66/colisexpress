@@ -27,6 +27,7 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
   // Pagination
   int _perPage = 20;
   int _currentPage = 1;
+  bool _sortDescendant = true; // plus récent en premier par défaut
 
   @override
   void initState() {
@@ -73,7 +74,12 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
       final arr = (t['villeArrivee'] ?? '').toString().toLowerCase();
       final date = (t['dateDepart'] ?? '').toString();
       return dep.contains(q) || arr.contains(q) || date.contains(q);
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        final da = DateTime.tryParse((a as Map)['dateDepart']?.toString() ?? '') ?? DateTime(1970);
+        final db = DateTime.tryParse((b as Map)['dateDepart']?.toString() ?? '') ?? DateTime(1970);
+        return _sortDescendant ? db.compareTo(da) : da.compareTo(db);
+      });
   }
 
   Future<void> _pickFiltreDate() async {
@@ -288,10 +294,24 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
     final visibles = filtres.sublist(start, end);
     return Column(
       children: [
-        PerPageSelector(
-          value: _perPage,
-          totalItems: filtres.length,
-          onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+        Row(
+          children: [
+            Expanded(
+              child: PerPageSelector(
+                value: _perPage,
+                totalItems: filtres.length,
+                onChanged: (n) => setState(() { _perPage = n; _currentPage = 1; }),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: ActionChip(
+                avatar: Icon(_sortDescendant ? Icons.arrow_downward : Icons.arrow_upward, size: 16),
+                label: Text(_sortDescendant ? 'Récents' : 'Anciens', style: const TextStyle(fontSize: 12)),
+                onPressed: () => setState(() => _sortDescendant = !_sortDescendant),
+              ),
+            ),
+          ],
         ),
         Expanded(
           child: RefreshIndicator(
