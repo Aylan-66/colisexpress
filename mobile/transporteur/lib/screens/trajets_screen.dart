@@ -78,11 +78,35 @@ class _TrajetsScreenState extends State<TrajetsScreen> {
 
   Future<void> _pickFiltreDate() async {
     final jours = _joursAvecTrajet;
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+
+    // initialDate DOIT satisfaire selectableDayPredicate (sinon assertion → calendrier ne s'ouvre pas)
+    DateTime initial;
+    if (_filtreDate != null && (jours.isEmpty || jours.contains(_filtreDate!))) {
+      initial = _filtreDate!;
+    } else if (jours.isEmpty || jours.contains(todayOnly)) {
+      initial = today;
+    } else {
+      // On prend le prochain jour avec un trajet, sinon le plus récent passé
+      final futurs = jours.where((d) => !d.isBefore(todayOnly)).toList()..sort();
+      if (futurs.isNotEmpty) {
+        initial = futurs.first;
+      } else {
+        final passes = jours.toList()..sort((a, b) => b.compareTo(a));
+        initial = passes.isNotEmpty ? passes.first : today;
+      }
+    }
+
+    // firstDate/lastDate doivent contenir initial
+    final first = DateTime(initial.year - 1, initial.month, initial.day);
+    final last = DateTime(initial.year + 1, initial.month, initial.day);
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _filtreDate ?? DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last,
       helpText: 'Filtrer par date de départ',
       selectableDayPredicate: jours.isEmpty ? null : (d) => jours.contains(DateTime(d.year, d.month, d.day)),
     );
