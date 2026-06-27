@@ -67,8 +67,8 @@
             <select id="reso-radius">
                 <option value="0">Aucun (tous)</option>
                 <option value="10">10 km</option>
-                <option value="25" selected>25 km</option>
-                <option value="50">50 km</option>
+                <option value="25">25 km</option>
+                <option value="50" selected>50 km</option>
                 <option value="100">100 km</option>
                 <option value="200">200 km</option>
                 <option value="500">500 km</option>
@@ -139,7 +139,9 @@
                     </div>
                 }
                 <div id="reso-empty-msg" class="reso-empty-radius" style="display:none;">
-                    Aucun point relais dans ce rayon. Augmentez le rayon ou désactivez-le.
+                    Aucun point relais dans ce rayon.
+                    <button type="button" id="reso-expand-radius" class="web-btn outline sm" style="margin-left:8px;">Élargir à 200 km</button>
+                    ou <button type="button" id="reso-clear-radius" class="web-btn outline sm" style="margin-left:4px;">Voir tous</button>
                 </div>
                 <button type="button" id="reso-more" class="web-btn outline" style="display:none;width:100%;margin-top:8px;"></button>
 
@@ -379,6 +381,16 @@
             document.getElementById('reso-more').addEventListener('click', () => {
                 pageLimit += PAGE_SIZE;
                 applyFiltersAndSort();
+            });
+            const expandBtn = document.getElementById('reso-expand-radius');
+            const clearBtn = document.getElementById('reso-clear-radius');
+            if (expandBtn) expandBtn.addEventListener('click', () => {
+                document.getElementById('reso-radius').value = '200';
+                pageLimit = PAGE_SIZE; applyFiltersAndSort(); recenterMap();
+            });
+            if (clearBtn) clearBtn.addEventListener('click', () => {
+                document.getElementById('reso-radius').value = '0';
+                pageLimit = PAGE_SIZE; applyFiltersAndSort(); recenterMap();
             });
             btn.addEventListener('click', () => tryGeoloc(false));
 

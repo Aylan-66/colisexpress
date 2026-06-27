@@ -51,9 +51,33 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
     final actifs = res.where((t) => (t as Map<String, dynamic>)['estActif'] == true).cast<Map<String, dynamic>>().toList();
     setState(() {
       _tarifs = actifs;
-      if (actifs.isNotEmpty && _tarifId == null) _tarifId = actifs.first['id'];
-      if (actifs.isEmpty) _utiliserTarif = false;
+      _ajusterTarifSelectionne();
     });
+  }
+
+  /// Tarifs applicables à la date du trajet (filtre période haute/basse saison).
+  /// Un tarif est applicable si _dateDepart est dans [DateDebut, DateFin] (bornes nullable).
+  List<Map<String, dynamic>> get _tarifsApplicables {
+    final d = DateUtils.dateOnly(_dateDepart);
+    return _tarifs.where((t) {
+      final dd = DateTime.tryParse(t['dateDebut']?.toString() ?? '');
+      final df = DateTime.tryParse(t['dateFin']?.toString() ?? '');
+      if (dd != null && d.isBefore(DateUtils.dateOnly(dd))) return false;
+      if (df != null && d.isAfter(DateUtils.dateOnly(df))) return false;
+      return true;
+    }).toList();
+  }
+
+  /// Si le tarif sélectionné n'est plus applicable (changement de date), on retombe sur le premier dispo.
+  void _ajusterTarifSelectionne() {
+    final dispos = _tarifsApplicables;
+    if (dispos.isEmpty) {
+      _tarifId = null;
+      _utiliserTarif = false;
+      return;
+    }
+    final stillValid = _tarifId != null && dispos.any((t) => t['id'] == _tarifId);
+    if (!stillValid) _tarifId = dispos.first['id'];
   }
 
   // Étapes inline
@@ -72,6 +96,7 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
       setState(() {
         if (isDepart) { _dateDepart = picked; if (_dateArrivee.isBefore(_dateDepart)) _dateArrivee = _dateDepart.add(const Duration(days: 3)); }
         else _dateArrivee = picked;
+        _ajusterTarifSelectionne();
       });
     }
   }
@@ -344,13 +369,15 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: _utiliserTarif,
-              onChanged: _tarifs.isEmpty ? null : (v) => setState(() => _utiliserTarif = v),
+              onChanged: _tarifsApplicables.isEmpty ? null : (v) => setState(() => _utiliserTarif = v),
               title: const Text('Utiliser un tarif enregistré', style: TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(_tarifs.isEmpty
                   ? 'Aucun tarif enregistré — créez-en un d\'abord'
-                  : 'Sélection d\'un de vos templates de tarifs'),
+                  : (_tarifsApplicables.isEmpty
+                      ? 'Aucun tarif valide pour la date du trajet (tous expirés ou pas encore actifs)'
+                      : 'Sélection d\'un de vos templates de tarifs (filtrés selon la date du trajet)')),
             ),
-            if (_utiliserTarif && _tarifs.isNotEmpty)
+            if (_utiliserTarif && _tarifsApplicables.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Column(
@@ -359,7 +386,7 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
                     DropdownButtonFormField<String>(
                       initialValue: _tarifId,
                       decoration: const InputDecoration(labelText: 'TARIF'),
-                      items: _tarifs.map((t) => DropdownMenuItem(
+                      items: _tarifsApplicables.map((t) => DropdownMenuItem(
                         value: t['id'] as String,
                         child: Text(t['nom']?.toString() ?? '—'),
                       )).toList(),

@@ -36,13 +36,16 @@ public class TrajetRepository : ITrajetRepository
             .Include(t => t.RelaisDepart)
             .Include(t => t.Etapes)
                 .ThenInclude(e => e.PointRelais)
+            .Include(t => t.Etapes)
+                .ThenInclude(e => e.PointTransporteur)
             .Where(t => t.Statut == StatutTrajet.Actif
                 && t.CapaciteMaxPoids >= poidsKg
                 && t.CapaciteRestante > 0
                 && t.DateDepart >= dateMin
                 && (
                     t.VilleArrivee.ToLower() == arr
-                    || t.Etapes.Any(e => e.PointRelais!.Ville.ToLower() == arr)
+                    || t.Etapes.Any(e => e.PointRelais != null && e.PointRelais.Ville.ToLower() == arr)
+                    || t.Etapes.Any(e => e.PointTransporteur != null && e.PointTransporteur.Ville.ToLower() == arr)
                 ))
             .OrderBy(t => t.DateDepart)
             .ToListAsync(ct);

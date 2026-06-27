@@ -225,25 +225,26 @@ class _TarifEditScreenState extends State<TarifEditScreen> {
   Widget _datePickerField(String label, DateTime? value, ValueChanged<DateTime?> onChanged) {
     final txt = value != null
         ? '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}'
-        : '—';
-    return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: value ?? DateTime.now(),
-          firstDate: DateTime.now().subtract(const Duration(days: 365)),
-          lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
-        );
-        if (picked != null) onChanged(picked);
-      },
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          suffixIcon: value != null
-              ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => onChanged(null))
-              : const Icon(Icons.calendar_today, size: 18),
-        ),
-        child: Text(txt, style: const TextStyle(fontSize: 14)),
+        : '';
+    Future<void> pick() async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: value ?? DateTime.now(),
+        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+        lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+      );
+      if (picked != null) onChanged(picked);
+    }
+    return TextField(
+      controller: TextEditingController(text: txt),
+      readOnly: true,
+      onTap: pick,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: '—',
+        suffixIcon: value != null
+            ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => onChanged(null))
+            : IconButton(icon: const Icon(Icons.calendar_today, size: 18), onPressed: pick),
       ),
     );
   }
