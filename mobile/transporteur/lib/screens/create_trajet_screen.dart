@@ -168,8 +168,10 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
       'villeDepart': _villeDepartCtrl.text.trim(),
       'paysArrivee': _paysArrivee,
       'villeArrivee': _villeArriveeCtrl.text.trim(),
-      'dateDepart': _dateDepart.toUtc().toIso8601String(),
-      'dateEstimeeArrivee': _dateArrivee.toUtc().toIso8601String(),
+      // Envoyé à midi UTC de la date choisie : évite le décalage d'un jour dû au fuseau
+      // (14/7 00:00 local CEST → 13/7 22:00 UTC = mauvais jour affiché)
+      'dateDepart': DateTime.utc(_dateDepart.year, _dateDepart.month, _dateDepart.day, 12).toIso8601String(),
+      'dateEstimeeArrivee': DateTime.utc(_dateArrivee.year, _dateArrivee.month, _dateArrivee.day, 12).toIso8601String(),
       'capaciteMaxPoids': double.tryParse(_poidsMaxCtrl.text) ?? 500,
       'nombreMaxColis': int.tryParse(_nbColisCtrl.text) ?? 30,
       'modeTarification': _modeTarif == 'PrixParColis' ? 0 : (_modeTarif == 'PrixAuKilo' ? 1 : 2),
