@@ -373,9 +373,11 @@ public class TrajetsController : ControllerBase
 
         var heureArrivee = DateTime.SpecifyKind(request.HeureEstimeeArrivee, DateTimeKind.Utc);
 
-        // Pour les points perso, on considère toujours "ouvert" (le transporteur gère lui-même)
-        var jour = heureArrivee.DayOfWeek;
-        var heure = TimeOnly.FromDateTime(heureArrivee);
+        // Les horaires du relais sont saisis en heure locale (Europe/Paris).
+        // On convertit l'instant UTC en heure locale avant le check ouvert/fermé.
+        var heureLocale = ConvertirUtcVersHeureRelais(heureArrivee);
+        var jour = heureLocale.DayOfWeek;
+        var heure = TimeOnly.FromDateTime(heureLocale);
         var ouvert = relais?.EstOuvert(jour, heure) ?? true;
 
         var maxOrdre = await _db.EtapesTrajets
@@ -577,12 +579,13 @@ public class TrajetsController : ControllerBase
         var heureArrivee = DateTime.SpecifyKind(request.HeureEstimeeArrivee, DateTimeKind.Utc);
         etape.HeureEstimeeArrivee = heureArrivee;
 
-        // Re-check if relay is open at the new time
+        // Re-check if relay is open at the new time (comparaison en heure locale du relais)
         var ouvert = true;
         if (etape.PointRelais is not null)
         {
-            var jour = heureArrivee.DayOfWeek;
-            var heure = TimeOnly.FromDateTime(heureArrivee);
+            var heureLocaleModif = ConvertirUtcVersHeureRelais(heureArrivee);
+            var jour = heureLocaleModif.DayOfWeek;
+            var heure = TimeOnly.FromDateTime(heureLocaleModif);
             ouvert = etape.PointRelais.EstOuvert(jour, heure);
         }
         etape.RelaisOuvertALArrivee = ouvert;
@@ -956,6 +959,23 @@ public class TrajetsController : ControllerBase
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         return await _uow.Transporteurs.GetByUtilisateurIdAsync(userId, ct);
+    }
+
+    /// Convertit un instant UTC vers l'heure locale utilisée pour saisir les horaires des relais.
+    /// Le business couvre France + Maghreb → on utilise Europe/Paris comme référence commune.
+    private static DateTime ConvertirUtcVersHeureRelais(DateTime instantUtc)
+    {
+        try
+        {
+            // Linux (Render) : "Europe/Paris" — Windows : "Romance Standard Time"
+            var tz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Paris");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(instantUtc, DateTimeKind.Utc), tz);
+        }
+        catch
+        {
+            // Fallback : +2h (approximation été)
+            return instantUtc.AddHours(2);
+        }
     }
 }
 

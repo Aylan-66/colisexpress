@@ -86,9 +86,11 @@
 
 @section Scripts {
     <script>
+        // Corridors business : France + Maghreb + Espagne (transit)
+        const CORRIDOR_COUNTRIES = 'fr,dz,ma,tn,es';
+
         // Autocomplétion Nominatim (OpenStreetMap, gratuit, sans clé)
-        // Affiche les villes avec département/région, élimine l'ambiguïté (ex: Chelles 77 vs Chelles 60)
-        function setupAutocomplete(inputId, listId, latId, lngId, restrictFr) {
+        function setupAutocomplete(inputId, listId, latId, lngId, onSelect) {
             const input = document.getElementById(inputId);
             const list = document.getElementById(listId);
             const latField = latId ? document.getElementById(latId) : null;
@@ -96,11 +98,14 @@
             let timer = null;
             let activeIdx = -1;
             let items = [];
+            let choisi = false; // true dès qu'une ville a été sélectionnée dans la liste
 
             function close() { list.style.display = 'none'; activeIdx = -1; }
             function clearStored() {
                 if (latField) latField.value = '';
                 if (lngField) lngField.value = '';
+                choisi = false;
+                input.dataset.chosen = 'false';
             }
 
             input.addEventListener('input', () => {
@@ -114,17 +119,23 @@
                             q: q,
                             format: 'json',
                             addressdetails: '1',
-                            limit: '7',
+                            limit: '10',
                             'accept-language': 'fr',
+                            countrycodes: CORRIDOR_COUNTRIES,
                             featuretype: 'city'
                         });
-                        if (restrictFr) params.set('countrycodes', 'fr');
                         const r = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
                         const data = await r.json();
-                        // Filtrer/ranker : place_rank ≤ 18 = ville/commune, puis tri par importance desc
+                        // Filtrer : villes/communes (place_rank ≤ 18) — plus petit = plus grand centre
+                        // Tri : place_rank asc (grandes villes d'abord) puis importance desc
                         items = (data || [])
-                            .filter(d => parseInt(d.place_rank ?? 30) <= 20)
-                            .sort((a, b) => (parseFloat(b.importance) || 0) - (parseFloat(a.importance) || 0));
+                            .filter(d => parseInt(d.place_rank ?? 30) <= 18)
+                            .sort((a, b) => {
+                                const rA = parseInt(a.place_rank ?? 30), rB = parseInt(b.place_rank ?? 30);
+                                if (rA !== rB) return rA - rB;
+                                return (parseFloat(b.importance) || 0) - (parseFloat(a.importance) || 0);
+                            })
+                            .slice(0, 7);
                         if (items.length === 0) {
                             list.innerHTML = '<div class="ac-empty">Aucune correspondance</div>';
                             list.style.display = 'block';
@@ -133,9 +144,8 @@
                         list.innerHTML = items.map((d, i) => {
                             const ville = d.address?.city || d.address?.town || d.address?.village || d.address?.municipality || d.display_name?.split(',')[0] || '';
                             const dept = d.address?.county || d.address?.state_district || '';
-                            const region = d.address?.state || '';
                             const country = d.address?.country || '';
-                            const detail = [dept, region, country].filter(Boolean).join(' • ');
+                            const detail = [dept, country].filter(Boolean).join(' • ');
                             return `<div class="ac-item" data-idx="${i}">
                                 <div class="ac-item-name">${ville}</div>
                                 <div class="ac-item-detail">${detail}</div>
@@ -144,7 +154,11 @@
                         list.style.display = 'block';
                         activeIdx = -1;
                         list.querySelectorAll('.ac-item').forEach(el => {
-                            el.addEventListener('click', () => choose(parseInt(el.dataset.idx)));
+                            // mousedown au lieu de click : évite que blur ferme avant sélection
+                            el.addEventListener('mousedown', ev => {
+                                ev.preventDefault();
+                                choose(parseInt(el.dataset.idx));
+                            });
                         });
                     } catch (e) {
                         close();
@@ -159,7 +173,10 @@
                 input.value = ville;
                 if (latField) latField.value = d.lat;
                 if (lngField) lngField.value = d.lon;
+                choisi = true;
+                input.dataset.chosen = 'true';
                 close();
+                if (typeof onSelect === 'function') onSelect(ville, d);
             }
 
             input.addEventListener('keydown', e => {
@@ -172,12 +189,36 @@
                 els.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
             });
 
-            document.addEventListener('click', e => {
-                if (!input.parentElement.contains(e.target)) close();
+            // Ne ferme la liste que si on clique VRAIMENT dehors (pas sur les items)
+            document.addEventListener('mousedown', e => {
+                if (input.parentElement.contains(e.target)) return;
+                if (list.contains(e.target)) return;
+                close();
             });
         }
 
-        setupAutocomplete('ac-depart', 'ac-depart-list', 'ac-depart-lat', 'ac-depart-lng', true);
-        setupAutocomplete('ac-arrivee', 'ac-arrivee-list', null, null, false);
+        // Arrivée reste bloquée tant que le départ n'est pas choisi dans la liste
+        const arriveeInput = document.getElementById('ac-arrivee');
+        arriveeInput.disabled = true;
+        arriveeInput.placeholder = 'Choisissez d\'abord une ville de départ';
+
+        setupAutocomplete('ac-depart', 'ac-depart-list', 'ac-depart-lat', 'ac-depart-lng', () => {
+            arriveeInput.disabled = false;
+            arriveeInput.placeholder = 'Alger';
+        });
+        setupAutocomplete('ac-arrivee', 'ac-arrivee-list', null, null, null);
+
+        // Blocage submit si aucune des 2 villes n'a été SÉLECTIONNÉE (juste tapée à la main = refusé)
+        const form = document.querySelector('form.web-form') || document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', e => {
+                const depOk = document.getElementById('ac-depart').dataset.chosen === 'true';
+                const arrOk = document.getElementById('ac-arrivee').dataset.chosen === 'true';
+                if (!depOk || !arrOk) {
+                    e.preventDefault();
+                    alert('Merci de sélectionner une ville dans la liste (départ ET arrivée), sinon la recherche ne peut pas être précise.');
+                }
+            });
+        }
     </script>
 }
