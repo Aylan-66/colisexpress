@@ -276,7 +276,7 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
               final r = await _selectRelais(label: 'Relais de départ');
               if (r != null) setState(() => _relaisDepart = r);
             }),
-            if (_relaisDepart != null)
+            if (_relaisDepart != null) ...[
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: OutlinedButton.icon(
@@ -288,6 +288,8 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
                   },
                 ),
               ),
+              _ouvertureBadge(_relaisDepart!, _dateDepart, _heureDepart),
+            ],
 
             // Étapes intermédiaires
             ..._etapes.asMap().entries.map((entry) {
@@ -326,6 +328,10 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
                         },
                       ),
                     ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: _ouvertureBadge(r, d, h),
+                    ),
                   ],
                 ),
               );
@@ -346,7 +352,7 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
               final r = await _selectRelais(label: 'Relais d\'arrivée');
               if (r != null) setState(() => _relaisArrivee = r);
             }),
-            if (_relaisArrivee != null)
+            if (_relaisArrivee != null) ...[
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: OutlinedButton.icon(
@@ -358,6 +364,8 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
                   },
                 ),
               ),
+              _ouvertureBadge(_relaisArrivee!, _dateArrivee, _heureArrivee),
+            ],
 
             const SizedBox(height: 20), _label('CAPACITÉ'),
             Row(children: [
@@ -507,6 +515,85 @@ class _CreateTrajetScreenState extends State<CreateTrajetScreen> {
             ? IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() { if (label.contains('départ')) _relaisDepart = null; else _relaisArrivee = null; }))
             : const Icon(Icons.chevron_right, color: AppTheme.textMuted),
       ),
+    );
+  }
+
+  /// Badge visuel Ouvert / Fermé selon les horaires du relais à la date+heure choisies.
+  /// - Points perso : toujours "Point perso" en info (le transporteur gère lui-même)
+  /// - Relais officiel : compare joursOuverture + heureOuverture/Fermeture
+  Widget _ouvertureBadge(Map<String, dynamic> relais, DateTime date, TimeOfDay heure) {
+    if (relais['type'] == 'perso') {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.accent.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.place, size: 14, color: AppTheme.accent),
+          SizedBox(width: 6),
+          Flexible(child: Text('Point perso : gestion libre (pas d\'horaires)',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.accent))),
+        ]),
+      );
+    }
+
+    final hoStr = relais['heureOuverture']?.toString();
+    final hfStr = relais['heureFermeture']?.toString();
+    final joursStr = (relais['joursOuverture'] ?? '').toString();
+    if (hoStr == null || hfStr == null || joursStr.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.textMuted.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text('Horaires du relais non renseignés',
+            style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+      );
+    }
+
+    // Match jour
+    const joursMap = {1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven', 6: 'Sam', 7: 'Dim'};
+    final jourStr = joursMap[date.weekday] ?? '';
+    final joursNormalises = joursStr.split(RegExp(r'[,;\s]+')).map((s) => s.trim()).toList();
+    final jourOuvert = joursNormalises.contains(jourStr);
+
+    // Match heure : parse "HH:mm" et compare aux minutes du jour
+    int? toMinutes(String hhmm) {
+      final parts = hhmm.split(':');
+      if (parts.length != 2) return null;
+      final h = int.tryParse(parts[0]), m = int.tryParse(parts[1]);
+      if (h == null || m == null) return null;
+      return h * 60 + m;
+    }
+    final ho = toMinutes(hoStr), hf = toMinutes(hfStr);
+    final actuel = heure.hour * 60 + heure.minute;
+    final heureOk = ho != null && hf != null && actuel >= ho && actuel <= hf;
+
+    final ouvert = jourOuvert && heureOk;
+    final color = ouvert ? AppTheme.success : AppTheme.danger;
+    final icon = ouvert ? Icons.check_circle : Icons.cancel;
+    final label = ouvert
+        ? 'Ouvert (horaires $hoStr–$hfStr, $joursStr)'
+        : !jourOuvert
+            ? 'Fermé ce jour ($jourStr) — horaires : $joursStr'
+            : 'Fermé à cette heure — horaires $hoStr–$hfStr';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Flexible(child: Text(label,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color))),
+      ]),
     );
   }
 }
